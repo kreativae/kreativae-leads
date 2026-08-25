@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { QRCodeSVG } from "qrcode.react";
 import {
   ArrowUpRight,
   Building2,
@@ -27,6 +28,7 @@ import {
   MapPin,
   MessageCircle,
   Phone,
+  QrCode,
   RefreshCw,
   Search,
   Stethoscope,
@@ -636,6 +638,7 @@ function LeadDrawer({
   const [enriching, setEnriching] = useState(false);
   const [enrichMsg, setEnrichMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   useEffect(() => setNotes(lead.notes ?? ""), [lead.id, lead.notes]);
 
@@ -965,7 +968,49 @@ function LeadDrawer({
                   Ligar
                 </a>
               )}
+              {lead.whatsapp && (
+                <button
+                  type="button"
+                  onClick={() => setShowQr((v) => !v)}
+                  aria-expanded={showQr}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12.5px] font-semibold transition-colors ${
+                    showQr
+                      ? "border-volt/50 bg-volt/10 text-volt"
+                      : "border-white/15 text-zinc-200 hover:border-volt/40 hover:text-volt"
+                  }`}
+                >
+                  <QrCode className="h-4 w-4" />
+                  QR Code
+                </button>
+              )}
             </div>
+            {showQr && lead.whatsapp && (
+              <div className="mt-3.5 flex items-center gap-4 rounded-xl border border-white/[0.09] bg-white/[0.03] p-4">
+                {/* Fundo branco fixo: QR sobre fundo escuro nao e lido de forma confiavel. */}
+                <div className="shrink-0 rounded-lg bg-white p-2.5">
+                  <QRCodeSVG
+                    value={`https://wa.me/${lead.whatsapp}`}
+                    size={132}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                  />
+                </div>
+                <div className="min-w-0 text-[12.5px] leading-relaxed text-zinc-400">
+                  <p className="font-semibold text-zinc-200">
+                    Escaneie pelo WhatsApp
+                  </p>
+                  <p className="mt-1">
+                    No celular: WhatsApp → <span className="text-zinc-300">Configurações</span> →
+                    ícone de QR → <span className="text-zinc-300">Escanear</span>. A conversa
+                    com o cliente abre direto, sem precisar salvar o contato.
+                  </p>
+                  <p className="mt-2 font-mono text-[12px] text-zinc-300">
+                    +{lead.whatsapp}
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Site health */}
