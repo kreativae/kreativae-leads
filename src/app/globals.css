@@ -52,6 +52,11 @@ html.light {
   --color-sky-400: #0284c7;
   --color-fuchsia-300: #a21caf;
   --color-fuchsia-400: #c026d3;
+  /* Usados como texto sobre fundos claros translucidos (avisos). */
+  --color-amber-200: #92400e;
+  --color-rose-200: #9f1239;
+  /* Inverte: o "visto" fica sobre o balao volt, que no tema claro e verde escuro. */
+  --color-sky-700: #7dd3fc;
   --grid-c: rgb(10 10 15 / 0.045);
 }
 
