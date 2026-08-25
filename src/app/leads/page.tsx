@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -90,6 +90,14 @@ interface LeadsResponse {
   cities: string[];
 }
 
+interface BatchState {
+  running: boolean;
+  done: number;
+  total: number;
+  novosInstagram: number;
+  falhas: number;
+}
+
 function LeadsApp() {
   const sp = useSearchParams();
   const [data, setData] = useState<LeadsResponse | null>(null);
@@ -104,6 +112,8 @@ function LeadsApp() {
   const [onlyInstagram, setOnlyInstagram] = useState(false);
   const [sort, setSort] = useState<"recent" | "score">("recent");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [batch, setBatch] = useState<BatchState | null>(null);
+  const cancelBatch = useRef(false);
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q), 350);
@@ -137,6 +147,67 @@ function LeadsApp() {
 
   const leads = useMemo(() => data?.leads ?? [], [data]);
   const selected = leads.find((l) => l.id === selectedId) ?? null;
+
+  /**
+   * Enriquecimento em lote. Roda no cliente, um lead por requisicao, com
+   * concorrencia baixa: cada chamada respeita o limite de tempo da Vercel e
+   * uma falha isolada nao derruba a fila inteira.
+   */
+  async function runBatchEnrich() {
+    if (batch?.running) return;
+    let ids: string[] = [];
+    try {
+      const res = await fetch("/api/leads/enrich-queue");
+      if (!res.ok) throw new Error("fila");
+      ids = ((await res.json()) as { ids: string[] }).ids;
+    } catch {
+      setBatch({ running: false, done: 0, total: 0, novosInstagram: 0, falhas: 1 });
+      return;
+    }
+    if (ids.length === 0) {
+      setBatch({ running: false, done: 0, total: 0, novosInstagram: 0, falhas: 0 });
+      return;
+    }
+
+    cancelBatch.current = false;
+    setBatch({ running: true, done: 0, total: ids.length, novosInstagram: 0, falhas: 0 });
+
+    let cursor = 0;
+    const CONCURRENCY = 3;
+
+    async function worker() {
+      while (cursor < ids.length && !cancelBatch.current) {
+        const id = ids[cursor++];
+        let ganhouInstagram = false;
+        let falhou = false;
+        try {
+          const r = await fetch(`/api/leads/${id}/enrich`, { method: "POST" });
+          if (r.ok) {
+            const data = (await r.json()) as { lead?: { instagram: string | null } };
+            ganhouInstagram = !!data.lead?.instagram;
+          } else {
+            falhou = true;
+          }
+        } catch {
+          falhou = true;
+        }
+        setBatch((b) =>
+          b
+            ? {
+                ...b,
+                done: b.done + 1,
+                novosInstagram: b.novosInstagram + (ganhouInstagram ? 1 : 0),
+                falhas: b.falhas + (falhou ? 1 : 0),
+              }
+            : b,
+        );
+      }
+    }
+
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+    setBatch((b) => (b ? { ...b, running: false } : b));
+    fetchLeads();
+  }
 
   function patchLocal(updated: ClientLead) {
     setData((prev) =>
@@ -206,6 +277,15 @@ function LeadsApp() {
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           Atualizar
+        </button>
+        <button
+          type="button"
+          onClick={runBatchEnrich}
+          disabled={batch?.running}
+          className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-400/[0.07] px-4 py-2.5 text-[12.5px] font-semibold text-fuchsia-300 transition-colors hover:border-fuchsia-400/60 disabled:opacity-50"
+        >
+          <Wand2 className={`h-3.5 w-3.5 ${batch?.running ? "animate-pulse" : ""}`} />
+          {batch?.running ? "Enriquecendo…" : "Enriquecer em lote"}
         </button>
       </div>
 
@@ -285,6 +365,74 @@ function LeadsApp() {
           </button>
         </div>
       </div>
+
+      {/* Progresso do enriquecimento em lote */}
+      {batch && (
+        <div className="rounded-2xl border border-fuchsia-400/20 bg-fuchsia-400/[0.04] px-4 py-3.5">
+          {batch.total === 0 ? (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[13px] text-zinc-300">
+                {batch.falhas > 0
+                  ? "Não foi possível montar a fila. Tente novamente."
+                  : "Nenhum lead pendente: todos os que têm site já foram varridos."}
+              </span>
+              <button
+                type="button"
+                onClick={() => setBatch(null)}
+                className="text-[12px] font-semibold text-zinc-500 hover:text-zinc-200"
+              >
+                Fechar
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-[13px] font-semibold text-zinc-200">
+                  {batch.running ? "Varrendo sites…" : "Enriquecimento concluído"}{" "}
+                  <span className="tabular-nums text-fuchsia-300">
+                    {batch.done}/{batch.total}
+                  </span>
+                </span>
+                <div className="flex items-center gap-3 text-[12px]">
+                  <span className="text-fuchsia-300 tabular-nums">
+                    +{batch.novosInstagram} Instagram
+                  </span>
+                  {batch.falhas > 0 && (
+                    <span className="text-zinc-500 tabular-nums">
+                      {batch.falhas} sem resposta
+                    </span>
+                  )}
+                  {batch.running ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        cancelBatch.current = true;
+                      }}
+                      className="font-semibold text-zinc-400 hover:text-rose-300"
+                    >
+                      Cancelar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setBatch(null)}
+                      className="font-semibold text-zinc-500 hover:text-zinc-200"
+                    >
+                      Fechar
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full rounded-full bg-fuchsia-400 transition-all duration-300"
+                  style={{ width: `${Math.round((batch.done / batch.total) * 100)}%` }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Grid */}
       {loading && !data ? (
