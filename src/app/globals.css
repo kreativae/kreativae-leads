@@ -1,0 +1,149 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --color-volt: #d1f64b;
+  --color-volt-dim: #a9cc36;
+  --color-ink: #08080b;
+  --color-panel: #101014;
+  --color-onvolt: #101206;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --grid-c: rgb(255 255 255 / 0.035);
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+/* ---------- Light mode ---------- */
+html.light {
+  color-scheme: light;
+  --color-ink: #f3f3ee;
+  --color-panel: #ffffff;
+  --color-white: #0c0d10;
+  --color-volt: #4e8f0a;
+  --color-volt-dim: #3d7008;
+  --color-onvolt: #ffffff;
+  /* inverted neutrals */
+  --color-zinc-100: #1a1c22;
+  --color-zinc-200: #262932;
+  --color-zinc-300: #3c414d;
+  --color-zinc-400: #535b69;
+  --color-zinc-500: #5f6875;
+  --color-zinc-600: #79828f;
+  --color-zinc-700: #9aa2ae;
+  --color-zinc-800: #c3c8d1;
+  --color-zinc-900: #e6e8ec;
+  /* accent adjustments for light backgrounds */
+  --color-rose-300: #be123c;
+  --color-rose-400: #e11d48;
+  --color-amber-300: #b45309;
+  --color-emerald-300: #047857;
+  --color-emerald-400: #059669;
+  --color-sky-300: #0369a1;
+  --color-sky-400: #0284c7;
+  --grid-c: rgb(10 10 15 / 0.045);
+}
+
+body {
+  background-color: var(--color-ink);
+}
+
+::selection {
+  background: var(--color-volt);
+  color: var(--color-onvolt);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #232329;
+  border-radius: 999px;
+  border: 3px solid var(--color-ink);
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: #c6c9d1;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #33333b;
+}
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #a8adb8;
+}
+
+/* Decorative helpers */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, var(--grid-c) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-c) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.glow-volt {
+  background: radial-gradient(
+    ellipse 55% 45% at 50% 0%,
+    color-mix(in oklab, var(--color-volt) 9%, transparent),
+    transparent 70%
+  );
+}
+
+.noise::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+html.light .noise::after {
+  opacity: 0.035;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* ---------- Leaflet theming ---------- */
+.leaflet-container {
+  background: #14141a;
+  font-family: var(--font-sans);
+}
+html:not(.light) .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92) saturate(0.7);
+}
+.leaflet-control-zoom a {
+  background: #16161c !important;
+  color: #d4d4d8 !important;
+  border-color: rgb(255 255 255 / 0.1) !important;
+}
+html.light .leaflet-control-zoom a {
+  background: #fff !important;
+  color: #27272a !important;
+}
+.leaflet-control-attribution {
+  background: rgb(0 0 0 / 0.55) !important;
+  color: #a1a1aa !important;
+  font-size: 9.5px !important;
+}
+.leaflet-control-attribution a {
+  color: #d1f64b !important;
+}
+html.light .leaflet-control-attribution {
+  background: rgb(255 255 255 / 0.8) !important;
+  color: #52525b !important;
+}
