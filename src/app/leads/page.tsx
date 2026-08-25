@@ -342,7 +342,7 @@ function LeadsApp() {
           type="button"
           onClick={() => runBatch("enrich")}
           disabled={batch?.running}
-          className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-400/[0.07] px-4 py-2.5 text-[12.5px] font-semibold text-fuchsia-300 transition-colors hover:border-fuchsia-400/60 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] px-4 py-2.5 text-[12.5px] font-semibold text-zinc-300 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-50"
         >
           <Wand2
             className={`h-3.5 w-3.5 ${batch?.running && batch.kind === "enrich" ? "animate-pulse" : ""}`}
@@ -1100,7 +1100,7 @@ function LeadDrawer({
                   href={waLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-emerald-400 px-4 py-2.5 text-[12.5px] font-bold text-emerald-950 transition-transform hover:scale-[1.03]"
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-[12.5px] font-bold text-white transition-transform hover:scale-[1.03]"
                 >
                   <MessageCircle className="h-4 w-4" />
                   Chamar no WhatsApp
