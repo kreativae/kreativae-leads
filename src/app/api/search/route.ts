@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, searches, type Lead } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { matchSegment } from "@/lib/constants";
 import {
   buildOverpassQuery,
@@ -178,6 +178,17 @@ export async function POST(req: Request) {
       }
     }
 
+    // Quais ja existiam ANTES desta busca — o upsert abaixo revincula todos,
+    // entao a contagem de novos precisa ser feita agora.
+    let alreadyKnown = new Set<string>();
+    if (normalized.length > 0) {
+      const existing = await db
+        .select({ osmId: leads.osmId })
+        .from(leads)
+        .where(inArray(leads.osmId, normalized.map((n) => n.osmId)));
+      alreadyKnown = new Set(existing.map((e) => e.osmId));
+    }
+
     let inserted: Lead[] = [];
     if (normalized.length > 0) {
       inserted = await db
@@ -216,11 +227,18 @@ export async function POST(req: Request) {
             opportunity: n.website ? "unreviewed" : "no_website",
           })),
         )
-        .onConflictDoNothing({ target: leads.osmId })
+        // Reencontrar um lead o revincula a busca atual, em vez de descarta-lo:
+        // sem isso, "Ver leads" de uma busca repetida vinha vazio. Nao tocamos
+        // em status, notas nem dados de enriquecimento.
+        .onConflictDoUpdate({
+          target: leads.osmId,
+          set: { searchId: search.id, updatedAt: new Date() },
+        })
         .returning();
     }
 
     const durationMs = Date.now() - startedAt;
+    const newCount = normalized.filter((n) => !alreadyKnown.has(n.osmId)).length;
     const withPhoneCount = normalized.filter((l) => l.phone).length;
     const withWhatsappCount = normalized.filter((l) => l.whatsapp).length;
     const noWebsiteCount = normalized.filter((l) => !l.website).length;
@@ -232,7 +250,7 @@ export async function POST(req: Request) {
         state: geoState,
         source,
         resultsCount: normalized.length,
-        newCount: inserted.length,
+        newCount,
         withPhoneCount,
         withWhatsappCount,
         noWebsiteCount,
@@ -252,7 +270,7 @@ export async function POST(req: Request) {
         mode,
         radiusKm: mode === "radius" ? radiusKm : null,
         resultsCount: normalized.length,
-        newCount: inserted.length,
+        newCount,
         withPhoneCount,
         withWhatsappCount,
         noWebsiteCount,

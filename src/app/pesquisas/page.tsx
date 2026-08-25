@@ -141,7 +141,11 @@ export default function SearchesPage() {
                       <RotateCcw className="h-3.5 w-3.5" />
                     </Link>
                     <Link
-                      href={`/leads?segmento=${encodeURIComponent(s.segment)}&cidade=${encodeURIComponent(s.city)}`}
+                      href={`/leads?segmento=${encodeURIComponent(s.segment)}&cidade=${encodeURIComponent(
+                        // searches.city guarda o rotulo da regiao ("Curitiba, PR",
+                        // "Lisboa · 5 km"); leads.city guarda so o nome da cidade.
+                        s.city.split(/[,·]/)[0].trim(),
+                      )}`}
                       className="rounded-lg border border-volt/25 bg-volt/[0.07] px-3 py-2 text-[12px] font-semibold text-volt transition-colors hover:bg-volt/[0.14]"
                     >
                       Ver leads
