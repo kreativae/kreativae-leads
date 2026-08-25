@@ -53,6 +53,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // Gerar um segredo novo com o 2FA já ativo invalidaria o autenticador atual
+  // sem desligar a exigência no login — ou seja, trancaria o dono para fora.
+  const [current] = await db
+    .select({ totpEnabled: users.totpEnabled })
+    .from(users)
+    .where(eq(users.id, auth.user.id))
+    .limit(1);
+  if (current?.totpEnabled === "yes")
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "O 2FA já está ativo nesta conta. Desative-o antes de configurar um novo aplicativo.",
+      },
+      { status: 409 },
+    );
+
   const secret = await newTotpSecret();
   await db.update(users).set({ totpSecret: secret }).where(eq(users.id, auth.user.id));
   return NextResponse.json({ ok: true, secret, uri: totpUri(secret, auth.user.email) });

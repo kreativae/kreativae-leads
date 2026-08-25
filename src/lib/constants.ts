@@ -11,7 +11,7 @@ export const SEGMENT_PRESETS: SegmentPreset[] = [
     key: "dentistas",
     label: "Dentistas",
     tags: [
-      ["amenity", "dentists"],
+      ["amenity", "dentist"],
       ["healthcare", "dentist"],
     ],
   },
@@ -20,7 +20,9 @@ export const SEGMENT_PRESETS: SegmentPreset[] = [
     label: "Médicos & Clínicas",
     tags: [
       ["amenity", "doctors"],
+      ["amenity", "clinic"],
       ["healthcare", "doctor"],
+      ["healthcare", "clinic"],
     ],
   },
   {
@@ -33,7 +35,7 @@ export const SEGMENT_PRESETS: SegmentPreset[] = [
   {
     key: "imobiliarias",
     label: "Imobiliárias",
-    tags: [["office", "real_estate_agent"]],
+    tags: [["office", "estate_agent"]],
   },
   { key: "engenharia", label: "Engenharia", tags: [["office", "engineer"]] },
   { key: "seguros", label: "Corretoras de Seguros", tags: [["office", "insurance"]] },

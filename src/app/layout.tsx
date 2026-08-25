@@ -9,11 +9,13 @@ const grotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-grotesk",
   weight: ["400", "500", "600", "700"],
+  display: 'swap',
 });
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: 'swap',
 });
 
 export const metadata: Metadata = {

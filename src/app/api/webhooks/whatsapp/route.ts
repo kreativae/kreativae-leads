@@ -71,12 +71,21 @@ async function findLeadByPhone(phone: string): Promise<string | null> {
 export async function POST(req: Request) {
   const raw = await req.text();
 
+  // Rota pública: sem segredo não há como distinguir a Meta de um impostor,
+  // então recusamos o payload em vez de confiar nele.
   const appSecret = await getEffectiveSetting("wa_app_secret", "WA_APP_SECRET");
-  if (appSecret) {
-    const sig = req.headers.get("x-hub-signature-256");
-    if (!verifySignature(raw, sig, appSecret)) {
-      return NextResponse.json({ ok: false, error: "Assinatura inválida." }, { status: 401 });
-    }
+  if (!appSecret) {
+    console.error(
+      "WhatsApp webhook recusado: wa_app_secret não configurado (Configurações → WhatsApp).",
+    );
+    return NextResponse.json(
+      { ok: false, error: "Webhook não configurado." },
+      { status: 503 },
+    );
+  }
+  const sig = req.headers.get("x-hub-signature-256");
+  if (!verifySignature(raw, sig, appSecret)) {
+    return NextResponse.json({ ok: false, error: "Assinatura inválida." }, { status: 401 });
   }
 
   let payload: WaWebhookPayload;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { leads, searches } from "@/db/schema";
 import { count, desc, eq, gte, isNotNull, and } from "drizzle-orm";
@@ -16,6 +17,7 @@ import { BarsChart, FunnelChart } from "@/components/charts";
 import { OpportunityBadge } from "@/components/badges";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { timeAgo } from "@/lib/format";
+import { getSessionUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,10 @@ function Card({
 }
 
 export default async function DashboardPage() {
+  // O middleware (Edge) só consegue checar a presença do cookie; a validação
+  // real da sessão precisa acontecer aqui, antes de qualquer consulta ao banco.
+  if (!(await getSessionUser())) redirect("/login?next=/");
+
   const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
   const [
