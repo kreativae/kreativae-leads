@@ -7,17 +7,25 @@ import {
   getWaConfig,
   type SettingKey,
 } from "@/lib/settings-db";
+import { getIgConfig } from "@/lib/settings-db";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-const SECRET_KEYS: SettingKey[] = ["google_places_key", "wa_access_token", "wa_app_secret"];
+const SECRET_KEYS: SettingKey[] = [
+  "google_places_key",
+  "wa_access_token",
+  "wa_app_secret",
+  "ig_access_token",
+];
 
 const ENV_HINT: Partial<Record<SettingKey, string>> = {
   google_places_key: "GOOGLE_PLACES_API_KEY",
   wa_access_token: "WA_ACCESS_TOKEN",
   wa_phone_number_id: "WA_PHONE_NUMBER_ID",
   wa_verify_token: "WA_VERIFY_TOKEN",
+  ig_access_token: "IG_ACCESS_TOKEN",
+  ig_user_id: "IG_USER_ID",
 };
 
 export async function GET() {
@@ -34,6 +42,7 @@ export async function GET() {
       : { value: raw ?? "", fromEnv: !raw && !!envVal };
   }
   out.wa_configured = !!(await getWaConfig());
+  out.ig_configured = !!(await getIgConfig());
   return NextResponse.json(out);
 }
 

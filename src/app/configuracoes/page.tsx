@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  AtSign,
   CheckCircle2,
   ClipboardCopy,
   Database,
@@ -45,10 +46,22 @@ interface PlainMeta {
 }
 type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   wa_configured?: boolean;
+  ig_configured?: boolean;
 };
 
-const SECRET_FIELDS = ["google_places_key", "wa_access_token", "wa_app_secret"];
-const PLAIN_FIELDS = ["wa_phone_number_id", "wa_waba_id", "wa_verify_token", "data_source"];
+const SECRET_FIELDS = [
+  "google_places_key",
+  "wa_access_token",
+  "wa_app_secret",
+  "ig_access_token",
+];
+const PLAIN_FIELDS = [
+  "wa_phone_number_id",
+  "wa_waba_id",
+  "wa_verify_token",
+  "data_source",
+  "ig_user_id",
+];
 
 export default function ConfiguracoesPage() {
   const [meta, setMeta] = useState<SettingsMeta>({});
@@ -60,6 +73,8 @@ export default function ConfiguracoesPage() {
     wa_waba_id: "",
     wa_verify_token: "",
     wa_app_secret: "",
+    ig_access_token: "",
+    ig_user_id: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -80,6 +95,7 @@ export default function ConfiguracoesPage() {
         wa_phone_number_id: data.wa_phone_number_id?.value ?? "",
         wa_waba_id: data.wa_waba_id?.value ?? "",
         wa_verify_token: data.wa_verify_token?.value ?? "",
+        ig_user_id: data.ig_user_id?.value ?? "",
       }));
     } finally {
       setLoading(false);
@@ -107,6 +123,7 @@ export default function ConfiguracoesPage() {
         google_places_key: "",
         wa_access_token: "",
         wa_app_secret: "",
+        ig_access_token: "",
       }));
       setSavedAt(Date.now());
       setTimeout(() => setSavedAt(null), 2500);
@@ -280,8 +297,8 @@ export default function ConfiguracoesPage() {
                   />
                 </div>
                 <SecretInput
-                  label="App Secret (opcional)"
-                  hint="Valida a assinatura dos webhooks. Recomendado em produção."
+                  label="App Secret (obrigatório)"
+                  hint="Valida a assinatura dos webhooks. Sem ele o webhook recusa todo payload."
                   masked={meta.wa_app_secret?.masked}
                   value={values.wa_app_secret}
                   onChange={(v) => setValues((s) => ({ ...s, wa_app_secret: v }))}
@@ -318,6 +335,51 @@ export default function ConfiguracoesPage() {
                 <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-200/80">
                   Nota da Meta: fora da janela de 24h após a última mensagem do cliente,
                   a API exige mensagens de template pré-aprovadas.
+                </p>
+              </div>
+            </div>
+          </Section>
+
+          {/* Instagram Business Discovery */}
+          <Section
+            icon={AtSign}
+            title="Instagram (qualificação de leads)"
+            desc="Busca seguidores e bio dos perfis já descobertos no enriquecimento."
+            className="xl:col-span-2"
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-4">
+                <SecretInput
+                  label="Access Token (Meta)"
+                  hint="Mesmo app do WhatsApp, com instagram_basic e instagram_manage_insights."
+                  masked={meta.ig_access_token?.masked}
+                  fromEnv={meta.ig_access_token?.fromEnv}
+                  value={values.ig_access_token}
+                  onChange={(v) => setValues((s) => ({ ...s, ig_access_token: v }))}
+                  onRemove={() => removeSecret("ig_access_token")}
+                />
+                <PlainInput
+                  label="ID da sua conta Instagram Business"
+                  hint="O ID da SUA conta — é por ela que a API consulta os perfis dos leads."
+                  value={values.ig_user_id}
+                  onChange={(v) => setValues((s) => ({ ...s, ig_user_id: v }))}
+                  fromEnv={meta.ig_user_id?.fromEnv}
+                />
+              </div>
+              <div className="rounded-xl border border-white/[0.07] bg-ink/60 p-5">
+                <div className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
+                  <AtSign className="h-4 w-4 text-volt" />
+                  Como funciona
+                </div>
+                <ol className="mt-3 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
+                  <li>O <span className="text-zinc-200">enriquecimento</span> descobre o @perfil no site do lead.</li>
+                  <li>Com as credenciais acima, o botão <span className="text-zinc-200">Buscar seguidores</span> consulta a API da Meta.</li>
+                  <li>Leads com muitos seguidores <span className="text-zinc-200">e sem site</span> viram prioridade de abordagem.</li>
+                </ol>
+                <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-200/80">
+                  Limitação da Meta: só retorna dados de contas <span className="font-semibold">Business ou Creator</span>.
+                  Perfis pessoais ficam sem seguidores — e não existe busca por cidade ou
+                  segmento, apenas consulta por @perfil já conhecido.
                 </p>
               </div>
             </div>

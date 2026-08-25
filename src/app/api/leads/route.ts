@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
-import { and, count, desc, eq, ilike, isNotNull, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 
@@ -24,7 +24,9 @@ export async function GET(req: Request) {
   const opportunity = sp.get("opportunity") ?? "";
   const onlyWhats = sp.get("whatsapp") === "1";
   const onlyInstagram = sp.get("instagram") === "1";
-  const sort = sp.get("sort") === "score" ? "score" : "recent";
+  const sortParam = sp.get("sort");
+  const sort =
+    sortParam === "score" ? "score" : sortParam === "followers" ? "followers" : "recent";
   const limit = Math.max(1, Math.min(120, Number(sp.get("limit")) || 48));
   const offset = Math.max(0, Number(sp.get("offset")) || 0);
 
@@ -57,7 +59,9 @@ export async function GET(req: Request) {
       .orderBy(
         ...(sort === "score"
           ? [desc(leads.contactScore), desc(leads.createdAt)]
-          : [desc(leads.createdAt)]),
+          : sort === "followers"
+            ? [sql`${leads.igFollowers} desc nulls last`, desc(leads.createdAt)]
+            : [desc(leads.createdAt)]),
       )
       .limit(limit)
       .offset(offset),

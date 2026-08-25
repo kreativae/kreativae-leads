@@ -69,6 +69,11 @@ export const leads = pgTable(
     extra: jsonb("extra"),
     contactScore: integer("contact_score").notNull().default(0),
     enrichedAt: timestamp("enriched_at", { withTimezone: true }),
+    igUsername: text("ig_username"),
+    igFollowers: integer("ig_followers"),
+    igMediaCount: integer("ig_media_count"),
+    igBiography: text("ig_biography"),
+    igCheckedAt: timestamp("ig_checked_at", { withTimezone: true }),
     websiteScore: integer("website_score"),
     websiteGrade: text("website_grade"), // modern | outdated | critical
     websiteChecks: jsonb("website_checks"),

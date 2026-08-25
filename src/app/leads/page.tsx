@@ -72,6 +72,11 @@ interface ClientLead {
   lon: number | null;
   phoneAlt: string | null;
   instagram: string | null;
+  igUsername: string | null;
+  igFollowers: number | null;
+  igMediaCount: number | null;
+  igBiography: string | null;
+  igCheckedAt: string | null;
   facebook: string | null;
   linkedin: string | null;
   openingHours: string | null;
@@ -92,13 +97,30 @@ interface LeadsResponse {
   cities: string[];
 }
 
+type BatchKind = "enrich" | "instagram";
+
 interface BatchState {
+  kind: BatchKind;
   running: boolean;
   done: number;
   total: number;
-  novosInstagram: number;
+  ganhos: number;
   falhas: number;
+  aviso?: string;
 }
+
+const BATCH_LABELS: Record<BatchKind, { rodando: string; fim: string; ganho: string }> = {
+  enrich: {
+    rodando: "Varrendo sites…",
+    fim: "Enriquecimento concluído",
+    ganho: "Instagram",
+  },
+  instagram: {
+    rodando: "Consultando a Meta…",
+    fim: "Consulta concluída",
+    ganho: "com seguidores",
+  },
+};
 
 function LeadsApp() {
   const sp = useSearchParams();
@@ -112,7 +134,7 @@ function LeadsApp() {
   const [opportunity, setOpportunity] = useState(sp.get("oportunidade") ?? "");
   const [onlyWhats, setOnlyWhats] = useState(false);
   const [onlyInstagram, setOnlyInstagram] = useState(false);
-  const [sort, setSort] = useState<"recent" | "score">("recent");
+  const [sort, setSort] = useState<"recent" | "score" | "followers">("recent");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [batch, setBatch] = useState<BatchState | null>(null);
   const cancelBatch = useRef(false);
@@ -155,40 +177,76 @@ function LeadsApp() {
    * concorrencia baixa: cada chamada respeita o limite de tempo da Vercel e
    * uma falha isolada nao derruba a fila inteira.
    */
-  async function runBatchEnrich() {
+  async function runBatch(kind: BatchKind) {
     if (batch?.running) return;
+    const base: BatchState = {
+      kind,
+      running: false,
+      done: 0,
+      total: 0,
+      ganhos: 0,
+      falhas: 0,
+    };
+    const queueUrl =
+      kind === "enrich" ? "/api/leads/enrich-queue" : "/api/leads/instagram-queue";
+
     let ids: string[] = [];
     try {
-      const res = await fetch("/api/leads/enrich-queue");
+      const res = await fetch(queueUrl);
       if (!res.ok) throw new Error("fila");
-      ids = ((await res.json()) as { ids: string[] }).ids;
+      const data = (await res.json()) as { ids: string[]; configured?: boolean };
+      if (kind === "instagram" && data.configured === false) {
+        setBatch({
+          ...base,
+          aviso:
+            "Instagram não configurado. Preencha o token e o ID da conta em Configurações.",
+        });
+        return;
+      }
+      ids = data.ids;
     } catch {
-      setBatch({ running: false, done: 0, total: 0, novosInstagram: 0, falhas: 1 });
+      setBatch({ ...base, falhas: 1, aviso: "Não foi possível montar a fila." });
       return;
     }
     if (ids.length === 0) {
-      setBatch({ running: false, done: 0, total: 0, novosInstagram: 0, falhas: 0 });
+      setBatch({
+        ...base,
+        aviso:
+          kind === "enrich"
+            ? "Nenhum lead pendente: todos os que têm site já foram varridos."
+            : "Nenhum lead pendente: todos os perfis já foram consultados.",
+      });
       return;
     }
 
     cancelBatch.current = false;
-    setBatch({ running: true, done: 0, total: ids.length, novosInstagram: 0, falhas: 0 });
+    setBatch({ ...base, running: true, total: ids.length });
 
     let cursor = 0;
-    const CONCURRENCY = 3;
+    const CONCURRENCY = kind === "enrich" ? 3 : 2;
 
     async function worker() {
       while (cursor < ids.length && !cancelBatch.current) {
         const id = ids[cursor++];
-        let ganhouInstagram = false;
+        let ganhou = false;
         let falhou = false;
         try {
-          const r = await fetch(`/api/leads/${id}/enrich`, { method: "POST" });
+          const r = await fetch(
+            `/api/leads/${id}/${kind === "enrich" ? "enrich" : "instagram"}`,
+            { method: "POST" },
+          );
           if (r.ok) {
-            const data = (await r.json()) as { lead?: { instagram: string | null } };
-            ganhouInstagram = !!data.lead?.instagram;
+            const data = (await r.json()) as {
+              lead?: { instagram: string | null; igFollowers: number | null };
+            };
+            ganhou =
+              kind === "enrich"
+                ? !!data.lead?.instagram
+                : data.lead?.igFollowers != null;
           } else {
             falhou = true;
+            // Token invalido: nao adianta continuar a fila inteira.
+            if (r.status === 401) cancelBatch.current = true;
           }
         } catch {
           falhou = true;
@@ -198,7 +256,7 @@ function LeadsApp() {
             ? {
                 ...b,
                 done: b.done + 1,
-                novosInstagram: b.novosInstagram + (ganhouInstagram ? 1 : 0),
+                ganhos: b.ganhos + (ganhou ? 1 : 0),
                 falhas: b.falhas + (falhou ? 1 : 0),
               }
             : b,
@@ -282,12 +340,27 @@ function LeadsApp() {
         </button>
         <button
           type="button"
-          onClick={runBatchEnrich}
+          onClick={() => runBatch("enrich")}
           disabled={batch?.running}
           className="inline-flex items-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-400/[0.07] px-4 py-2.5 text-[12.5px] font-semibold text-fuchsia-300 transition-colors hover:border-fuchsia-400/60 disabled:opacity-50"
         >
-          <Wand2 className={`h-3.5 w-3.5 ${batch?.running ? "animate-pulse" : ""}`} />
-          {batch?.running ? "Enriquecendo…" : "Enriquecer em lote"}
+          <Wand2
+            className={`h-3.5 w-3.5 ${batch?.running && batch.kind === "enrich" ? "animate-pulse" : ""}`}
+          />
+          {batch?.running && batch.kind === "enrich" ? "Enriquecendo…" : "Enriquecer em lote"}
+        </button>
+        <button
+          type="button"
+          onClick={() => runBatch("instagram")}
+          disabled={batch?.running}
+          className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/[0.07] px-4 py-2.5 text-[12.5px] font-semibold text-sky-300 transition-colors hover:border-sky-400/60 disabled:opacity-50"
+        >
+          <Users
+            className={`h-3.5 w-3.5 ${batch?.running && batch.kind === "instagram" ? "animate-pulse" : ""}`}
+          />
+          {batch?.running && batch.kind === "instagram"
+            ? "Consultando…"
+            : "Buscar seguidores"}
         </button>
       </div>
 
@@ -334,11 +407,14 @@ function LeadsApp() {
           />
           <FilterSelect
             value={sort}
-            onChange={(v) => setSort(v === "score" ? "score" : "recent")}
+            onChange={(v) =>
+              setSort(v === "score" ? "score" : v === "followers" ? "followers" : "recent")
+            }
             placeholder="Ordenar"
             options={[
               { value: "recent", label: "Mais recentes" },
               { value: "score", label: "Dados mais completos" },
+              { value: "followers", label: "Mais seguidores" },
             ]}
           />
           <button
@@ -373,11 +449,7 @@ function LeadsApp() {
         <div className="rounded-2xl border border-fuchsia-400/20 bg-fuchsia-400/[0.04] px-4 py-3.5">
           {batch.total === 0 ? (
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[13px] text-zinc-300">
-                {batch.falhas > 0
-                  ? "Não foi possível montar a fila. Tente novamente."
-                  : "Nenhum lead pendente: todos os que têm site já foram varridos."}
-              </span>
+              <span className="text-[13px] text-zinc-300">{batch.aviso}</span>
               <button
                 type="button"
                 onClick={() => setBatch(null)}
@@ -390,14 +462,16 @@ function LeadsApp() {
             <>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-[13px] font-semibold text-zinc-200">
-                  {batch.running ? "Varrendo sites…" : "Enriquecimento concluído"}{" "}
+                  {batch.running
+                    ? BATCH_LABELS[batch.kind].rodando
+                    : BATCH_LABELS[batch.kind].fim}{" "}
                   <span className="tabular-nums text-fuchsia-300">
                     {batch.done}/{batch.total}
                   </span>
                 </span>
                 <div className="flex items-center gap-3 text-[12px]">
                   <span className="text-fuchsia-300 tabular-nums">
-                    +{batch.novosInstagram} Instagram
+                    +{batch.ganhos} {BATCH_LABELS[batch.kind].ganho}
                   </span>
                   {batch.falhas > 0 && (
                     <span className="text-zinc-500 tabular-nums">
@@ -520,6 +594,13 @@ function FilterSelect({
   );
 }
 
+/** 12.345 -> "12,3 mil"; 1.234.567 -> "1,2 mi" */
+function formatFollowers(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(".", ",")} mi`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(".", ",")} mil`;
+  return String(n);
+}
+
 function LeadCard({ lead, onOpen }: { lead: ClientLead; onOpen: () => void }) {
   const phoneDisplay = formatPhone(lead.phone ?? lead.whatsapp, lead.country);
   return (
@@ -590,7 +671,11 @@ function LeadCard({ lead, onOpen }: { lead: ClientLead; onOpen: () => void }) {
             className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/25 bg-fuchsia-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-fuchsia-300"
           >
             <AtSign className="h-3 w-3" />
-            {lead.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, "@").replace(/\/$/, "")}
+            {lead.igFollowers != null
+              ? `${formatFollowers(lead.igFollowers)} seguidores`
+              : lead.instagram
+                  .replace(/^https?:\/\/(www\.)?instagram\.com\//, "@")
+                  .replace(/\/$/, "")}
           </span>
         )}
       </div>
@@ -639,6 +724,8 @@ function LeadDrawer({
   const [enrichMsg, setEnrichMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [igBusy, setIgBusy] = useState(false);
+  const [igMsg, setIgMsg] = useState<string | null>(null);
 
   useEffect(() => setNotes(lead.notes ?? ""), [lead.id, lead.notes]);
 
@@ -698,6 +785,21 @@ function LeadDrawer({
       }
     } finally {
       setEnriching(false);
+    }
+  }
+
+  async function fetchIg() {
+    setIgBusy(true);
+    setIgMsg(null);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/instagram`, { method: "POST" });
+      const data = (await res.json()) as { ok: boolean; lead?: ClientLead; error?: string };
+      if (data.ok && data.lead) onPatched(data.lead);
+      else setIgMsg(data.error ?? "Não foi possível consultar o perfil.");
+    } catch {
+      setIgMsg("Falha de conexão ao consultar a Meta.");
+    } finally {
+      setIgBusy(false);
     }
   }
 
@@ -865,6 +967,51 @@ function LeadDrawer({
                         </a>
                       ))}
                   </span>
+                </DrawerRow>
+              )}
+              {lead.instagram && (
+                <DrawerRow icon={AtSign} label="Instagram">
+                  {lead.igFollowers != null ? (
+                    <span className="text-[12.5px] text-zinc-300">
+                      <span className="font-bold text-fuchsia-300 tabular-nums">
+                        {lead.igFollowers.toLocaleString("pt-BR")}
+                      </span>{" "}
+                      seguidores
+                      {lead.igMediaCount != null && (
+                        <span className="text-zinc-500">
+                          {" · "}
+                          {lead.igMediaCount.toLocaleString("pt-BR")} publicações
+                        </span>
+                      )}
+                      {lead.igBiography && (
+                        <span className="mt-1 block text-[12px] leading-relaxed text-zinc-500">
+                          {lead.igBiography}
+                        </span>
+                      )}
+                    </span>
+                  ) : lead.igCheckedAt ? (
+                    <span className="text-[12.5px] text-zinc-500">
+                      Consultado — perfil pessoal ou inexistente (a API da Meta só
+                      enxerga contas Business/Creator).
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={fetchIg}
+                      disabled={igBusy}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/30 px-3 py-1 text-[11.5px] font-semibold text-fuchsia-300 hover:border-fuchsia-400/60 disabled:opacity-50"
+                    >
+                      {igBusy ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Users className="h-3 w-3" />
+                      )}
+                      Buscar seguidores
+                    </button>
+                  )}
+                  {igMsg && (
+                    <span className="mt-1 block text-[11.5px] text-amber-300/80">{igMsg}</span>
+                  )}
                 </DrawerRow>
               )}
               {(lead.rating != null || lead.categoryRaw) && (

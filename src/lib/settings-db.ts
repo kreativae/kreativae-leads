@@ -10,6 +10,8 @@ export const SETTING_KEYS = [
   "wa_waba_id",
   "wa_verify_token",
   "wa_app_secret",
+  "ig_access_token",
+  "ig_user_id",
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -55,6 +57,21 @@ export function maskSecret(v: string | null): string | null {
   if (!v) return null;
   if (v.length <= 4) return "••••";
   return "••••" + v.slice(-4);
+}
+
+export interface IgConfig {
+  accessToken: string;
+  igUserId: string;
+}
+
+/** Credenciais do Instagram Business Discovery, ou null se nao configurado. */
+export async function getIgConfig(): Promise<IgConfig | null> {
+  const [accessToken, igUserId] = await Promise.all([
+    getEffectiveSetting("ig_access_token", "IG_ACCESS_TOKEN"),
+    getEffectiveSetting("ig_user_id", "IG_USER_ID"),
+  ]);
+  if (!accessToken || !igUserId) return null;
+  return { accessToken, igUserId };
 }
 
 export interface WaConfig {
