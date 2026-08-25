@@ -23,6 +23,7 @@ export async function GET(req: Request) {
   const status = sp.get("status") ?? "";
   const opportunity = sp.get("opportunity") ?? "";
   const onlyWhats = sp.get("whatsapp") === "1";
+  const onlyInstagram = sp.get("instagram") === "1";
   const sort = sp.get("sort") === "score" ? "score" : "recent";
   const limit = Math.max(1, Math.min(120, Number(sp.get("limit")) || 48));
   const offset = Math.max(0, Number(sp.get("offset")) || 0);
@@ -43,10 +44,12 @@ export async function GET(req: Request) {
   if (opportunity && OPPORTUNITIES.includes(opportunity))
     conds.push(eq(leads.opportunity, opportunity));
   if (onlyWhats) conds.push(isNotNull(leads.whatsapp));
+  if (onlyInstagram) conds.push(isNotNull(leads.instagram));
 
   const where = conds.length ? and(...conds) : undefined;
 
-  const [rows, totalRows, segmentFacets, cityFacets] = await Promise.all([
+  const [rows, totalRows, instagramRows, segmentFacets, cityFacets] =
+    await Promise.all([
     db
       .select()
       .from(leads)
@@ -59,6 +62,15 @@ export async function GET(req: Request) {
       .limit(limit)
       .offset(offset),
     db.select({ value: count() }).from(leads).where(where),
+    // Quantos dos leads filtrados ja tem handle do Instagram capturado.
+    db
+      .select({ value: count() })
+      .from(leads)
+      .where(
+        where
+          ? and(where, isNotNull(leads.instagram))
+          : isNotNull(leads.instagram),
+      ),
     db.selectDistinct({ value: leads.segment }).from(leads),
     db.selectDistinct({ value: leads.city }).from(leads),
   ]);
@@ -66,6 +78,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     leads: rows,
     total: totalRows[0]?.value ?? 0,
+    withInstagram: instagramRows[0]?.value ?? 0,
     segments: segmentFacets.map((r) => r.value).filter(Boolean).sort(),
     cities: cityFacets.map((r) => r.value).filter(Boolean).sort(),
   });

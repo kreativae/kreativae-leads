@@ -85,6 +85,7 @@ interface ClientLead {
 interface LeadsResponse {
   leads: ClientLead[];
   total: number;
+  withInstagram: number;
   segments: string[];
   cities: string[];
 }
@@ -100,6 +101,7 @@ function LeadsApp() {
   const [status, setStatus] = useState("");
   const [opportunity, setOpportunity] = useState(sp.get("oportunidade") ?? "");
   const [onlyWhats, setOnlyWhats] = useState(false);
+  const [onlyInstagram, setOnlyInstagram] = useState(false);
   const [sort, setSort] = useState<"recent" | "score">("recent");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -117,6 +119,7 @@ function LeadsApp() {
     if (status) params.set("status", status);
     if (opportunity) params.set("opportunity", opportunity);
     if (onlyWhats) params.set("whatsapp", "1");
+    if (onlyInstagram) params.set("instagram", "1");
     params.set("sort", sort);
     params.set("limit", "120");
     try {
@@ -126,7 +129,7 @@ function LeadsApp() {
     } finally {
       setLoading(false);
     }
-  }, [qDebounced, segment, city, status, opportunity, onlyWhats, sort]);
+  }, [qDebounced, segment, city, status, opportunity, onlyWhats, onlyInstagram, sort]);
 
   useEffect(() => {
     fetchLeads();
@@ -181,6 +184,15 @@ function LeadsApp() {
                   {data.total.toLocaleString("pt-BR")}
                 </span>{" "}
                 empresas no radar
+                {data.withInstagram > 0 && (
+                  <>
+                    {" · "}
+                    <span className="font-semibold text-fuchsia-300 tabular-nums">
+                      {data.withInstagram.toLocaleString("pt-BR")}
+                    </span>{" "}
+                    com Instagram
+                  </>
+                )}
               </>
             ) : (
               "Carregando…"
@@ -258,6 +270,18 @@ function LeadsApp() {
           >
             <MessageCircle className="h-3.5 w-3.5" />
             Só WhatsApp
+          </button>
+          <button
+            type="button"
+            onClick={() => setOnlyInstagram((v) => !v)}
+            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px] font-semibold transition-all ${
+              onlyInstagram
+                ? "border-fuchsia-400/50 bg-fuchsia-400/10 text-fuchsia-300"
+                : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+            }`}
+          >
+            <AtSign className="h-3.5 w-3.5" />
+            Só Instagram
           </button>
         </div>
       </div>
@@ -408,6 +432,15 @@ function LeadCard({ lead, onOpen }: { lead: ClientLead; onOpen: () => void }) {
         ) : (
           <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-0.5 text-[11px] text-zinc-600">
             Sem telefone
+          </span>
+        )}
+        {lead.instagram && (
+          <span
+            title={lead.instagram}
+            className="inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/25 bg-fuchsia-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-fuchsia-300"
+          >
+            <AtSign className="h-3 w-3" />
+            {lead.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, "@").replace(/\/$/, "")}
           </span>
         )}
       </div>
