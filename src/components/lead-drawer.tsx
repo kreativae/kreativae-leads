@@ -8,6 +8,8 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCopy,
   Clock4,
   ExternalLink,
@@ -104,9 +106,14 @@ export function LeadDrawer({
   onUpdate,
   onPatched,
   onDelete,
+  onPrev,
+  onNext,
 }: {
   lead: ClientLead;
   onClose: () => void;
+  /** Navegacao pela lista de origem; ausente = nao ha vizinho daquele lado. */
+  onPrev?: () => void;
+  onNext?: () => void;
   onUpdate: (id: string, patch: { status?: string; notes?: string }) => Promise<void>;
   onPatched: (lead: ClientLead) => void;
   onDelete: (id: string) => void;
@@ -129,6 +136,37 @@ export function LeadDrawer({
   const [editado, setEditado] = useState<string | null>(null);
 
   useEffect(() => setNotes(lead.notes ?? ""), [lead.id, lead.notes]);
+
+  useEffect(() => {
+    function aoTeclar(e: KeyboardEvent) {
+      // Combinacoes com modificador sao atalhos do navegador.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // As setas nao podem ser sequestradas enquanto se digita: o cursor
+      // dentro das notas ou da mensagem precisa continuar funcionando.
+      const alvo = e.target as HTMLElement | null;
+      if (
+        alvo &&
+        (alvo.tagName === "INPUT" ||
+          alvo.tagName === "TEXTAREA" ||
+          alvo.tagName === "SELECT" ||
+          alvo.isContentEditable)
+      )
+        return;
+      if (e.key === "ArrowRight" && onNext) {
+        e.preventDefault();
+        onNext();
+      } else if (e.key === "ArrowLeft" && onPrev) {
+        e.preventDefault();
+        onPrev();
+      }
+    }
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, [onClose, onNext, onPrev]);
 
   const temDiagnostico = (lead.websiteChecks?.length ?? 0) > 0;
   const message = buildWhatsappMessage(lead, {
@@ -261,14 +299,37 @@ export function LeadDrawer({
                 <OpportunityBadge opportunity={lead.opportunity} score={lead.websiteScore} />
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-white/[0.08] p-2 text-zinc-500 transition-colors hover:border-white/20 hover:text-white"
-              aria-label="Fechar"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={onPrev}
+                disabled={!onPrev}
+                title="Lead anterior (←)"
+                aria-label="Lead anterior"
+                className="rounded-lg border border-white/[0.08] p-2 text-zinc-500 transition-colors hover:border-white/20 hover:text-white disabled:opacity-30 disabled:hover:border-white/[0.08]"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onNext}
+                disabled={!onNext}
+                title="Próximo lead (→)"
+                aria-label="Próximo lead"
+                className="rounded-lg border border-white/[0.08] p-2 text-zinc-500 transition-colors hover:border-white/20 hover:text-white disabled:opacity-30 disabled:hover:border-white/[0.08]"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="ml-1 rounded-lg border border-white/[0.08] p-2 text-zinc-500 transition-colors hover:border-white/20 hover:text-white"
+                title="Fechar (Esc)"
+                aria-label="Fechar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           {/* Status switch */}

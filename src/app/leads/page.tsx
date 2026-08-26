@@ -158,6 +158,11 @@ function LeadsApp() {
   const naLista = leads.find((l) => l.id === selectedId) ?? null;
   const selected = naLista ?? (avulso?.id === selectedId ? avulso : null);
 
+  // Navegacao pela lista visivel. Um lead aberto por link direto (?lead=)
+  // pode nao estar nela — nesse caso as setas ficam desativadas.
+  const posicao = leads.findIndex((l) => l.id === selectedId);
+  const irPara = (i: number) => setSelectedId(leads[i].id);
+
   useEffect(() => {
     if (!selectedId || naLista || avulso?.id === selectedId) return;
     let vivo = true;
@@ -600,6 +605,12 @@ function LeadsApp() {
             onUpdate={updateLead}
             onPatched={patchLocal}
             onDelete={deleteLead}
+            onPrev={posicao > 0 ? () => irPara(posicao - 1) : undefined}
+            onNext={
+              posicao >= 0 && posicao < leads.length - 1
+                ? () => irPara(posicao + 1)
+                : undefined
+            }
           />
         )}
       </AnimatePresence>

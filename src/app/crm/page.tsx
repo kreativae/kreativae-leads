@@ -134,6 +134,15 @@ export default function CrmPage() {
     await load();
   }
 
+  // No quadro, "proximo" e o cartao seguinte da MESMA coluna: pular para
+  // outra coluna faria o status mudar sob os pes do usuario.
+  const colunaAtual = selecionado
+    ? (columns?.find((c) => c.leads.some((l) => l.id === selecionado.id)) ?? null)
+    : null;
+  const posicao = colunaAtual
+    ? colunaAtual.leads.findIndex((l) => l.id === selecionado?.id)
+    : -1;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -310,6 +319,16 @@ export default function CrmPage() {
             onUpdate={atualizarLead}
             onPatched={aplicar}
             onDelete={removerLead}
+            onPrev={
+              colunaAtual && posicao > 0
+                ? () => setSelecionado(colunaAtual.leads[posicao - 1])
+                : undefined
+            }
+            onNext={
+              colunaAtual && posicao >= 0 && posicao < colunaAtual.leads.length - 1
+                ? () => setSelecionado(colunaAtual.leads[posicao + 1])
+                : undefined
+            }
           />
         )}
       </AnimatePresence>
