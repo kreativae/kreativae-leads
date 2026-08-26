@@ -108,16 +108,24 @@ function Wordmark() {
   );
 }
 
-function useUnreadCount() {
+function useConversationsState() {
   const [unread, setUnread] = useState(0);
+  // Comeca ligado: se comecasse desligado, "Conversas" piscaria entrando no
+  // menu a cada carregamento de pagina.
+  const [waEnabled, setWaEnabled] = useState(true);
   useEffect(() => {
     let alive = true;
     async function load() {
       try {
         const res = await fetch("/api/conversations?summary=1");
         if (!res.ok) return;
-        const data = (await res.json()) as { unread?: number };
-        if (alive && typeof data.unread === "number") setUnread(data.unread);
+        const data = (await res.json()) as {
+          unread?: number;
+          wa_enabled?: boolean;
+        };
+        if (!alive) return;
+        if (typeof data.unread === "number") setUnread(data.unread);
+        if (typeof data.wa_enabled === "boolean") setWaEnabled(data.wa_enabled);
       } catch {
         /* offline */
       }
@@ -132,12 +140,14 @@ function useUnreadCount() {
       window.removeEventListener("kreatae:conversations-read", onRead);
     };
   }, []);
-  return unread;
+  return { unread, waEnabled };
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const unread = useUnreadCount();
+  const { unread, waEnabled } = useConversationsState();
+  // Omnichannel desligado em Configuracoes some do menu.
+  const navItems = waEnabled ? NAV : NAV.filter((i) => i.href !== "/conversas");
   const me = useMe(pathname);
 
   if (AUTH_PATHS.some((p) => pathname.startsWith(p))) {
@@ -160,7 +170,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Wordmark />
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             const showBadge = item.href === "/conversas" && unread > 0;
@@ -228,7 +238,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="app-header-mobile fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-white/[0.08] bg-ink px-4 lg:hidden">
         <Wordmark />
         <nav className="flex items-center gap-1">
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             const showBadge = item.href === "/conversas" && unread > 0;

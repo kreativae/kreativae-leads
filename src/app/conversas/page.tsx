@@ -54,6 +54,7 @@ function displayPhone(digits: string): string {
 
 export default function ConversasPage() {
   const [waConfigured, setWaConfigured] = useState<boolean | null>(null);
+  const [waEnabled, setWaEnabled] = useState(true);
   const [convos, setConvos] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadMessage[]>([]);
@@ -69,9 +70,11 @@ export default function ConversasPage() {
       const data = (await res.json()) as {
         conversations: ConversationRow[];
         wa_configured: boolean;
+        wa_enabled?: boolean;
       };
       setConvos(data.conversations);
       setWaConfigured(data.wa_configured);
+      if (typeof data.wa_enabled === "boolean") setWaEnabled(data.wa_enabled);
     } catch {
       /* retry on interval */
     }
@@ -135,6 +138,28 @@ export default function ConversasPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  if (!waEnabled) {
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/[0.09] px-6 py-24 text-center">
+        <MessageSquare className="h-9 w-9 text-zinc-600" />
+        <h1 className="font-display text-xl font-bold text-white">
+          Omnichannel desativado
+        </h1>
+        <p className="max-w-md text-[13.5px] leading-relaxed text-zinc-500">
+          O WhatsApp está desligado nas configurações, então a aba Conversas foi
+          removida do menu. Reative quando quiser centralizar as conversas aqui.
+        </p>
+        <Link
+          href="/configuracoes"
+          className="inline-flex items-center gap-2 rounded-full bg-volt px-6 py-3 text-[13.5px] font-bold text-onvolt transition-transform hover:scale-[1.03]"
+        >
+          <Settings2 className="h-4 w-4" />
+          Ir para Configurações
+        </Link>
+      </div>
+    );
   }
 
   if (waConfigured === false) {

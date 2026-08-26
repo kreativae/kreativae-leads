@@ -12,6 +12,7 @@ export const SETTING_KEYS = [
   "wa_app_secret",
   "ig_access_token",
   "ig_user_id",
+  "wa_enabled",
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -57,6 +58,15 @@ export function maskSecret(v: string | null): string | null {
   if (!v) return null;
   if (v.length <= 4) return "••••";
   return "••••" + v.slice(-4);
+}
+
+/**
+ * Interruptor do omnichannel. Ausente = ligado, para nao mudar o
+ * comportamento de quem ja usava antes deste botao existir.
+ */
+export async function isWaEnabled(): Promise<boolean> {
+  const v = await getSetting("wa_enabled");
+  return v !== "no";
 }
 
 export interface IgConfig {

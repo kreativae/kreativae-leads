@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { conversations, leads } from "@/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
-import { getWaConfig } from "@/lib/settings-db";
+import { getWaConfig, isWaEnabled } from "@/lib/settings-db";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       unread: Number(row?.unread ?? 0),
       wa_configured: !!(await getWaConfig()),
+      wa_enabled: await isWaEnabled(),
     });
   }
 
@@ -40,5 +41,6 @@ export async function GET(req: Request) {
       leadSegment: r.leadSegment,
     })),
     wa_configured: !!(await getWaConfig()),
+    wa_enabled: await isWaEnabled(),
   });
 }

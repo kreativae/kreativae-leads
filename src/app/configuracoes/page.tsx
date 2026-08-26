@@ -49,6 +49,44 @@ type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   ig_configured?: boolean;
 };
 
+/** Interruptor simples. Salva na hora — nao espera o botao Salvar. */
+function Toggle({
+  on,
+  onChange,
+  label,
+  hint,
+}: {
+  on: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3">
+      <div className="min-w-0">
+        <div className="text-[13px] font-semibold text-zinc-100">{label}</div>
+        <div className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-500">{hint}</div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        onClick={() => onChange(!on)}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+          on ? "bg-volt" : "bg-white/[0.12]"
+        }`}
+      >
+        <span
+          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+            on ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
 const SECRET_FIELDS = [
   "google_places_key",
   "wa_access_token",
@@ -75,6 +113,7 @@ export default function ConfiguracoesPage() {
     wa_app_secret: "",
     ig_access_token: "",
     ig_user_id: "",
+    wa_enabled: "yes",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -96,6 +135,7 @@ export default function ConfiguracoesPage() {
         wa_waba_id: data.wa_waba_id?.value ?? "",
         wa_verify_token: data.wa_verify_token?.value ?? "",
         ig_user_id: data.ig_user_id?.value ?? "",
+        wa_enabled: data.wa_enabled?.value === "no" ? "no" : "yes",
       }));
     } finally {
       setLoading(false);
@@ -131,6 +171,19 @@ export default function ConfiguracoesPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function setWaEnabled(on: boolean) {
+    setValues((s) => ({ ...s, wa_enabled: on ? "yes" : "no" }));
+    await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wa_enabled: on ? "yes" : "no" }),
+    });
+    await load();
+    // O menu lateral so recarrega o estado a cada 15s; recarregar a pagina
+    // faz a aba Conversas aparecer/sumir na hora.
+    window.location.reload();
   }
 
   async function removeSecret(key: string) {
@@ -253,6 +306,12 @@ export default function ConfiguracoesPage() {
           >
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-4">
+                <Toggle
+                  on={values.wa_enabled !== "no"}
+                  onChange={setWaEnabled}
+                  label="Omnichannel ativo"
+                  hint="Desligado, a aba Conversas some do menu e o WhatsApp fica fora do fluxo."
+                />
                 <SecretInput
                   label="Access Token (Meta)"
                   hint="Token permanente gerado no app da Meta for Developers."
