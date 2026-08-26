@@ -377,7 +377,7 @@ function LeadsApp() {
       </div>
 
       {/* Filter bar */}
-      <div className="sticky top-14 z-30 -mx-1 rounded-2xl border border-white/[0.07] bg-ink/85 px-4 py-3.5 backdrop-blur-xl lg:top-4">
+      <div className="sticky top-16 z-30 -mx-1 rounded-2xl border border-white/[0.07] bg-ink/95 px-4 py-3.5 backdrop-blur-xl lg:top-4">
         <div className="sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
           {/* sm:contents dissolve este wrapper no desktop: a busca volta a ser
               item direto do flex, sem precisar duplicar o campo. */}
