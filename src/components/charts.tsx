@@ -8,50 +8,58 @@ export function BarsChart({
   data: { label: string; value: number }[];
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
-  const W = 560;
-  const H = 150;
-  const gap = 10;
-  const bw = (W - gap * (data.length - 1)) / data.length;
+  // Barras em CSS em vez de SVG com viewBox: num viewBox escalado por w-full,
+  // no celular os rotulos encolhiam junto e ficavam com ~6px reais.
+  const H = 118;
 
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      <div className="flex items-end gap-[3px] sm:gap-2" style={{ height: H }}>
         {data.map((d, i) => {
-          const h = Math.max(d.value > 0 ? 8 : 2, (d.value / max) * (H - 34));
+          const h = Math.max(
+            d.value > 0 ? 6 : 2,
+            Math.round((d.value / max) * (H - 20)),
+          );
           return (
-            <g key={d.label}>
-              <motion.rect
-                x={i * (bw + gap)}
-                width={bw}
-                rx={5}
-                initial={{ y: H - 20, height: 0, opacity: 0 }}
-                animate={{ y: H - 20 - h, height: h, opacity: 1 }}
-                transition={{ delay: i * 0.03, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                className={d.value > 0 ? "fill-volt" : "fill-zinc-800"}
-                opacity={d.value > 0 ? 0.9 : 0.5}
-              />
-              <text
-                x={i * (bw + gap) + bw / 2}
-                y={H - 6}
-                textAnchor="middle"
-                className="fill-zinc-600 text-[9.5px]"
-              >
-                {d.label}
-              </text>
+            <div
+              key={d.label}
+              className="flex min-w-0 flex-1 flex-col items-center justify-end"
+            >
               {d.value > 0 && (
-                <text
-                  x={i * (bw + gap) + bw / 2}
-                  y={H - 26 - h}
-                  textAnchor="middle"
-                  className="fill-zinc-400 text-[10px] font-semibold tabular-nums"
-                >
+                <span className="mb-1 text-[10px] font-semibold leading-none tabular-nums text-zinc-400">
                   {d.value}
-                </text>
+                </span>
               )}
-            </g>
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: h, opacity: 1 }}
+                transition={{
+                  delay: i * 0.03,
+                  duration: 0.7,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className={`w-full rounded-t-[5px] ${
+                  d.value > 0 ? "bg-volt/90" : "bg-zinc-800/50"
+                }`}
+              />
+            </div>
           );
         })}
-      </svg>
+      </div>
+      <div className="mt-1.5 flex gap-[3px] sm:gap-2">
+        {data.map((d, i) => (
+          <span
+            key={d.label}
+            /* invisible (e nao hidden) para o rotulo continuar ocupando a
+               coluna e manter o alinhamento com a barra correspondente. */
+            className={`min-w-0 flex-1 text-center text-[9.5px] leading-none text-zinc-600 ${
+              i % 2 === 1 ? "invisible sm:visible" : ""
+            }`}
+          >
+            {d.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

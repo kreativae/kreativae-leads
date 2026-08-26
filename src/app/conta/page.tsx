@@ -253,7 +253,7 @@ function ContaInner() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Change password */}
         <Card icon={LockKeyhole} title="Alterar senha" desc="Encerra automaticamente suas outras sessões.">
           <form onSubmit={changePassword} className="space-y-3.5">
@@ -436,7 +436,7 @@ function ContaInner() {
         )}
       </AnimatePresence>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Sessions */}
         <Card icon={MonitorSmartphone} title="Sessões ativas" desc="Dispositivos conectados à sua conta.">
           <ul className="space-y-2.5">

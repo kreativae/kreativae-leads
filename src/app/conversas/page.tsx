@@ -174,7 +174,7 @@ export default function ConversasPage() {
         </p>
       </div>
 
-      <div className="grid overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] lg:grid-cols-[340px_1fr]">
+      <div className="grid grid-cols-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] lg:grid-cols-[340px_1fr]">
         {/* Conversation list */}
         <div
           className={`border-b border-white/[0.06] lg:border-b-0 lg:border-r ${

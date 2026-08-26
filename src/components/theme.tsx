@@ -91,7 +91,7 @@ export function ThemeSelector() {
   if (!mounted) return <div className="h-28 animate-pulse rounded-xl bg-white/[0.03]" />;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {options.map((o) => {
         const active = theme === o.key;
         return (

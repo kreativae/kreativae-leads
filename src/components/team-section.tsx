@@ -161,11 +161,11 @@ export function TeamSection({ isOwner }: { isOwner: boolean }) {
                 <Plus className="h-4 w-4 text-volt" />
                 Novo usuário — senha temporária (troca obrigatória no 1º login)
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" className="rounded-xl border border-white/[0.09] bg-ink px-4 py-2.5 text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50" />
                 <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail" className="rounded-xl border border-white/[0.09] bg-ink px-4 py-2.5 text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50" />
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha temporária forte" autoComplete="new-password" className="w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-2.5 text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50" />
                 </div>

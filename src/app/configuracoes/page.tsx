@@ -197,7 +197,7 @@ export default function ConfiguracoesPage() {
           <Loader2 className="h-6 w-6 animate-spin text-volt" />
         </div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {/* Aparência */}
           <Section
             icon={Palette}
@@ -251,7 +251,7 @@ export default function ConfiguracoesPage() {
             desc="Conecta o número oficial da empresa para receber e responder conversas aqui dentro."
             className="xl:col-span-2"
           >
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-4">
                 <SecretInput
                   label="Access Token (Meta)"
@@ -347,7 +347,7 @@ export default function ConfiguracoesPage() {
             desc="Busca seguidores e bio dos perfis já descobertos no enriquecimento."
             className="xl:col-span-2"
           >
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-4">
                 <SecretInput
                   label="Access Token (Meta)"
@@ -404,7 +404,7 @@ export default function ConfiguracoesPage() {
             desc="Diagnóstico rápido do que está ativo."
             className="xl:col-span-2"
           >
-            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
               <StatusChip
                 label="OpenStreetMap"
                 active

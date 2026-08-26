@@ -299,7 +299,7 @@ function LeadsApp() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
             <Users className="h-3.5 w-3.5" />
@@ -366,8 +366,8 @@ function LeadsApp() {
 
       {/* Filter bar */}
       <div className="sticky top-14 z-30 -mx-1 rounded-2xl border border-white/[0.07] bg-ink/85 px-4 py-3.5 backdrop-blur-xl lg:top-4">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative min-w-52 flex-1">
+        <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center">
+          <div className="relative col-span-2 sm:col-span-1 sm:min-w-52 sm:flex-1">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
             <input
               value={q}
@@ -420,7 +420,7 @@ function LeadsApp() {
           <button
             type="button"
             onClick={() => setOnlyWhats((v) => !v)}
-            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px] font-semibold transition-all ${
+            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px] font-semibold transition-all sm:justify-start ${
               onlyWhats
                 ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-300"
                 : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
@@ -432,7 +432,7 @@ function LeadsApp() {
           <button
             type="button"
             onClick={() => setOnlyInstagram((v) => !v)}
-            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px] font-semibold transition-all ${
+            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px] font-semibold transition-all sm:justify-start ${
               onlyInstagram
                 ? "border-fuchsia-400/50 bg-fuchsia-400/10 text-fuchsia-300"
                 : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
@@ -527,7 +527,7 @@ function LeadsApp() {
           </p>
         </div>
       ) : (
-        <motion.ul layout className="grid gap-3.5 md:grid-cols-2 2xl:grid-cols-3">
+        <motion.ul layout className="grid grid-cols-1 gap-3.5 md:grid-cols-2 2xl:grid-cols-3">
           <AnimatePresence>
             {leads.map((l, i) => (
               <motion.li
@@ -578,7 +578,7 @@ function FilterSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`appearance-none rounded-xl border border-white/[0.09] bg-ink py-2.5 pl-3.5 pr-9 text-[12.5px] font-medium outline-none transition-colors focus:border-volt/50 ${
+        className={`w-full appearance-none rounded-xl border border-white/[0.09] bg-ink py-2.5 pl-3.5 pr-9 text-[12.5px] font-medium outline-none transition-colors focus:border-volt/50 ${
           value ? "text-zinc-100" : "text-zinc-500"
         }`}
       >

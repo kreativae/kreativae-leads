@@ -152,7 +152,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-[15px] font-semibold text-white">
@@ -171,7 +171,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Lists */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-[15px] font-semibold text-white">
