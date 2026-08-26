@@ -9,6 +9,17 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/** Busca um lead so — usado quando o dashboard linka direto para ele. */
+export async function GET(_req: Request, ctx: Ctx) {
+  const auth = await requireUser();
+  if (auth.error) return auth.error;
+  const { id } = await ctx.params;
+  const [lead] = await db.select().from(leads).where(eq(leads.id, id)).limit(1);
+  if (!lead)
+    return NextResponse.json({ ok: false, error: "Lead não encontrado." }, { status: 404 });
+  return NextResponse.json({ ok: true, lead });
+}
+
 export async function PATCH(req: Request, ctx: Ctx) {
   const auth = await requireUser();
   if (auth.error) return auth.error;

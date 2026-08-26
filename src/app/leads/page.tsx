@@ -21,6 +21,7 @@ import {
   ClipboardCopy,
   ExternalLink,
   Filter,
+  Flame,
   Globe,
   Link2,
   Loader2,
@@ -140,9 +141,12 @@ function LeadsApp() {
   const [opportunity, setOpportunity] = useState(sp.get("oportunidade") ?? "");
   const [onlyWhats, setOnlyWhats] = useState(false);
   const [onlyInstagram, setOnlyInstagram] = useState(false);
+  const [onlyHot, setOnlyHot] = useState(sp.get("quentes") === "1");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sort, setSort] = useState<"recent" | "score" | "followers">("recent");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // ?lead=<id> abre o lead direto — usado pelos atalhos do Radar.
+  const [selectedId, setSelectedId] = useState<string | null>(sp.get("lead"));
+  const [avulso, setAvulso] = useState<ClientLead | null>(null);
   const [batch, setBatch] = useState<BatchState | null>(null);
   const cancelBatch = useRef(false);
 
@@ -159,6 +163,7 @@ function LeadsApp() {
     (status ? 1 : 0) +
     (opportunity ? 1 : 0) +
     (onlyWhats ? 1 : 0) +
+    (onlyHot ? 1 : 0) +
     (onlyInstagram ? 1 : 0) +
     (sort !== "recent" ? 1 : 0);
 
@@ -172,6 +177,7 @@ function LeadsApp() {
     if (opportunity) params.set("opportunity", opportunity);
     if (onlyWhats) params.set("whatsapp", "1");
     if (onlyInstagram) params.set("instagram", "1");
+    if (onlyHot) params.set("hot", "1");
     params.set("sort", sort);
     params.set("limit", "120");
     try {
@@ -181,14 +187,31 @@ function LeadsApp() {
     } finally {
       setLoading(false);
     }
-  }, [qDebounced, segment, city, status, opportunity, onlyWhats, onlyInstagram, sort]);
+  }, [qDebounced, segment, city, status, opportunity, onlyWhats, onlyInstagram, onlyHot, sort]);
 
   useEffect(() => {
     fetchLeads();
   }, [fetchLeads]);
 
   const leads = useMemo(() => data?.leads ?? [], [data]);
-  const selected = leads.find((l) => l.id === selectedId) ?? null;
+  // O lead linkado pode nao estar na pagina atual da listagem; nesse caso
+  // buscamos ele sozinho, senao o link do Radar abriria um drawer vazio.
+  const naLista = leads.find((l) => l.id === selectedId) ?? null;
+  const selected = naLista ?? (avulso?.id === selectedId ? avulso : null);
+
+  useEffect(() => {
+    if (!selectedId || naLista || avulso?.id === selectedId) return;
+    let vivo = true;
+    fetch(`/api/leads/${selectedId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { lead?: ClientLead } | null) => {
+        if (vivo && d?.lead) setAvulso(d.lead);
+      })
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, [selectedId, naLista, avulso]);
 
   /**
    * Enriquecimento em lote. Roda no cliente, um lead por requisicao, com
@@ -466,6 +489,19 @@ function LeadsApp() {
               { value: "followers", label: "Mais seguidores" },
             ]}
           />
+          <button
+            type="button"
+            onClick={() => setOnlyHot((v) => !v)}
+            title="Tem telefone e tem argumento: sem site, ou site reprovado na análise"
+            className={`inline-flex items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px] font-semibold transition-all sm:justify-start ${
+              onlyHot
+                ? "border-rose-400/50 bg-rose-400/10 text-rose-300"
+                : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+            }`}
+          >
+            <Flame className="h-3.5 w-3.5" />
+            Leads quentes
+          </button>
           <button
             type="button"
             onClick={() => setOnlyWhats((v) => !v)}

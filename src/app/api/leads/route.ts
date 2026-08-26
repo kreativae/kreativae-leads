@@ -24,6 +24,7 @@ export async function GET(req: Request) {
   const opportunity = sp.get("opportunity") ?? "";
   const onlyWhats = sp.get("whatsapp") === "1";
   const onlyInstagram = sp.get("instagram") === "1";
+  const onlyHot = sp.get("hot") === "1";
   const sortParam = sp.get("sort");
   const sort =
     sortParam === "score" ? "score" : sortParam === "followers" ? "followers" : "recent";
@@ -47,6 +48,17 @@ export async function GET(req: Request) {
     conds.push(eq(leads.opportunity, opportunity));
   if (onlyWhats) conds.push(isNotNull(leads.whatsapp));
   if (onlyInstagram) conds.push(isNotNull(leads.instagram));
+  // "Quente" = da para abordar agora (tem telefone) e tem argumento de venda
+  // (nao tem site, ou tem um site que a analise reprovou).
+  if (onlyHot) {
+    conds.push(
+      or(isNotNull(leads.whatsapp), isNotNull(leads.phone)) as SQL,
+      or(
+        eq(leads.opportunity, "no_website"),
+        eq(leads.opportunity, "outdated"),
+      ) as SQL,
+    );
+  }
 
   const where = conds.length ? and(...conds) : undefined;
 

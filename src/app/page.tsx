@@ -5,6 +5,7 @@ import { leads, searches } from "@/db/schema";
 import { count, desc, eq, gte, isNotNull, and } from "drizzle-orm";
 import {
   ArrowRight,
+  ArrowUpRight,
   Crosshair,
   Flame,
   Globe2,
@@ -189,7 +190,14 @@ export default async function DashboardPage() {
           ) : (
             <ul className="divide-y divide-white/[0.05]">
               {lastSearches.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 py-3">
+                <li key={s.id}>
+                  <Link
+                    href={`/leads?segmento=${encodeURIComponent(s.segment)}&cidade=${encodeURIComponent(
+                      // searches.city guarda o rotulo da regiao; leads.city so a cidade.
+                      s.city.split(/[,·]/)[0].trim(),
+                    )}`}
+                    className="group flex items-center gap-3 rounded-lg py-3 transition-colors hover:bg-white/[0.03]"
+                  >
                   <span
                     className={`h-2 w-2 shrink-0 rounded-full ${
                       s.status === "done"
@@ -220,6 +228,8 @@ export default async function DashboardPage() {
                       achados
                     </div>
                   </div>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-zinc-700 transition-colors group-hover:text-volt" />
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -248,9 +258,12 @@ export default async function DashboardPage() {
                     {l.companyName.slice(0, 1).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13.5px] font-semibold text-zinc-100">
+                    <Link
+                      href={`/leads?lead=${l.id}`}
+                      className="block truncate text-[13.5px] font-semibold text-zinc-100 transition-colors hover:text-volt hover:underline"
+                    >
                       {l.companyName}
-                    </div>
+                    </Link>
                     <div className="mt-0.5 truncate text-[11.5px] text-zinc-500">
                       {l.segment} · {l.city ?? "—"}
                     </div>
