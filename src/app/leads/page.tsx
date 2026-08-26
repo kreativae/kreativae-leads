@@ -927,7 +927,7 @@ function LeadDrawer({
         </div>
 
         {/* Body */}
-        <div className="flex-1 space-y-7 overflow-y-auto p-5 md:p-6">
+        <div className="flex-1 space-y-7 overflow-y-auto overflow-x-hidden p-5 md:p-6">
           {/* Contact */}
           <section>
             <SectionTitle>Dados de contato</SectionTitle>
@@ -943,7 +943,10 @@ function LeadDrawer({
               </DrawerRow>
               <DrawerRow icon={Mail} label="E-mail">
                 {lead.email ? (
-                  <a href={`mailto:${lead.email}`} className="text-sky-300 hover:underline">
+                  <a
+                    href={`mailto:${lead.email}`}
+                    className="break-all text-sky-300 hover:underline"
+                  >
                     {lead.email}
                   </a>
                 ) : (
@@ -971,10 +974,12 @@ function LeadDrawer({
                     href={lead.website}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-sky-300 hover:underline"
+                    className="inline-flex max-w-full items-center gap-1 text-sky-300 hover:underline"
                   >
-                    {lead.website.replace(/^https?:\/\//, "").slice(0, 42)}
-                    <ExternalLink className="h-3 w-3" />
+                    <span className="min-w-0 break-all">
+                      {lead.website.replace(/^https?:\/\//, "").slice(0, 42)}
+                    </span>
+                    <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 ) : (
                   <span className="font-semibold text-rose-300">Não possui site</span>

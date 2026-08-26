@@ -62,6 +62,10 @@ html.light {
 
 body {
   background-color: var(--color-ink);
+  /* Trava contra rolagem lateral acidental no celular.
+     'clip' e nao 'hidden': hidden transformaria o body em container de
+     rolagem e quebraria os cabecalhos com position: sticky. */
+  overflow-x: clip;
 }
 
 ::selection {
