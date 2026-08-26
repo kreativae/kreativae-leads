@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
-import { count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, type SQL } from "drizzle-orm";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 
@@ -18,7 +18,19 @@ export async function GET(req: Request) {
   const auth = await requireUser();
   if (auth.error) return auth.error;
 
-  const incluirNovos = new URL(req.url).searchParams.get("novos") === "1";
+  const sp = new URL(req.url).searchParams;
+  const incluirNovos = sp.get("novos") === "1";
+  // Filtra pelo que esta gravado no proprio lead. Filtrar por search_id
+  // esconderia os leads cuja pesquisa foi apagada (39% da base hoje) e
+  // mostraria vazias as pesquisas cujos leads foram revinculados a uma
+  // rodada posterior.
+  const segmento = sp.get("segmento") ?? "";
+  const cidade = sp.get("cidade") ?? "";
+  const escopo: SQL[] = [];
+  if (segmento) escopo.push(eq(leads.segment, segmento));
+  if (cidade) escopo.push(eq(leads.city, cidade));
+  const filtro = (chave: string) =>
+    escopo.length ? and(eq(leads.status, chave), ...escopo) : eq(leads.status, chave);
   const chaves = LEAD_STATUSES.map((s) => s.key).filter(
     (k) => incluirNovos || k !== "new",
   );
@@ -29,10 +41,10 @@ export async function GET(req: Request) {
         db
           .select()
           .from(leads)
-          .where(eq(leads.status, chave))
+          .where(filtro(chave))
           .orderBy(desc(leads.contactScore), desc(leads.createdAt))
           .limit(POR_COLUNA),
-        db.select({ value: count() }).from(leads).where(eq(leads.status, chave)),
+        db.select({ value: count() }).from(leads).where(filtro(chave)),
       ]);
       return { status: chave, total: totalRows[0]?.value ?? 0, leads: cards };
     }),
@@ -42,7 +54,24 @@ export async function GET(req: Request) {
   const [novos] = await db
     .select({ value: count() })
     .from(leads)
-    .where(eq(leads.status, "new"));
+    .where(filtro("new"));
 
-  return NextResponse.json({ columns: colunas, newTotal: novos?.value ?? 0 });
+  // Os grupos vem dos leads, nao da tabela de pesquisas: assim nenhum lead
+  // fica de fora e nenhum grupo aparece vazio.
+  const grupos = await db
+    .select({
+      segment: leads.segment,
+      city: leads.city,
+      country: leads.country,
+      total: count(),
+    })
+    .from(leads)
+    .groupBy(leads.segment, leads.city, leads.country)
+    .orderBy(desc(count()));
+
+  return NextResponse.json({
+    columns: colunas,
+    newTotal: novos?.value ?? 0,
+    groups: grupos.filter((g) => g.city),
+  });
 }

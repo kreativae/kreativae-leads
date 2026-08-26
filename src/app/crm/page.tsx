@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   Flame,
+  ChevronDown,
   Loader2,
   MessageCircle,
   Phone,
@@ -17,6 +18,13 @@ import {
 import { LEAD_STATUSES } from "@/lib/constants";
 import { formatPhone } from "@/lib/phone";
 import { LeadDrawer, type ClientLead } from "@/components/lead-drawer";
+
+interface Group {
+  segment: string;
+  city: string | null;
+  country: string;
+  total: number;
+}
 
 interface Column {
   status: string;
@@ -39,6 +47,9 @@ function rotulo(status: string): string {
 export default function CrmPage() {
   const [columns, setColumns] = useState<Column[] | null>(null);
   const [newTotal, setNewTotal] = useState(0);
+  const [groups, setGroups] = useState<Group[]>([]);
+  // "" = todos. O valor guarda segmento e cidade juntos, como uma pesquisa.
+  const [escopo, setEscopo] = useState("");
   const [incluirNovos, setIncluirNovos] = useState(false);
   const [loading, setLoading] = useState(true);
   const [arrastando, setArrastando] = useState<string | null>(null);
@@ -50,14 +61,23 @@ export default function CrmPage() {
   // renderizacao em cascata. Quem liga e o clique em Atualizar.
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/leads/board?novos=${incluirNovos ? "1" : "0"}`);
-      const data = (await res.json()) as { columns: Column[]; newTotal: number };
+      const [seg, cid] = escopo ? escopo.split("|") : ["", ""];
+      const qs = new URLSearchParams({ novos: incluirNovos ? "1" : "0" });
+      if (seg) qs.set("segmento", seg);
+      if (cid) qs.set("cidade", cid);
+      const res = await fetch(`/api/leads/board?${qs}`);
+      const data = (await res.json()) as {
+        columns: Column[];
+        newTotal: number;
+        groups: Group[];
+      };
       setColumns(data.columns ?? []);
       setNewTotal(data.newTotal ?? 0);
+      if (data.groups) setGroups(data.groups);
     } finally {
       setLoading(false);
     }
-  }, [incluirNovos]);
+  }, [incluirNovos, escopo]);
 
   useEffect(() => {
     load();
@@ -159,6 +179,27 @@ export default function CrmPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <select
+              value={escopo}
+              onChange={(e) => setEscopo(e.target.value)}
+              aria-label="Filtrar por pesquisa"
+              className={`w-full appearance-none rounded-full border bg-ink py-2.5 pl-4 pr-9 text-[12.5px] font-semibold outline-none transition-colors focus:border-volt/50 ${
+                escopo
+                  ? "border-volt/50 text-volt"
+                  : "border-white/[0.09] text-zinc-400"
+              }`}
+            >
+              <option value="">Todas as pesquisas</option>
+              {groups.map((g) => (
+                <option key={`${g.segment}|${g.city}`} value={`${g.segment}|${g.city}`}>
+                  {g.segment} · {g.city}
+                  {g.country === "PT" ? " (PT)" : ""} — {g.total}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
+          </div>
           <button
             type="button"
             onClick={() => setIncluirNovos((v) => !v)}
