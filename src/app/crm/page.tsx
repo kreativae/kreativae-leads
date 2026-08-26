@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import {
   ArrowUpRight,
   Contact,
@@ -16,24 +16,12 @@ import {
 } from "lucide-react";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { formatPhone } from "@/lib/phone";
-
-interface BoardLead {
-  id: string;
-  companyName: string;
-  segment: string;
-  city: string | null;
-  country: string;
-  phone: string | null;
-  whatsapp: string | null;
-  opportunity: string;
-  contactScore: number;
-  status: string;
-}
+import { LeadDrawer, type ClientLead } from "@/components/lead-drawer";
 
 interface Column {
   status: string;
   total: number;
-  leads: BoardLead[];
+  leads: ClientLead[];
 }
 
 const CORES: Record<string, string> = {
@@ -55,6 +43,8 @@ export default function CrmPage() {
   const [loading, setLoading] = useState(true);
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [alvo, setAlvo] = useState<string | null>(null);
+  // Abre o lead sem sair do quadro.
+  const [selecionado, setSelecionado] = useState<ClientLead | null>(null);
 
   // Nao liga o spinner aqui: setState sincrono dentro de efeito dispara
   // renderizacao em cascata. Quem liga e o clique em Atualizar.
@@ -77,7 +67,7 @@ export default function CrmPage() {
   async function mover(id: string, para: string) {
     setColumns((cols) => {
       if (!cols) return cols;
-      let card: BoardLead | undefined;
+      let card: ClientLead | undefined;
       const semCard = cols.map((c) => {
         const achou = c.leads.find((l) => l.id === id);
         if (achou) card = achou;
@@ -102,6 +92,46 @@ export default function CrmPage() {
     } catch {
       load(); // falhou: volta ao que o servidor tem
     }
+  }
+
+  /** Troca o lead nas colunas e no drawer, sem recarregar o quadro. */
+  function aplicar(atualizado: ClientLead) {
+    setColumns((cols) =>
+      cols
+        ? cols.map((c) => ({
+            ...c,
+            leads: c.leads.map((l) => (l.id === atualizado.id ? atualizado : l)),
+          }))
+        : cols,
+    );
+    setSelecionado((s) => (s && s.id === atualizado.id ? atualizado : s));
+  }
+
+  async function atualizarLead(
+    id: string,
+    patch: { status?: string; notes?: string },
+  ) {
+    const res = await fetch(`/api/leads/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const data = (await res.json()) as { ok: boolean; lead?: ClientLead };
+    if (data.ok && data.lead) {
+      // Mudar o status pelo drawer tem de mover o cartao de coluna tambem.
+      if (patch.status) {
+        setSelecionado(data.lead);
+        await load();
+      } else {
+        aplicar(data.lead);
+      }
+    }
+  }
+
+  async function removerLead(id: string) {
+    await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    setSelecionado(null);
+    await load();
   }
 
   return (
@@ -200,16 +230,21 @@ export default function CrmPage() {
                       }`}
                     >
                       <div className="flex items-start gap-2">
-                        <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-zinc-100">
+                        <button
+                          type="button"
+                          onClick={() => setSelecionado(l)}
+                          className="min-w-0 flex-1 truncate text-left text-[13px] font-bold text-zinc-100 transition-colors hover:text-volt"
+                        >
                           {l.companyName}
-                        </span>
-                        <Link
-                          href={`/leads?lead=${l.id}`}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelecionado(l)}
                           title="Abrir o lead"
                           className="shrink-0 text-zinc-600 transition-colors hover:text-volt"
                         >
                           <ArrowUpRight className="h-3.5 w-3.5" />
-                        </Link>
+                        </button>
                       </div>
                       <div className="mt-1 truncate text-[11.5px] text-zinc-500">
                         {l.segment}
@@ -265,6 +300,19 @@ export default function CrmPage() {
           ))}
         </div>
       )}
+
+      <AnimatePresence>
+        {selecionado && (
+          <LeadDrawer
+            key={selecionado.id}
+            lead={selecionado}
+            onClose={() => setSelecionado(null)}
+            onUpdate={atualizarLead}
+            onPatched={aplicar}
+            onDelete={removerLead}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
