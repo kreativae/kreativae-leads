@@ -32,9 +32,21 @@ function tel(raw: string): string {
  * vCard 3.0 — o formato que iOS e macOS abrem oferecendo "Adicionar aos
  * contactos". Usa CRLF porque a especificacao exige.
  */
+/** Prefixo do nome exibido: agrupa os leads na agenda do celular. */
+export const PREFIXO_LEAD = "Lead - ";
+
 export function buildVCard(lead: VCardLead): string {
-  const nome = esc(lead.companyName);
-  const linhas = ["BEGIN:VCARD", "VERSION:3.0", `N:;${nome};;;`, `FN:${nome}`, `ORG:${nome}`];
+  const empresa = esc(lead.companyName);
+  // O prefixo vai no nome exibido (FN/N), nao no ORG: a organizacao continua
+  // sendo so a empresa, entao busca por nome da empresa tambem encontra.
+  const exibido = esc(`${PREFIXO_LEAD}${lead.companyName}`);
+  const linhas = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    `N:;${exibido};;;`,
+    `FN:${exibido}`,
+    `ORG:${empresa}`,
+  ];
 
   if (lead.segment) linhas.push(`TITLE:${esc(lead.segment)}`);
   // O WhatsApp entra como celular para o iPhone oferecer a acao certa.
@@ -68,6 +80,6 @@ export function buildVCard(lead: VCardLead): string {
 
 /** Nome de arquivo seguro, preservando acentos. */
 export function vcardFilename(companyName: string): string {
-  const limpo = companyName.replace(/[^\p{L}\p{N} .-]/gu, "").trim();
+  const limpo = `${PREFIXO_LEAD}${companyName}`.replace(/[^\p{L}\p{N} .-]/gu, "").trim();
   return `${limpo || "contato"}.vcf`;
 }
