@@ -792,6 +792,10 @@ function LeadDrawer({
   const [msgStyle, setMsgStyle] = useState<MessageStyle>("consultivo");
   const [msgVariant, setMsgVariant] = useState(0);
   const [usarDiagnostico, setUsarDiagnostico] = useState(false);
+  const [incluirSobre, setIncluirSobre] = useState(false);
+  // null = usar o texto gerado. Qualquer mudanca no gerador limpa a edicao,
+  // senao o usuario trocaria de estilo e continuaria vendo o texto antigo.
+  const [editado, setEditado] = useState<string | null>(null);
 
   useEffect(() => setNotes(lead.notes ?? ""), [lead.id, lead.notes]);
 
@@ -800,8 +804,10 @@ function LeadDrawer({
     style: msgStyle,
     variant: msgVariant,
     useAnalysis: usarDiagnostico && temDiagnostico,
+    includeAbout: incluirSobre,
   });
-  const waLink = waMeLink(lead.whatsapp, message);
+  const mensagemFinal = editado ?? message;
+  const waLink = waMeLink(lead.whatsapp, mensagemFinal);
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     `${lead.companyName} ${lead.address ?? ""} ${lead.city ?? ""}`,
   )}`;
@@ -885,11 +891,11 @@ function LeadDrawer({
 
   async function copyMessage() {
     try {
-      await navigator.clipboard.writeText(message);
+      await navigator.clipboard.writeText(mensagemFinal);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      window.prompt("Copie a mensagem:", message);
+      window.prompt("Copie a mensagem:", mensagemFinal);
     }
   }
 
@@ -1337,7 +1343,10 @@ function LeadDrawer({
                 <button
                   key={s.key}
                   type="button"
-                  onClick={() => setMsgStyle(s.key)}
+                  onClick={() => {
+                    setMsgStyle(s.key);
+                    setEditado(null);
+                  }}
                   className={`rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
                     msgStyle === s.key
                       ? "border-volt/50 bg-volt/10 text-volt"
@@ -1349,7 +1358,10 @@ function LeadDrawer({
               ))}
               <button
                 type="button"
-                onClick={() => setMsgVariant((v) => v + 1)}
+                onClick={() => {
+                  setMsgVariant((v) => v + 1);
+                  setEditado(null);
+                }}
                 title="Gera outra redação com o mesmo estilo"
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.09] px-3 py-1 text-[11.5px] font-semibold text-zinc-500 transition-colors hover:border-volt/40 hover:text-volt"
               >
@@ -1359,7 +1371,10 @@ function LeadDrawer({
               {temDiagnostico && (
                 <button
                   type="button"
-                  onClick={() => setUsarDiagnostico((v) => !v)}
+                  onClick={() => {
+                    setUsarDiagnostico((v) => !v);
+                    setEditado(null);
+                  }}
                   title="Cita no texto os problemas concretos achados na análise do site"
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
                     usarDiagnostico
@@ -1371,13 +1386,45 @@ function LeadDrawer({
                   Usar diagnóstico
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setIncluirSobre((v) => !v);
+                  setEditado(null);
+                }}
+                title="Acrescenta um parágrafo com os diferenciais da kreativ.ae"
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+                  incluirSobre
+                    ? "border-volt/50 bg-volt/10 text-volt"
+                    : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                <Sparkles className="h-3 w-3" />
+                Diferenciais
+              </button>
               <span className="ml-auto text-[11px] font-medium text-zinc-600">
                 {lead.country === "PT" ? "PT-PT" : "PT-BR"}
               </span>
             </div>
-            <pre className="whitespace-pre-wrap rounded-xl border border-white/[0.07] bg-ink/60 p-4 font-sans text-[12.5px] leading-relaxed text-zinc-300">
-              {message}
-            </pre>
+            <textarea
+              value={mensagemFinal}
+              onChange={(e) => setEditado(e.target.value)}
+              rows={mensagemFinal.split("\n").length + 1}
+              spellCheck
+              className="w-full resize-y rounded-xl border border-white/[0.07] bg-ink/60 p-4 font-sans text-[12.5px] leading-relaxed text-zinc-300 outline-none transition-colors focus:border-volt/40"
+            />
+            {editado !== null && (
+              <div className="mt-1.5 flex items-center gap-2 text-[11.5px] text-zinc-500">
+                <span>Texto editado por você.</span>
+                <button
+                  type="button"
+                  onClick={() => setEditado(null)}
+                  className="font-semibold text-volt hover:underline"
+                >
+                  Restaurar o gerado
+                </button>
+              </div>
+            )}
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"

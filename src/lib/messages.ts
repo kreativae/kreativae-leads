@@ -1,11 +1,18 @@
 import type { SiteCheck } from "./site-analyzer";
 
-export type MessageStyle = "direto" | "consultivo" | "proximo";
+export type MessageStyle =
+  | "direto"
+  | "consultivo"
+  | "proximo"
+  | "curto"
+  | "pergunta";
 
 export const MESSAGE_STYLES: { key: MessageStyle; label: string }[] = [
   { key: "consultivo", label: "Consultivo" },
   { key: "direto", label: "Direto" },
   { key: "proximo", label: "Próximo" },
+  { key: "curto", label: "Curto" },
+  { key: "pergunta", label: "Pergunta" },
 ];
 
 export interface MessageLead {
@@ -23,7 +30,21 @@ export interface MessageOptions {
   style?: MessageStyle;
   variant?: number;
   useAnalysis?: boolean;
+  /** Acrescenta um paragrafo com os diferenciais da kreativ.ae. */
+  includeAbout?: boolean;
 }
+
+/** Diferenciais da casa — texto curto o bastante para caber no WhatsApp. */
+const SOBRE: Record<Locale, string[]> = {
+  BR: [
+    "Sobre a gente: atendemos empresas em mais de 7 países, criamos sites em qualquer idioma e não cobramos mensalidade — o site é seu, sem aluguel.",
+    "Só para você situar: já atendemos clientes em mais de 7 países, trabalhamos em qualquer idioma e não existe mensalidade — você paga uma vez e o site é seu.",
+  ],
+  PT: [
+    "Sobre nós: trabalhamos com empresas em mais de 7 países, criamos sites em qualquer idioma e não cobramos mensalidade — o site fica vosso, sem alugueres.",
+    "Só para situar: já trabalhámos com clientes em mais de 7 países, em qualquer idioma, e não há mensalidades — paga uma vez e o site é vosso.",
+  ],
+};
 
 type Locale = "BR" | "PT";
 
@@ -72,6 +93,11 @@ const APRESENTACOES: Record<Locale, Record<MessageStyle, string[]>> = {
       "Sou da kreativ.ae, um estúdio que cria sites para empresas daqui da região.",
       "Aqui é da kreativ.ae — a gente cria sites profissionais para empresas como a sua.",
     ],
+    curto: ["Sou da kreativ.ae, criamos sites profissionais."],
+    pergunta: [
+      "Sou da kreativ.ae, estúdio de criação de sites.",
+      "Aqui é da kreativ.ae — trabalhamos com sites profissionais.",
+    ],
   },
   PT: {
     consultivo: [
@@ -85,6 +111,11 @@ const APRESENTACOES: Record<Locale, Record<MessageStyle, string[]>> = {
     proximo: [
       "Sou da kreativ.ae, um estúdio que cria sites para empresas como a vossa.",
       "Falo da kreativ.ae — ajudamos empresas a ter uma presença online à altura do trabalho que fazem.",
+    ],
+    curto: ["Sou da kreativ.ae, criamos sites profissionais."],
+    pergunta: [
+      "Sou da kreativ.ae, estúdio de criação de sites.",
+      "Falo da kreativ.ae — trabalhamos com sites profissionais.",
     ],
   },
 };
@@ -105,6 +136,14 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
       `Estava pesquisando empresas${lugar} e dei de cara com ${empresa}. Achei o trabalho de vocês bom, mas vi que ainda não têm um site — e isso está deixando cliente na mesa.`,
       `Conheci ${empresa}${lugar} e fiquei com uma pulga atrás da orelha: vocês não têm site. Quem pesquisa no Google hoje acaba indo parar no concorrente.`,
     ],
+    curto: [
+      `Vi que ${empresa} não tem site — e é lá que o cliente procura antes de contratar.`,
+      `${empresa} não aparece no Google porque não tem site. Dá para resolver.`,
+    ],
+    pergunta: [
+      `Posso fazer uma pergunta rápida? Vi que ${empresa} ainda não tem site. Isso é escolha de vocês ou só não deu tempo de montar?`,
+      `Uma dúvida sincera: ${empresa} já perdeu cliente por não aparecer no Google? Reparei que vocês ainda não têm site.`,
+    ],
   };
   const PT = {
     consultivo: [
@@ -118,6 +157,14 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
     proximo: [
       `Estava a pesquisar empresas${lugar} e encontrei ${empresa}. Gostei do vosso trabalho, mas reparei que ainda não têm site — e isso anda a custar contactos.`,
       `Conheci ${empresa}${lugar} e ficou-me uma dúvida: não têm site. Quem pesquisa no Google acaba por ir ter à concorrência.`,
+    ],
+    curto: [
+      `Vi que ${empresa} não tem site — e é aí que o cliente procura antes de contratar.`,
+      `${empresa} não aparece no Google por não ter site. Dá para resolver.`,
+    ],
+    pergunta: [
+      `Posso fazer uma pergunta rápida? Reparei que ${empresa} ainda não tem site. É opção vossa ou apenas não houve tempo?`,
+      `Uma dúvida sincera: ${empresa} já perdeu clientes por não aparecer no Google? Reparei que ainda não têm site.`,
     ],
   };
   return pick((l === "PT" ? PT : BR)[style], n);
@@ -137,6 +184,14 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
       `Entrei no site da ${empresa} e senti que ele não faz jus ao trabalho de vocês. Dá para melhorar bastante com pouca coisa.`,
       `Fui ver o site da ${empresa} e achei que ele está devendo um pouco perto da qualidade do serviço.`,
     ],
+    curto: [
+      `O site da ${empresa} está desatualizado — isso derruba o Google e a confiança de quem chega.`,
+      `Dei uma olhada no site da ${empresa}: dá para modernizar e captar bem mais.`,
+    ],
+    pergunta: [
+      `Posso fazer uma pergunta? Quando foi a última vez que o site da ${empresa} trouxe um cliente novo? Olhei ele e vi alguns pontos que podem estar travando isso.`,
+      `Uma pergunta rápida: o site da ${empresa} ainda representa vocês? Achei ele bem defasado em relação ao trabalho que fazem.`,
+    ],
   };
   const PT = {
     consultivo: [
@@ -150,6 +205,14 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
     proximo: [
       `Entrei no site da ${empresa} e senti que não faz justiça ao vosso trabalho. Dá para melhorar bastante sem grande complicação.`,
       `Fui ver o site da ${empresa} e achei que está a ficar aquém da qualidade do serviço.`,
+    ],
+    curto: [
+      `O site da ${empresa} está desatualizado — prejudica o Google e a confiança de quem lá chega.`,
+      `Vi o site da ${empresa}: dá para modernizar e captar bastante mais.`,
+    ],
+    pergunta: [
+      `Posso fazer uma pergunta? Quando foi a última vez que o site da ${empresa} trouxe um cliente novo? Encontrei alguns pontos que podem estar a travar isso.`,
+      `Uma pergunta rápida: o site da ${empresa} ainda vos representa? Achei-o bastante aquém do trabalho que fazem.`,
     ],
   };
   return pick((l === "PT" ? PT : BR)[style], n);
@@ -223,11 +286,15 @@ function ganchoDiagnostico(
           consultivo: [`Fiz uma análise técnica do site da ${empresa} e encontrei dois pontos concretos:`, `Analisei o site da ${empresa} e há dois problemas que saltam à vista:`],
           direto: [`Analisei o site da ${empresa}. Dois problemas:`, `Passei o site da ${empresa} por uma análise técnica. O que encontrei:`],
           proximo: [`Fui espreitar o site da ${empresa} com atenção e reparei em duas coisas:`, `Dei uma vista de olhos técnica no site da ${empresa} e notei o seguinte:`],
+          curto: [`No site da ${empresa} encontrei dois problemas:`],
+          pergunta: [`Posso ser direto? Analisei o site da ${empresa} e encontrei dois pontos que provavelmente estão a custar contactos:`],
         }
       : {
           consultivo: [`Fiz uma análise técnica do site da ${empresa} e encontrei dois pontos concretos:`, `Analisei o site da ${empresa} e há dois problemas que saltam aos olhos:`],
           direto: [`Analisei o site da ${empresa}. Dois problemas:`, `Passei o site da ${empresa} por uma análise técnica. O que achei:`],
           proximo: [`Fui olhar o site da ${empresa} com calma e reparei em duas coisas:`, `Dei uma olhada técnica no site da ${empresa} e notei o seguinte:`],
+          curto: [`No site da ${empresa} achei dois problemas:`],
+          pergunta: [`Posso ser direto? Analisei o site da ${empresa} e achei dois pontos que provavelmente estão custando contatos:`],
         };
 
   return `${pick(aberturas[style], n)} ${lista}.`;
@@ -249,6 +316,11 @@ const CTAS: Record<Locale, Record<MessageStyle, string[]>> = {
       "Se quiser, preparo um diagnóstico gratuito e a gente conversa sem compromisso nenhum.",
       "Posso te mandar um diagnóstico rápido, sem custo. O que acha?",
     ],
+    curto: ["Posso te mandar um diagnóstico gratuito?", "Quer ver como ficaria? Mando sem compromisso."],
+    pergunta: [
+      "Se quiser, mando um diagnóstico gratuito com o que dá para melhorar — sem compromisso.",
+      "Posso te mostrar em 2 minutos o que mudaria? Sem compromisso.",
+    ],
   },
   PT: {
     consultivo: [
@@ -262,6 +334,11 @@ const CTAS: Record<Locale, Record<MessageStyle, string[]>> = {
     proximo: [
       "Se quiser, preparo um diagnóstico gratuito e conversamos sem compromisso nenhum.",
       "Posso enviar-lhe um diagnóstico rápido, sem custo. O que acha?",
+    ],
+    curto: ["Posso enviar-lhe um diagnóstico gratuito?", "Quer ver como ficaria? Envio sem compromisso."],
+    pergunta: [
+      "Se quiser, envio um diagnóstico gratuito com o que dá para melhorar — sem compromisso.",
+      "Posso mostrar-lhe em 2 minutos o que mudaria? Sem compromisso.",
     ],
   },
 };
@@ -300,9 +377,15 @@ export function buildWhatsappMessage(
   }
 
   const cta = pick(CTAS[l][style], base >> 7);
-  const fecho = pick(FECHOS[l], base >> 9);
 
-  return `${saudacao}\n\n${apresentacao}\n\n${gancho}\n\n${cta}\n\n${fecho}`;
+  const partes = [saudacao, apresentacao, gancho];
+  if (opts.includeAbout) partes.push(pick(SOBRE[l], base >> 11));
+  partes.push(cta);
+  // O estilo "curto" existe para caber em poucas linhas: um paragrafo de
+  // despedida derrubaria justamente o que ele tem de util.
+  if (style !== "curto") partes.push(pick(FECHOS[l], base >> 9));
+
+  return partes.join("\n\n");
 }
 
 export function waMeLink(
