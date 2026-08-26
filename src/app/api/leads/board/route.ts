@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
-import { and, count, desc, eq, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, max, type SQL } from "drizzle-orm";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 
@@ -64,10 +64,13 @@ export async function GET(req: Request) {
       city: leads.city,
       country: leads.country,
       total: count(),
+      // Data do lead mais novo do grupo: e o "quando isto foi pesquisado"
+      // que o usuario reconhece, e nao depende da pesquisa ainda existir.
+      lastAt: max(leads.createdAt),
     })
     .from(leads)
     .groupBy(leads.segment, leads.city, leads.country)
-    .orderBy(desc(count()));
+    .orderBy(desc(max(leads.createdAt)));
 
   return NextResponse.json({
     columns: colunas,

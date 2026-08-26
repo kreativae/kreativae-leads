@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import {
@@ -24,6 +25,16 @@ interface Group {
   city: string | null;
   country: string;
   total: number;
+  lastAt: string | null;
+}
+
+/** "26/08" — data curta, so para situar quando aquilo foi pesquisado. */
+function diaCurto(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
 }
 
 interface Column {
@@ -193,13 +204,25 @@ export default function CrmPage() {
               <option value="">Todas as pesquisas</option>
               {groups.map((g) => (
                 <option key={`${g.segment}|${g.city}`} value={`${g.segment}|${g.city}`}>
-                  {g.segment} · {g.city}
-                  {g.country === "PT" ? " (PT)" : ""} — {g.total}
+                  {diaCurto(g.lastAt)} · {g.segment} · {g.city}
+                  {g.country === "PT" ? " (PT)" : ""} — {g.total} leads
                 </option>
               ))}
             </select>
             <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
           </div>
+          {escopo && (
+            <Link
+              href={`/leads?segmento=${encodeURIComponent(
+                escopo.split("|")[0],
+              )}&cidade=${encodeURIComponent(escopo.split("|")[1] ?? "")}`}
+              title="Abre esta mesma pesquisa na lista de Leads"
+              className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] px-4 py-2.5 text-[12.5px] font-semibold text-zinc-300 transition-colors hover:border-volt/40 hover:text-volt"
+            >
+              <ArrowUpRight className="h-3.5 w-3.5" />
+              Abrir em Leads
+            </Link>
+          )}
           <button
             type="button"
             onClick={() => setIncluirNovos((v) => !v)}

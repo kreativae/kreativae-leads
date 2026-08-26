@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { ThemeToggle } from "./theme";
+import { WorldClock } from "./world-clock";
 
 const AUTH_PATHS = ["/login", "/registrar"];
 
@@ -206,6 +207,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="space-y-1 border-t border-white/[0.06] px-3 py-4">
+          <WorldClock />
           <ThemeToggle />
           <Link
             href="/conta"
