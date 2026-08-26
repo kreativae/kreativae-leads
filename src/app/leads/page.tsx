@@ -38,7 +38,12 @@ import {
   X,
 } from "lucide-react";
 import { LEAD_STATUSES } from "@/lib/constants";
-import { buildWhatsappMessage, waMeLink } from "@/lib/messages";
+import {
+  buildWhatsappMessage,
+  MESSAGE_STYLES,
+  waMeLink,
+  type MessageStyle,
+} from "@/lib/messages";
 import { formatPhone, toWhatsappDigits } from "@/lib/phone";
 import { timeAgo } from "@/lib/format";
 import { OpportunityBadge, StatusPill, statusLabel } from "@/components/badges";
@@ -784,10 +789,18 @@ function LeadDrawer({
   const [showQr, setShowQr] = useState(false);
   const [igBusy, setIgBusy] = useState(false);
   const [igMsg, setIgMsg] = useState<string | null>(null);
+  const [msgStyle, setMsgStyle] = useState<MessageStyle>("consultivo");
+  const [msgVariant, setMsgVariant] = useState(0);
+  const [usarDiagnostico, setUsarDiagnostico] = useState(false);
 
   useEffect(() => setNotes(lead.notes ?? ""), [lead.id, lead.notes]);
 
-  const message = buildWhatsappMessage(lead);
+  const temDiagnostico = (lead.websiteChecks?.length ?? 0) > 0;
+  const message = buildWhatsappMessage(lead, {
+    style: msgStyle,
+    variant: msgVariant,
+    useAnalysis: usarDiagnostico && temDiagnostico,
+  });
   const waLink = waMeLink(lead.whatsapp, message);
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     `${lead.companyName} ${lead.address ?? ""} ${lead.city ?? ""}`,
@@ -1319,6 +1332,49 @@ function LeadDrawer({
           {/* WhatsApp approach */}
           <section>
             <SectionTitle>Abordagem pronta</SectionTitle>
+            <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
+              {MESSAGE_STYLES.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => setMsgStyle(s.key)}
+                  className={`rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+                    msgStyle === s.key
+                      ? "border-volt/50 bg-volt/10 text-volt"
+                      : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setMsgVariant((v) => v + 1)}
+                title="Gera outra redação com o mesmo estilo"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.09] px-3 py-1 text-[11.5px] font-semibold text-zinc-500 transition-colors hover:border-volt/40 hover:text-volt"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Variar
+              </button>
+              {temDiagnostico && (
+                <button
+                  type="button"
+                  onClick={() => setUsarDiagnostico((v) => !v)}
+                  title="Cita no texto os problemas concretos achados na análise do site"
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+                    usarDiagnostico
+                      ? "border-volt/50 bg-volt/10 text-volt"
+                      : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+                  }`}
+                >
+                  <Stethoscope className="h-3 w-3" />
+                  Usar diagnóstico
+                </button>
+              )}
+              <span className="ml-auto text-[11px] font-medium text-zinc-600">
+                {lead.country === "PT" ? "PT-PT" : "PT-BR"}
+              </span>
+            </div>
             <pre className="whitespace-pre-wrap rounded-xl border border-white/[0.07] bg-ink/60 p-4 font-sans text-[12.5px] leading-relaxed text-zinc-300">
               {message}
             </pre>
