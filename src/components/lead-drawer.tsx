@@ -136,6 +136,7 @@ export function LeadDrawer({
   // senao o usuario trocaria de estilo e continuaria vendo o texto antigo.
   const [editado, setEditado] = useState<string[] | null>(null);
   const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
+  const [modoBloco, setModoBloco] = useState(false);
 
   useEffect(() => setNotes(lead.notes ?? ""), [lead.id, lead.notes]);
 
@@ -809,10 +810,43 @@ export function LeadDrawer({
                 <Sparkles className="h-3 w-3" />
                 Diferenciais
               </button>
-              <span className="ml-auto text-[11px] font-medium text-zinc-600">
-                {lead.country === "PT" ? "PT-PT" : "PT-BR"}
-              </span>
+              <div className="ml-auto flex items-center gap-2">
+                <div className="flex rounded-full border border-white/[0.09] p-0.5">
+                  {[
+                    { bloco: false, label: "Em partes" },
+                    { bloco: true, label: "Bloco único" },
+                  ].map((o) => (
+                    <button
+                      key={o.label}
+                      type="button"
+                      onClick={() => setModoBloco(o.bloco)}
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+                        modoBloco === o.bloco
+                          ? "bg-volt/15 text-volt"
+                          : "text-zinc-500 hover:text-zinc-200"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[11px] font-medium text-zinc-600">
+                  {lead.country === "PT" ? "PT-PT" : "PT-BR"}
+                </span>
+              </div>
             </div>
+            {modoBloco ? (
+              <textarea
+                value={mensagemFinal}
+                /* Reparte pela linha em branco: mantem uma unica fonte de
+                   verdade, entao voltar para "Em partes" reflete a edicao. */
+                onChange={(e) => setEditado(e.target.value.split(/\n{2,}/))}
+                rows={mensagemFinal.split("\n").length + 2}
+                spellCheck
+                className="w-full resize-y rounded-xl border border-white/[0.07] bg-ink/60 p-4 font-sans text-[12.5px] leading-relaxed text-zinc-300 outline-none transition-colors focus:border-volt/40"
+              />
+            ) : (
+              <>
             <p className="mb-2 text-[11.5px] leading-relaxed text-zinc-500">
               Mande uma parte de cada vez: sequência de mensagens curtas soa
               como conversa, bloco único soa como disparo automático.
@@ -862,6 +896,8 @@ export function LeadDrawer({
                 </li>
               ))}
             </ol>
+              </>
+            )}
             {editado !== null && (
               <div className="mt-2 flex items-center gap-2 text-[11.5px] text-zinc-500">
                 <span>Texto editado por você.</span>
