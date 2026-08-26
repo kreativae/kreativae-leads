@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   title: "kreativ.ae — Radar de Leads",
   description:
     "Sistema interno de captação de leads: encontre empresas sem site ou com sites desatualizados e aborde pelo WhatsApp.",
+};
+
+/* Sem viewport-fit=cover o env(safe-area-inset-top) sempre devolve 0. */
+export const viewport: Viewport = {
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

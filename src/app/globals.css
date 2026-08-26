@@ -64,6 +64,31 @@ body {
   background-color: var(--color-ink);
 }
 
+/* Altura do header do celular. A area segura do iOS (relogio, bateria) fica
+   POR CIMA da pagina, entao o header precisa se estender ate ela — senao o
+   conteudo rola visivel atras do status bar. Exige viewport-fit=cover. */
+.app-header-mobile {
+  height: calc(4rem + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-content-offset {
+  padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+}
+
+.app-filters-sticky {
+  top: calc(4rem + env(safe-area-inset-top, 0px));
+}
+
+@media (min-width: 1024px) {
+  .app-content-offset {
+    padding-top: 0;
+  }
+  .app-filters-sticky {
+    top: 1rem;
+  }
+}
+
 ::selection {
   background: var(--color-volt);
   color: var(--color-onvolt);

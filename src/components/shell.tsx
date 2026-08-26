@@ -225,7 +225,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Mobile top bar */}
       {/* fixed, nao sticky: sticky depende de nenhum ancestral ter overflow,
           e qualquer overflow futuro o quebraria em silencio. */}
-      <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/[0.08] bg-ink px-4 lg:hidden">
+      <header className="app-header-mobile fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-white/[0.08] bg-ink px-4 lg:hidden">
         <Wordmark />
         <nav className="flex items-center gap-1">
           {NAV.map((item) => {
@@ -249,7 +249,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </header>
 
-      <div className="relative pt-16 lg:pt-0 lg:pl-60">
+      <div className="app-content-offset relative lg:pl-60">
         {forceBanner && (
           <div className="flex items-center gap-2.5 border-b border-amber-300/25 bg-amber-300/[0.08] px-4 py-2.5 text-[12.5px] text-amber-200">
             <ShieldAlert className="h-4 w-4 shrink-0 text-amber-300" />
