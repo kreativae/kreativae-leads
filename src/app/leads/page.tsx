@@ -134,6 +134,7 @@ function LeadsApp() {
   const [opportunity, setOpportunity] = useState(sp.get("oportunidade") ?? "");
   const [onlyWhats, setOnlyWhats] = useState(false);
   const [onlyInstagram, setOnlyInstagram] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sort, setSort] = useState<"recent" | "score" | "followers">("recent");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [batch, setBatch] = useState<BatchState | null>(null);
@@ -143,6 +144,17 @@ function LeadsApp() {
     const t = setTimeout(() => setQDebounced(q), 350);
     return () => clearTimeout(t);
   }, [q]);
+
+  // Quantos filtros estao aplicados — mostrado no botao quando o painel
+  // esta fechado, para nao parecer que a lista veio incompleta sem motivo.
+  const activeFilters =
+    (segment ? 1 : 0) +
+    (city ? 1 : 0) +
+    (status ? 1 : 0) +
+    (opportunity ? 1 : 0) +
+    (onlyWhats ? 1 : 0) +
+    (onlyInstagram ? 1 : 0) +
+    (sort !== "recent" ? 1 : 0);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -366,8 +378,11 @@ function LeadsApp() {
 
       {/* Filter bar */}
       <div className="sticky top-14 z-30 -mx-1 rounded-2xl border border-white/[0.07] bg-ink/85 px-4 py-3.5 backdrop-blur-xl lg:top-4">
-        <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:items-center">
-          <div className="relative col-span-2 sm:col-span-1 sm:min-w-52 sm:flex-1">
+        <div className="sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
+          {/* sm:contents dissolve este wrapper no desktop: a busca volta a ser
+              item direto do flex, sem precisar duplicar o campo. */}
+          <div className="flex items-center gap-2.5 sm:contents">
+          <div className="relative min-w-0 flex-1 sm:min-w-52">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
             <input
               value={q}
@@ -376,6 +391,34 @@ function LeadsApp() {
               className="w-full rounded-xl border border-white/[0.09] bg-ink py-2.5 pl-10 pr-4 text-[13px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-volt/50"
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            aria-label={filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+            className={`relative flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border transition-colors sm:hidden ${
+              filtersOpen || activeFilters > 0
+                ? "border-volt/50 bg-volt/10 text-volt"
+                : "border-white/[0.09] text-zinc-400"
+            }`}
+          >
+            {filtersOpen ? (
+              <X className="h-4 w-4" />
+            ) : (
+              <Filter className="h-4 w-4" />
+            )}
+            {!filtersOpen && activeFilters > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-volt px-1 text-[10px] font-bold tabular-nums text-onvolt">
+                {activeFilters}
+              </span>
+            )}
+          </button>
+          </div>
+          <div
+            className={`${
+              filtersOpen ? "mt-2.5 grid" : "hidden"
+            } grid-cols-2 gap-2.5 sm:mt-0 sm:contents`}
+          >
           <FilterSelect
             value={segment}
             onChange={setSegment}
@@ -441,6 +484,7 @@ function LeadsApp() {
             <AtSign className="h-3.5 w-3.5" />
             Só Instagram
           </button>
+          </div>
         </div>
       </div>
 
