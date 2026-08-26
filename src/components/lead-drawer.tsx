@@ -29,6 +29,7 @@ import {
   Stethoscope,
   Trash2,
   User2,
+  UserPlus,
   Users,
   Wand2,
   X,
@@ -574,7 +575,7 @@ export function LeadDrawer({
                   href={waLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-[12.5px] font-bold text-white transition-transform hover:scale-[1.03]"
+                  className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-[12.5px] font-bold text-[#fff] transition-transform hover:scale-[1.03]"
                 >
                   <MessageCircle className="h-4 w-4" />
                   Chamar no WhatsApp
@@ -599,6 +600,16 @@ export function LeadDrawer({
                 >
                   <MessageCircle className="h-4 w-4" />
                   Testar fixo no WhatsApp
+                </a>
+              )}
+              {(lead.phone || lead.whatsapp) && (
+                <a
+                  href={`/api/leads/${lead.id}/vcard`}
+                  title="Baixa um .vcf — no iPhone e no Mac abre direto em Adicionar aos contactos"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2.5 text-[12.5px] font-semibold text-zinc-200 transition-colors hover:border-volt/40 hover:text-volt"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Salvar contato
                 </a>
               )}
               {lead.whatsapp && (
