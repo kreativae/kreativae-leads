@@ -21,6 +21,9 @@ export const searches = pgTable("searches", {
   lon: doublePrecision("lon"),
   radiusKm: doublePrecision("radius_km"),
   status: text("status").notNull().default("running"), // running | done | failed
+  // Rodada da consulta: 0 usa o rotulo do segmento, 1+ usam formulacoes
+  // alternativas para passar do teto de 60 do Google Places.
+  round: integer("round").notNull().default(0),
   resultsCount: integer("results_count").notNull().default(0),
   newCount: integer("new_count").notNull().default(0),
   withPhoneCount: integer("with_phone_count").notNull().default(0),

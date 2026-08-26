@@ -87,7 +87,54 @@ export const LEAD_STATUSES = [
 
 export type LeadStatusKey = (typeof LEAD_STATUSES)[number]["key"];
 
+/**
+ * Formulacoes alternativas para o Google Places. O Text Search devolve no
+ * maximo 60 resultados POR CONSULTA — a unica forma de passar disso e
+ * perguntar de outro jeito e juntar, deduplicando pelo id do lugar.
+ */
+export const PLACES_TERMS: Record<string, string[]> = {
+  advogados: ["escritório de advocacia", "sociedade de advogados", "advogado trabalhista", "advogado de família"],
+  arquitetos: ["escritório de arquitetura", "arquitetura e urbanismo", "arquiteto de interiores", "projeto arquitetônico"],
+  dentistas: ["clínica odontológica", "consultório odontológico", "ortodontia", "implante dentário"],
+  medicos: ["clínica médica", "consultório médico", "centro médico"],
+  "clinicas-estetica": ["clínica de estética", "harmonização facial", "estética avançada"],
+  psicologos: ["consultório de psicologia", "psicoterapia", "clínica de psicologia"],
+  contadores: ["escritório de contabilidade", "contabilidade empresarial", "contabilista"],
+  imobiliarias: ["imobiliária", "mediação imobiliária", "corretor de imóveis"],
+  engenharia: ["escritório de engenharia", "engenharia civil", "projetos estruturais"],
+  seguros: ["corretora de seguros", "mediador de seguros", "seguros automóvel"],
+  academias: ["academia de musculação", "studio de pilates", "ginásio"],
+  pet: ["pet shop", "clínica veterinária", "banho e tosa"],
+  restaurantes: ["restaurante", "marisqueira", "churrascaria"],
+  saloes: ["salão de beleza", "cabeleireiro", "barbearia"],
+};
+
+/** Fallback para segmento digitado livremente, sem preset. */
+const TERMOS_GENERICOS = ["escritório de", "empresa de", "clínica de"];
+
+export function termsForSegment(key: string | null, label: string): string[] {
+  if (key && PLACES_TERMS[key]) return PLACES_TERMS[key];
+  return TERMOS_GENERICOS.map((t) => `${t} ${label.toLowerCase()}`);
+}
+
+/** Consulta da rodada N. Rodada 0 usa o proprio rotulo do segmento. */
+export function queryForRound(
+  key: string | null,
+  label: string,
+  round: number,
+): string {
+  if (round <= 0) return label;
+  const termos = termsForSegment(key, label);
+  return termos[(round - 1) % termos.length];
+}
+
+/** Quantas rodadas distintas existem para este segmento. */
+export function roundsAvailable(key: string | null, label: string): number {
+  return 1 + termsForSegment(key, label).length;
+}
+
 export function matchSegment(input: string): {
+  key: string | null;
   displayLabel: string;
   tags: [string, string][] | null;
 } {
@@ -95,11 +142,11 @@ export function matchSegment(input: string): {
   const exact = SEGMENT_PRESETS.find(
     (s) => s.key === q || s.label.toLowerCase() === q,
   );
-  if (exact) return { displayLabel: exact.label, tags: exact.tags };
+  if (exact) return { key: exact.key, displayLabel: exact.label, tags: exact.tags };
   const partial = SEGMENT_PRESETS.find(
     (s) => s.label.toLowerCase().includes(q) || q.includes(s.key),
   );
   if (partial && q.length >= 3)
-    return { displayLabel: partial.label, tags: partial.tags };
-  return { displayLabel: input.trim(), tags: null };
+    return { key: partial.key, displayLabel: partial.label, tags: partial.tags };
+  return { key: null, displayLabel: input.trim(), tags: null };
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, searches, type Lead } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
-import { matchSegment } from "@/lib/constants";
+import { matchSegment, queryForRound } from "@/lib/constants";
 import {
   buildOverpassQuery,
   contactScore,
@@ -25,6 +25,7 @@ interface SearchBody {
   country?: unknown;
   limit?: unknown;
   mode?: unknown;
+  round?: unknown;
   lat?: unknown;
   lon?: unknown;
   radiusKm?: unknown;
@@ -42,6 +43,8 @@ export async function POST(req: Request) {
 
   const segmentRaw = typeof body.segment === "string" ? body.segment.trim() : "";
   const mode = body.mode === "radius" ? "radius" : "city";
+  const round =
+    typeof body.round === "number" ? Math.max(0, Math.min(20, Math.floor(body.round))) : 0;
   const city = typeof body.city === "string" ? body.city.trim() : "";
   let country = body.country === "PT" ? "PT" : "BR";
   const limit = Math.max(
@@ -96,6 +99,7 @@ export async function POST(req: Request) {
       state: geoState,
       country,
       mode,
+      round,
       lat: mode === "radius" ? lat : null,
       lon: mode === "radius" ? lon : null,
       radiusKm: mode === "radius" ? radiusKm : null,
@@ -117,10 +121,12 @@ export async function POST(req: Request) {
       try {
         normalized = (
           await searchPlaces({
+            // Rodada 0 = rotulo do segmento; 1+ = formulacoes alternativas,
+            // que e o unico jeito de passar dos 60 por consulta do Google.
             textQuery:
               mode === "radius"
-                ? `${matched.displayLabel} perto de ${geoCityName}`
-                : `${matched.displayLabel} em ${city}`,
+                ? `${queryForRound(matched.key, matched.displayLabel, round)} perto de ${geoCityName}`
+                : `${queryForRound(matched.key, matched.displayLabel, round)} em ${city}`,
             apiKey: placesKey,
             limit: Math.min(60, limit),
             country,
@@ -269,6 +275,7 @@ export async function POST(req: Request) {
         country,
         source,
         mode,
+        round,
         radiusKm: mode === "radius" ? radiusKm : null,
         resultsCount: normalized.length,
         newCount,
