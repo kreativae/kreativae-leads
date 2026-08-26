@@ -74,6 +74,13 @@ const LOAD_STEPS = [
   "Registrando no radar…",
 ];
 
+interface CitySuggestion {
+  short: string;
+  name: string;
+  state: string | null;
+  country: string | null;
+}
+
 interface LeadPreview {
   id: string;
   companyName: string;
@@ -108,6 +115,12 @@ function SearchForm() {
   );
   const [city, setCity] = useState(sp.get("cidade") ?? "");
   const [mode, setMode] = useState<"city" | "radius">("city");
+  const [citySug, setCitySug] = useState<CitySuggestion[]>([]);
+  const [cityBusy, setCityBusy] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
+  // Cidade veio de um preset ou de uma sugestao escolhida — ou seja, existe
+  // mesmo e vai geocodificar. Texto digitado solto nao tem essa garantia.
+  const [cityConfirmed, setCityConfirmed] = useState(true);
   const [point, setPoint] = useState<MapPoint | null>(null);
   const [radiusKm, setRadiusKm] = useState(5);
   const [limit, setLimit] = useState(80);
@@ -117,6 +130,37 @@ function SearchForm() {
   const [preview, setPreview] = useState<LeadPreview[]>([]);
   const [error, setError] = useState<string | null>(null);
   const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (mode !== "city" || cityConfirmed) {
+      setCitySug([]);
+      return;
+    }
+    const termo = city.trim();
+    if (termo.length < 3) {
+      setCitySug([]);
+      return;
+    }
+    let vivo = true;
+    setCityBusy(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/geocode?kind=city&country=${country}&q=${encodeURIComponent(termo)}`,
+        );
+        const data = (await res.json()) as { results: CitySuggestion[] };
+        if (!vivo) return;
+        setCitySug(data.results ?? []);
+        setCityOpen(true);
+      } finally {
+        if (vivo) setCityBusy(false);
+      }
+    }, 400);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+    };
+  }, [city, country, mode, cityConfirmed]);
 
   const cityOptions = useMemo(
     () => CITY_PRESETS.filter((c) => c.country === country),
@@ -303,7 +347,11 @@ function SearchForm() {
                         <button
                           key={c.label}
                           type="button"
-                          onClick={() => setCity(active ? "" : c.label)}
+                          onClick={() => {
+                            setCity(active ? "" : c.label);
+                            setCityConfirmed(true);
+                            setCityOpen(false);
+                          }}
                           className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[13px] font-semibold transition-all ${
                             active
                               ? "border-volt bg-volt text-onvolt"
@@ -316,16 +364,71 @@ function SearchForm() {
                       );
                     })}
                   </div>
-                  <input
-                    value={CITY_PRESETS.some((c) => c.label === city) ? "" : city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder={
-                      country === "PT"
-                        ? "Ou digite outra cidade… ex.: Braga, Portugal"
-                        : "Ou digite outra cidade… ex.: Apucarana, PR"
-                    }
-                    className="mt-4 w-full max-w-xl rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-volt/50"
-                  />
+                  <div className="relative mt-4 w-full max-w-xl">
+                    <input
+                      value={CITY_PRESETS.some((c) => c.label === city) ? "" : city}
+                      onChange={(e) => {
+                        setCity(e.target.value);
+                        setCityConfirmed(false);
+                      }}
+                      onFocus={() => citySug.length > 0 && setCityOpen(true)}
+                      onBlur={() => setTimeout(() => setCityOpen(false), 120)}
+                      placeholder={
+                        country === "PT"
+                          ? "Ou digite outra cidade… ex.: Braga"
+                          : "Ou digite outra cidade… ex.: Apucarana"
+                      }
+                      className="w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 pr-10 text-[13.5px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-volt/50"
+                    />
+                    <div className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2">
+                      {cityBusy ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-zinc-600" />
+                      ) : cityConfirmed && city.trim() ? (
+                        <CheckCircle2 className="h-4 w-4 text-volt" />
+                      ) : null}
+                    </div>
+
+                    {cityOpen && citySug.length > 0 && (
+                      <ul
+                        onMouseDown={(e) => e.preventDefault()}
+                        className="absolute z-20 mt-1.5 w-full overflow-hidden rounded-xl border border-white/[0.1] bg-panel shadow-2xl"
+                      >
+                        {citySug.map((s, i) => (
+                          <li key={`${s.short}-${i}`}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCity(s.short);
+                                setCityConfirmed(true);
+                                setCityOpen(false);
+                              }}
+                              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-white/[0.05]"
+                            >
+                              <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
+                              <span className="min-w-0">
+                                <span className="block truncate text-[13px] font-semibold text-zinc-100">
+                                  {s.name}
+                                </span>
+                                <span className="block truncate text-[11.5px] text-zinc-500">
+                                  {[s.state, s.country].filter(Boolean).join(" · ")}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {!cityConfirmed &&
+                      city.trim().length >= 3 &&
+                      !cityBusy &&
+                      citySug.length === 0 && (
+                        <p className="mt-1.5 text-[12px] text-amber-300">
+                          Nenhuma cidade com esse nome em{" "}
+                          {country === "PT" ? "Portugal" : "no Brasil"}. Confira a grafia.
+                        </p>
+                      )}
+                  </div>
                 </div>
               ) : (
                 <div className="mt-4 space-y-4">
