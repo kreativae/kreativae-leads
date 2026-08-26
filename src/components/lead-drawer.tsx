@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 import { LEAD_STATUSES } from "@/lib/constants";
 import {
-  buildWhatsappMessage,
+  buildWhatsappParts,
   MESSAGE_STYLES,
   waMeLink,
   type MessageStyle,
@@ -134,7 +134,8 @@ export function LeadDrawer({
   const [incluirSobre, setIncluirSobre] = useState(false);
   // null = usar o texto gerado. Qualquer mudanca no gerador limpa a edicao,
   // senao o usuario trocaria de estilo e continuaria vendo o texto antigo.
-  const [editado, setEditado] = useState<string | null>(null);
+  const [editado, setEditado] = useState<string[] | null>(null);
+  const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
 
   useEffect(() => setNotes(lead.notes ?? ""), [lead.id, lead.notes]);
 
@@ -170,13 +171,16 @@ export function LeadDrawer({
   }, [onClose, onNext, onPrev]);
 
   const temDiagnostico = (lead.websiteChecks?.length ?? 0) > 0;
-  const message = buildWhatsappMessage(lead, {
+  const partesGeradas = buildWhatsappParts(lead, {
     style: msgStyle,
     variant: msgVariant,
     useAnalysis: usarDiagnostico && temDiagnostico,
     includeAbout: incluirSobre,
   });
-  const mensagemFinal = editado ?? message;
+  // Editar uma parte congela todas: senao um clique em "Variar" trocaria as
+  // nao editadas e a mensagem viraria uma colcha de retalhos.
+  const partes = editado ?? partesGeradas;
+  const mensagemFinal = partes.join("\n\n");
   const waLink = waMeLink(lead.whatsapp, mensagemFinal);
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     `${lead.companyName} ${lead.address ?? ""} ${lead.city ?? ""}`,
@@ -809,15 +813,57 @@ export function LeadDrawer({
                 {lead.country === "PT" ? "PT-PT" : "PT-BR"}
               </span>
             </div>
-            <textarea
-              value={mensagemFinal}
-              onChange={(e) => setEditado(e.target.value)}
-              rows={mensagemFinal.split("\n").length + 1}
-              spellCheck
-              className="w-full resize-y rounded-xl border border-white/[0.07] bg-ink/60 p-4 font-sans text-[12.5px] leading-relaxed text-zinc-300 outline-none transition-colors focus:border-volt/40"
-            />
+            <p className="mb-2 text-[11.5px] leading-relaxed text-zinc-500">
+              Mande uma parte de cada vez: sequência de mensagens curtas soa
+              como conversa, bloco único soa como disparo automático.
+            </p>
+            <ol className="space-y-2">
+              {partes.map((parte, i) => (
+                <li
+                  key={i}
+                  className="group flex items-start gap-2.5 rounded-xl border border-white/[0.07] bg-ink/60 p-3 transition-colors focus-within:border-volt/40"
+                >
+                  <span className="mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/10 text-[10.5px] font-bold tabular-nums text-zinc-500">
+                    {i + 1}
+                  </span>
+                  <textarea
+                    value={parte}
+                    onChange={(e) =>
+                      setEditado(
+                        partes.map((p, j) => (j === i ? e.target.value : p)),
+                      )
+                    }
+                    rows={Math.max(2, Math.ceil(parte.length / 52))}
+                    spellCheck
+                    className="min-w-0 flex-1 resize-y bg-transparent font-sans text-[12.5px] leading-relaxed text-zinc-300 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(parte);
+                      } catch {
+                        window.prompt("Copie esta parte:", parte);
+                        return;
+                      }
+                      setCopiadoIdx(i);
+                      setTimeout(() => setCopiadoIdx((v) => (v === i ? null : v)), 1600);
+                    }}
+                    title={`Copiar a parte ${i + 1}`}
+                    aria-label={`Copiar a parte ${i + 1}`}
+                    className="mt-0.5 shrink-0 rounded-lg border border-white/[0.08] p-2 text-zinc-500 transition-colors hover:border-volt/40 hover:text-volt"
+                  >
+                    {copiadoIdx === i ? (
+                      <Check className="h-3.5 w-3.5 text-volt" />
+                    ) : (
+                      <ClipboardCopy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ol>
             {editado !== null && (
-              <div className="mt-1.5 flex items-center gap-2 text-[11.5px] text-zinc-500">
+              <div className="mt-2 flex items-center gap-2 text-[11.5px] text-zinc-500">
                 <span>Texto editado por você.</span>
                 <button
                   type="button"
@@ -839,7 +885,7 @@ export function LeadDrawer({
                 ) : (
                   <ClipboardCopy className="h-4 w-4" />
                 )}
-                {copied ? "Copiada!" : "Copiar mensagem"}
+                {copied ? "Copiada!" : "Copiar tudo"}
               </button>
               {waLink && (
                 <a

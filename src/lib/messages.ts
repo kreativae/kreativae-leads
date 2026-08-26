@@ -83,7 +83,7 @@ const APRESENTACOES: Record<Locale, Record<MessageStyle, string[]>> = {
   BR: {
     consultivo: [
       "Aqui é da kreativ.ae, estúdio especializado em criação de sites profissionais.",
-      "Meu nome é da kreativ.ae — trabalhamos com presença digital para empresas como a sua.",
+      "Falo da kreativ.ae — trabalhamos com presença digital para empresas como a sua.",
     ],
     direto: [
       "Sou da kreativ.ae, criamos sites profissionais.",
@@ -350,10 +350,14 @@ const FECHOS: Record<Locale, string[]> = {
 
 /* ------------------------------------------------------------------ montagem */
 
-export function buildWhatsappMessage(
+/**
+ * Devolve a mensagem em partes. Mandar 4 mensagens curtas em sequencia soa
+ * como alguem digitando; um bloco unico soa como disparo automatico.
+ */
+export function buildWhatsappParts(
   lead: MessageLead,
   opts: MessageOptions = {},
-): string {
+): string[] {
   const l: Locale = lead.country === "PT" ? "PT" : "BR";
   const variant = opts.variant ?? 0;
   const base = seed(`${lead.id}:${variant}`);
@@ -385,7 +389,14 @@ export function buildWhatsappMessage(
   // despedida derrubaria justamente o que ele tem de util.
   if (style !== "curto") partes.push(pick(FECHOS[l], base >> 9));
 
-  return partes.join("\n\n");
+  return partes;
+}
+
+export function buildWhatsappMessage(
+  lead: MessageLead,
+  opts: MessageOptions = {},
+): string {
+  return buildWhatsappParts(lead, opts).join("\n\n");
 }
 
 export function waMeLink(
