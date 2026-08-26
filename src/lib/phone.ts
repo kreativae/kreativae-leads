@@ -29,14 +29,19 @@ export function isMobileNumber(
 }
 
 /** Returns digits ready for wa.me (country code included) or null if not a mobile. */
-export function whatsappDigits(
+/**
+ * Formata para digitos com codigo do pais SEM exigir formato de celular.
+ * Use quando a empresa declarou o numero como WhatsApp (tag contact:whatsapp
+ * ou link wa.me no site): muita empresa usa fixo no WhatsApp Business, e a
+ * declaracao dela vale mais que o formato do numero.
+ */
+export function toWhatsappDigits(
   raw: string | null | undefined,
   country: string,
 ): string | null {
   if (!raw) return null;
   const d0 = digitsOnly(raw);
-  if (d0.length < 8) return null;
-  if (!isMobileNumber(raw, country)) return null;
+  if (d0.length < 8 || d0.length > 15) return null;
   if (country === "PT") {
     let d = d0;
     if (d.startsWith("00")) d = d.slice(2);
@@ -45,6 +50,16 @@ export function whatsappDigits(
   }
   const d = stripCountry(d0, "BR");
   return "55" + d;
+}
+
+/** So aceita numeros com cara de celular — usado quando nao ha declaracao. */
+export function whatsappDigits(
+  raw: string | null | undefined,
+  country: string,
+): string | null {
+  if (!raw) return null;
+  if (!isMobileNumber(raw, country)) return null;
+  return toWhatsappDigits(raw, country);
 }
 
 export function formatPhone(

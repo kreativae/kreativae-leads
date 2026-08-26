@@ -1,4 +1,4 @@
-import { whatsappDigits } from "./phone";
+import { toWhatsappDigits, whatsappDigits } from "./phone";
 
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
 const OVERPASS_MIRRORS = [
@@ -204,6 +204,8 @@ export interface NormalizedLead {
   phone: string | null;
   phoneAlt: string | null;
   whatsapp: string | null;
+  /** declared = a empresa declarou; inferred = deduzido do formato do numero. */
+  whatsappSource: string | null;
   email: string | null;
   website: string | null;
   address: string | null;
@@ -333,10 +335,18 @@ export function normalizeElements(
     const phone = pick(tags, "contact:phone", "phone");
     const mobile = pick(tags, "contact:mobile", "mobile");
     const directWhatsapp = pick(tags, "contact:whatsapp");
+    // A tag contact:whatsapp e declaracao da propria empresa: vale mesmo em
+    // fixo. Os demais so entram se tiverem formato de celular.
+    const declaredWhatsapp = toWhatsappDigits(directWhatsapp, country);
     const whatsapp =
-      whatsappDigits(directWhatsapp, country) ??
+      declaredWhatsapp ??
       whatsappDigits(mobile, country) ??
       whatsappDigits(phone, country);
+    const whatsappSource = whatsapp
+      ? declaredWhatsapp
+        ? "declared"
+        : "inferred"
+      : null;
     const phoneAlt = mobile && mobile !== phone ? mobile : null;
 
     const addressParts = [
@@ -360,6 +370,7 @@ export function normalizeElements(
       phone,
       phoneAlt,
       whatsapp,
+      whatsappSource,
       email: pick(tags, "contact:email", "email"),
       website: normalizeWebsite(
         pick(tags, "contact:website", "website", "url", "contact:url"),

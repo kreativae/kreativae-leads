@@ -55,6 +55,9 @@ export const leads = pgTable(
     phone: text("phone"),
     phoneAlt: text("phone_alt"),
     whatsapp: text("whatsapp"), // digits only, country code included
+    // declared = empresa declarou (tag contact:whatsapp ou link wa.me);
+    // inferred = deduzido do formato de celular.
+    whatsappSource: text("whatsapp_source"),
     email: text("email"),
     website: text("website"),
     instagram: text("instagram"),

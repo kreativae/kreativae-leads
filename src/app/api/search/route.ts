@@ -211,6 +211,7 @@ export async function POST(req: Request) {
             phone: n.phone,
             phoneAlt: n.phoneAlt,
             whatsapp: n.whatsapp,
+            whatsappSource: n.whatsappSource,
             email: n.email,
             website: n.website,
             instagram: n.instagram,

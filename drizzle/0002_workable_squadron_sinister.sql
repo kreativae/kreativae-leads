@@ -1,0 +1,1 @@
+ALTER TABLE "leads" ADD COLUMN "whatsapp_source" text;

@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { buildWhatsappMessage, waMeLink } from "@/lib/messages";
-import { formatPhone } from "@/lib/phone";
+import { formatPhone, toWhatsappDigits } from "@/lib/phone";
 import { timeAgo } from "@/lib/format";
 import { OpportunityBadge, StatusPill, statusLabel } from "@/components/badges";
 import { ScoreDial } from "@/components/charts";
@@ -56,6 +56,7 @@ interface ClientLead {
   address: string | null;
   phone: string | null;
   whatsapp: string | null;
+  whatsappSource: string | null;
   email: string | null;
   website: string | null;
   websiteScore: number | null;
@@ -695,10 +696,23 @@ function LeadCard({ lead, onOpen }: { lead: ClientLead; onOpen: () => void }) {
           </span>
         )}
         {lead.whatsapp ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
-            <MessageCircle className="h-3 w-3" />
-            WhatsApp
-          </span>
+          lead.whatsappSource === "declared" ? (
+            <span
+              title="Confirmado: a empresa declara este número como WhatsApp."
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              WhatsApp
+            </span>
+          ) : (
+            <span
+              title="Presumido pelo formato de celular — não confirmado pela empresa."
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-transparent px-2.5 py-0.5 text-[11px] font-medium text-emerald-300/80"
+            >
+              <MessageCircle className="h-3 w-3" />
+              WhatsApp?
+            </span>
+          )
         ) : lead.phone ? (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] font-medium text-zinc-400">
             <Phone className="h-3 w-3" />
@@ -1162,6 +1176,18 @@ function LeadDrawer({
                 >
                   <Phone className="h-4 w-4" />
                   Ligar
+                </a>
+              )}
+              {!waLink && lead.phone && toWhatsappDigits(lead.phone, lead.country) && (
+                <a
+                  href={`https://wa.me/${toWhatsappDigits(lead.phone, lead.country)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Abre o WhatsApp com este fixo. Se o número não tiver conta, o próprio WhatsApp avisa."
+                  className="inline-flex items-center gap-2 rounded-full border border-dashed border-emerald-400/40 px-4 py-2.5 text-[12.5px] font-semibold text-emerald-300 transition-colors hover:border-emerald-400/80"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Testar fixo no WhatsApp
                 </a>
               )}
               {lead.whatsapp && (

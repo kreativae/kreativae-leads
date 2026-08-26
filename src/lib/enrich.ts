@@ -11,6 +11,8 @@ export interface EnrichResult {
   facebook: string | null;
   linkedin: string | null;
   ownerName: string | null;
+  /** true quando algum numero veio de link wa.me — declaracao explicita. */
+  whatsappDeclared: boolean;
   taxId: string | null; // CNPJ / NIPC
   pagesScanned: string[];
 }
@@ -101,6 +103,7 @@ function extractFrom(html: string, country: string, acc: EnrichResult) {
     const d = digitsOnly(wm[1]);
     const full = d.length >= 12 ? d : (country === "PT" ? "351" : "55") + d;
     if (!acc.whatsapps.includes(full)) acc.whatsapps.push(full);
+    acc.whatsappDeclared = true;
   }
 
   // tel: links and BR/PT formatted numbers
@@ -191,6 +194,7 @@ export async function enrichFromWebsite(
     facebook: null,
     linkedin: null,
     ownerName: null,
+    whatsappDeclared: false,
     taxId: null,
     pagesScanned: [],
   };

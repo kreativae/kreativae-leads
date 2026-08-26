@@ -15,6 +15,13 @@
       "when": 1787693429953,
       "tag": "0001_perfect_hemingway",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787706339291,
+      "tag": "0002_workable_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }

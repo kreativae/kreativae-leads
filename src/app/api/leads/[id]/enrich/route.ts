@@ -38,6 +38,12 @@ export async function POST(_req: Request, ctx: Ctx) {
     );
 
   const newWhatsapp = lead.whatsapp ?? result.whatsapps[0] ?? null;
+  // Link wa.me no site do lead e declaracao explicita: vale ate para fixo,
+  // e sobrepoe um "inferred" que tenha vindo do formato do telefone.
+  const newWhatsappSource =
+    result.whatsappDeclared && result.whatsapps[0]
+      ? "declared"
+      : (lead.whatsappSource ?? (newWhatsapp ? "inferred" : null));
   const newPhone =
     lead.phone ??
     (result.phones[0] ? result.phones[0] : null) ??
@@ -57,6 +63,7 @@ export async function POST(_req: Request, ctx: Ctx) {
     phone: newPhone,
     phoneAlt: lead.phoneAlt ?? result.phones[1] ?? null,
     whatsapp: newWhatsapp,
+    whatsappSource: newWhatsappSource,
     instagram: lead.instagram ?? result.instagram,
     facebook: lead.facebook ?? result.facebook,
     linkedin: lead.linkedin ?? result.linkedin,
@@ -69,6 +76,7 @@ export async function POST(_req: Request, ctx: Ctx) {
     phone: merged.phone,
     phoneAlt: merged.phoneAlt,
     whatsapp: merged.whatsapp,
+    whatsappSource: merged.whatsappSource,
     email: merged.email,
     website: lead.website,
     address: lead.address,

@@ -80,6 +80,8 @@ function toLead(p: PlaceItem, country: string): NormalizedLead | null {
         ? p.nationalPhoneNumber
         : null,
     whatsapp: whatsappDigits(phone, country),
+    // Places nao informa WhatsApp: o que temos vem do formato do telefone.
+    whatsappSource: whatsappDigits(phone, country) ? "inferred" : null,
     email: null,
     website: p.websiteUri ?? null,
     address: p.formattedAddress ?? null,
