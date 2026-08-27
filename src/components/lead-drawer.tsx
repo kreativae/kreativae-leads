@@ -23,6 +23,7 @@ import {
   Phone,
   QrCode,
   RefreshCw,
+  Search,
   Share2,
   Sparkles,
   Star,
@@ -632,6 +633,41 @@ export function LeadDrawer({
                   QR Code
                 </button>
               )}
+              <a
+                href={`https://www.google.com/search?q=${encodeURIComponent(
+                  // Nome + cidade: so o nome traz homonimos de outras regioes.
+                  `${lead.companyName} ${lead.city ?? ""}`.trim(),
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                title="Pesquisa a empresa no Google"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2.5 text-[12.5px] font-semibold text-zinc-200 transition-colors hover:border-volt/40 hover:text-volt"
+              >
+                <Search className="h-4 w-4" />
+                Pesquisar no Google
+              </a>
+              <a
+                href={
+                  // Com o @perfil conhecido, ir direto nele e melhor que
+                  // devolver o usuario para uma busca.
+                  lead.instagram
+                    ? lead.instagram
+                    : `https://www.instagram.com/explore/search/keyword/?q=${encodeURIComponent(
+                        lead.companyName,
+                      )}`
+                }
+                target="_blank"
+                rel="noreferrer"
+                title={
+                  lead.instagram
+                    ? "Abre o perfil já descoberto no enriquecimento"
+                    : "Pesquisa a empresa no Instagram"
+                }
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2.5 text-[12.5px] font-semibold text-zinc-200 transition-colors hover:border-fuchsia-400/50 hover:text-fuchsia-300"
+              >
+                <AtSign className="h-4 w-4" />
+                {lead.instagram ? "Abrir Instagram" : "Buscar no Instagram"}
+              </a>
             </div>
             {showQr && lead.whatsapp && (
               <div className="mt-3.5 flex items-center gap-4 rounded-xl border border-white/[0.09] bg-white/[0.03] p-4">
