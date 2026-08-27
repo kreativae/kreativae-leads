@@ -118,24 +118,38 @@ export async function POST(req: Request) {
     let source = "osm";
 
     if (placesKey && sourcePref !== "osm") {
+      // Rodada 0 = consulta base do segmento; 1+ = formulacoes alternativas,
+      // que e o unico jeito de passar dos 60 por consulta do Google.
+      const consultar = async (r: number) => {
+        const termo = queryForRound(matched.key, matched.displayLabel, r, country);
+        return searchPlaces({
+          textQuery:
+            mode === "radius"
+              ? `${termo} perto de ${geoCityName}`
+              : `${termo} em ${city}`,
+          apiKey: placesKey,
+          limit: Math.min(60, limit),
+          country,
+          circle:
+            mode === "radius"
+              ? { lat, lon, radiusMeters: radiusKm * 1000 }
+              : undefined,
+        });
+      };
+
       try {
-        normalized = (
-          await searchPlaces({
-            // Rodada 0 = rotulo do segmento; 1+ = formulacoes alternativas,
-            // que e o unico jeito de passar dos 60 por consulta do Google.
-            textQuery:
-              mode === "radius"
-                ? `${queryForRound(matched.key, matched.displayLabel, round)} perto de ${geoCityName}`
-                : `${queryForRound(matched.key, matched.displayLabel, round)} em ${city}`,
-            apiKey: placesKey,
-            limit: Math.min(60, limit),
-            country,
-            circle:
-              mode === "radius"
-                ? { lat, lon, radiusMeters: radiusKm * 1000 }
-                : undefined,
-          })
-        ).slice(0, limit);
+        let achados = await consultar(round);
+
+        // Consulta magra costuma significar termo ambiguo: "Engenharia em
+        // Lisboa" devolve so o Instituto Superior de Engenharia. Tenta a
+        // formulacao seguinte uma vez e junta, em vez de devolver 1 lead.
+        if (achados.length < 5) {
+          const extra = await consultar(round + 1);
+          const vistos = new Set(achados.map((a) => a.osmId));
+          achados = [...achados, ...extra.filter((e) => !vistos.has(e.osmId))];
+        }
+
+        normalized = achados.slice(0, limit);
         source = "places";
       } catch (placesErr) {
         if (sourcePref === "places") throw placesErr;

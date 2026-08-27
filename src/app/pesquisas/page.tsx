@@ -219,6 +219,7 @@ export default function SearchesPage() {
                       const total = roundsAvailable(
                         matchSegment(s.segment).key,
                         s.segment,
+                        s.country,
                       );
                       const proxima = (s.round ?? 0) + 1;
                       const esgotou = proxima >= total;

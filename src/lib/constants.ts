@@ -101,7 +101,9 @@ export const PLACES_TERMS: Record<string, string[]> = {
   psicologos: ["consultório de psicologia", "psicoterapia", "clínica de psicologia"],
   contadores: ["escritório de contabilidade", "contabilidade empresarial", "contabilista"],
   imobiliarias: ["imobiliária", "mediação imobiliária", "corretor de imóveis"],
-  engenharia: ["escritório de engenharia", "engenharia civil", "projetos estruturais"],
+  // "escritório de engenharia" e a consulta base no BR (PLACES_BASE), entao
+  // nao se repete aqui: repetir gastaria uma rodada e uma chamada a toa.
+  engenharia: ["engenharia civil", "engenheiro civil", "projetos estruturais", "consultoria de engenharia"],
   seguros: ["corretora de seguros", "mediador de seguros", "seguros automóvel"],
   academias: ["academia de musculação", "studio de pilates", "ginásio"],
   pet: ["pet shop", "clínica veterinária", "banho e tosa"],
@@ -109,28 +111,62 @@ export const PLACES_TERMS: Record<string, string[]> = {
   saloes: ["salão de beleza", "cabeleireiro", "barbearia"],
 };
 
+/**
+ * Consulta da rodada 0, quando o rotulo puro e uma consulta ruim.
+ * "Engenharia em Lisboa" devolve 1 resultado — o Instituto Superior de
+ * Engenharia domina o termo. "Engenharia em Londrina" devolve 20, entao o
+ * problema aparece so em algumas cidades: melhor nunca usar o rotulo cru.
+ */
+const PLACES_BASE: Record<string, { BR: string; PT: string }> = {
+  engenharia: { BR: "escritório de engenharia", PT: "gabinete de engenharia" },
+};
+
+/** Vocabulario proprio de Portugal, quando difere do brasileiro. */
+const PLACES_TERMS_PT: Record<string, string[]> = {
+  arquitetos: ["gabinete de arquitetura", "atelier de arquitetura", "arquitetura e urbanismo", "arquiteto de interiores"],
+  engenharia: ["escritório de engenharia", "engenharia civil", "engenheiro civil", "projetos estruturais"],
+  academias: ["ginásio", "health club", "studio de pilates"],
+  contadores: ["contabilista", "gabinete de contabilidade", "consultoria fiscal"],
+  imobiliarias: ["mediação imobiliária", "agência imobiliária", "consultor imobiliário"],
+};
+
 /** Fallback para segmento digitado livremente, sem preset. */
 const TERMOS_GENERICOS = ["escritório de", "empresa de", "clínica de"];
 
-export function termsForSegment(key: string | null, label: string): string[] {
-  if (key && PLACES_TERMS[key]) return PLACES_TERMS[key];
+export function termsForSegment(
+  key: string | null,
+  label: string,
+  country = "BR",
+): string[] {
+  if (key) {
+    if (country === "PT" && PLACES_TERMS_PT[key]) return PLACES_TERMS_PT[key];
+    if (PLACES_TERMS[key]) return PLACES_TERMS[key];
+  }
   return TERMOS_GENERICOS.map((t) => `${t} ${label.toLowerCase()}`);
 }
 
-/** Consulta da rodada N. Rodada 0 usa o proprio rotulo do segmento. */
+/** Consulta da rodada N. */
 export function queryForRound(
   key: string | null,
   label: string,
   round: number,
+  country = "BR",
 ): string {
-  if (round <= 0) return label;
-  const termos = termsForSegment(key, label);
+  if (round <= 0) {
+    const base = key ? PLACES_BASE[key] : undefined;
+    return base ? base[country === "PT" ? "PT" : "BR"] : label;
+  }
+  const termos = termsForSegment(key, label, country);
   return termos[(round - 1) % termos.length];
 }
 
 /** Quantas rodadas distintas existem para este segmento. */
-export function roundsAvailable(key: string | null, label: string): number {
-  return 1 + termsForSegment(key, label).length;
+export function roundsAvailable(
+  key: string | null,
+  label: string,
+  country = "BR",
+): number {
+  return 1 + termsForSegment(key, label, country).length;
 }
 
 export function matchSegment(input: string): {
