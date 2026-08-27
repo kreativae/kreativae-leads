@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { LogoKreativ } from "@/components/logo";
 import {
   Check,
   Crown,
@@ -238,9 +239,7 @@ export default function RegisterPage() {
       </div>
       <div className="relative w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="font-display text-4xl font-bold tracking-tight text-white">
-            kreativ<span className="text-volt">.ae</span>
-          </div>
+          <LogoKreativ className="mx-auto h-9 w-auto text-white" />
           <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.32em] text-zinc-500">
             Radar de Leads
           </div>

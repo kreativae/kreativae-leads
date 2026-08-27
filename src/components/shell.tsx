@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "./theme";
 import { WorldClock } from "./world-clock";
+import { LogoKreativ } from "./logo";
 
 const AUTH_PATHS = ["/login", "/registrar"];
 
@@ -101,10 +102,10 @@ const NAV = [
 function Wordmark() {
   return (
     <div className="leading-none">
-      <div className="font-display text-[26px] font-700 tracking-tight text-white">
-        kreativ<span className="text-volt">.ae</span>
-      </div>
-      <div className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.32em] text-zinc-500">
+      {/* text-white = #fff no tema escuro e #0c0d10 no claro: a mesma marca
+          serve aos dois, sem duplicar arquivo. */}
+      <LogoKreativ className="h-[26px] w-auto text-white" />
+      <div className="mt-2 text-[10px] font-medium uppercase tracking-[0.32em] text-zinc-500">
         Radar de Leads
       </div>
     </div>
