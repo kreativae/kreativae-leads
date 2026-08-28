@@ -134,7 +134,7 @@ const APRESENTACOES: Record<Locale, Record<MessageStyle, string[]>> = {
   PT: {
     consultivo: [
       "Falo da kreativ.ae, estúdio especializado na criação de sites profissionais.",
-      "Contacto-o da parte da kreativ.ae — trabalhamos presença digital para empresas como a vossa.",
+      "Contacto-o da parte da kreativ.ae — trabalhamos a presença digital de empresas como a vossa.",
     ],
     direto: [
       "Sou da kreativ.ae, criamos sites profissionais.",
@@ -239,7 +239,7 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
       `Fui ver o site da ${empresa} e achei que está a ficar aquém da qualidade do serviço.`,
     ],
     curto: [
-      `O site da ${empresa} está desatualizado — prejudica o Google e a confiança de quem lá chega.`,
+      `O site da ${empresa} está desatualizado — prejudica o posicionamento no Google e a confiança de quem lá chega.`,
       `Vi o site da ${empresa}: dá para modernizar e captar bastante mais.`,
     ],
     pergunta: [
@@ -334,44 +334,94 @@ function ganchoDiagnostico(
 
 /* --------------------------------------------------------------------- cta */
 
-const CTAS: Record<Locale, Record<MessageStyle, string[]>> = {
+type Situacao = "comSite" | "semSite";
+
+/**
+ * A oferta muda conforme o lead: quem tem site recebe proposta de
+ * reformulacao; quem nao tem, de criacao. Em ambos os casos o pedido e uma
+ * reuniao curta para mostrar modelos — pedir 10 minutos e mais facil de
+ * aceitar do que um "diagnostico", que soa a trabalho para o cliente.
+ */
+const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
   BR: {
-    consultivo: [
-      "Posso te mostrar em 2 minutos, sem compromisso, como isso mudaria a captação de clientes de vocês? Preparo um diagnóstico gratuito.",
-      "Se fizer sentido, preparo um diagnóstico gratuito e te mostro o que daria para melhorar. Leva uns 2 minutos.",
-    ],
-    direto: [
-      "Faz sentido eu te mandar um diagnóstico gratuito com o que dá para resolver?",
-      "Quer que eu prepare uma proposta rápida? Sem compromisso.",
-    ],
-    proximo: [
-      "Se quiser, preparo um diagnóstico gratuito e a gente conversa sem compromisso nenhum.",
-      "Posso te mandar um diagnóstico rápido, sem custo. O que acha?",
-    ],
-    curto: ["Posso te mandar um diagnóstico gratuito?", "Quer ver como ficaria? Mando sem compromisso."],
-    pergunta: [
-      "Se quiser, mando um diagnóstico gratuito com o que dá para melhorar — sem compromisso.",
-      "Posso te mostrar em 2 minutos o que mudaria? Sem compromisso.",
-    ],
+    comSite: {
+      consultivo: [
+        "Podemos fazer uma reformulação completa do site de vocês. Se quiser, marco uma reunião de 10 minutos para apresentar alguns modelos — sem compromisso.",
+        "O que proponho é um redesign do site atual. Posso marcar 10 minutos para te mostrar alguns modelos e você avaliar com calma?",
+      ],
+      direto: [
+        "Faz sentido marcarmos 10 minutos para eu mostrar alguns modelos de redesign?",
+        "Consigo mostrar em 10 minutos como o site de vocês ficaria reformulado. Topa?",
+      ],
+      proximo: [
+        "Se quiser, a gente marca uns 10 minutinhos e eu te mostro alguns modelos de como ficaria. Sem compromisso nenhum.",
+        "Posso te mostrar numa conversa rápida, uns 10 minutos, alguns modelos de redesign. O que acha?",
+      ],
+      curto: ["Topa 10 minutos para eu mostrar alguns modelos de redesign?"],
+      pergunta: [
+        "Posso te mostrar alguns modelos de redesign numa reunião de 10 minutos?",
+        "Se eu marcar 10 minutos para mostrar como o site ficaria reformulado, você dá uma olhada?",
+      ],
+    },
+    semSite: {
+      consultivo: [
+        "Podemos criar o site de vocês do zero. Se fizer sentido, marco uma reunião de 10 minutos para apresentar alguns modelos — sem compromisso.",
+        "O que proponho é criar um site próprio para vocês. Posso marcar 10 minutos para te mostrar alguns modelos?",
+      ],
+      direto: [
+        "Faz sentido marcarmos 10 minutos para eu mostrar alguns modelos?",
+        "Consigo mostrar em 10 minutos como ficaria o site de vocês. Topa?",
+      ],
+      proximo: [
+        "Se quiser, a gente marca uns 10 minutinhos e eu te mostro alguns modelos de como ficaria. Sem compromisso nenhum.",
+        "Posso te mostrar numa conversa rápida, uns 10 minutos, alguns modelos de site. O que acha?",
+      ],
+      curto: ["Topa 10 minutos para eu mostrar alguns modelos?"],
+      pergunta: [
+        "Posso te mostrar em 10 minutos como ficaria o site de vocês?",
+        "Se eu marcar 10 minutos para mostrar alguns modelos, você dá uma olhada?",
+      ],
+    },
   },
   PT: {
-    consultivo: [
-      "Posso mostrar-lhe em 2 minutos, sem compromisso, como isto mudaria a captação de clientes? Preparo um diagnóstico gratuito.",
-      "Se fizer sentido, preparo um diagnóstico gratuito e mostro-lhe o que daria para melhorar. Demora 2 minutos.",
-    ],
-    direto: [
-      "Faz sentido enviar-lhe um diagnóstico gratuito com o que dá para resolver?",
-      "Quer que prepare uma proposta rápida? Sem compromisso.",
-    ],
-    proximo: [
-      "Se quiser, preparo um diagnóstico gratuito e conversamos sem compromisso nenhum.",
-      "Posso enviar-lhe um diagnóstico rápido, sem custo. O que acha?",
-    ],
-    curto: ["Posso enviar-lhe um diagnóstico gratuito?", "Quer ver como ficaria? Envio sem compromisso."],
-    pergunta: [
-      "Se quiser, envio um diagnóstico gratuito com o que dá para melhorar — sem compromisso.",
-      "Posso mostrar-lhe em 2 minutos o que mudaria? Sem compromisso.",
-    ],
+    comSite: {
+      consultivo: [
+        "Podemos fazer uma reformulação completa do vosso site. Se quiser, marcamos uma reunião de 10 minutos para vos apresentar alguns modelos — sem qualquer compromisso.",
+        "O que proponho é um redesign do site atual. Marcamos 10 minutos para lhe mostrar alguns modelos e avaliar com calma?",
+      ],
+      direto: [
+        "Faz sentido marcarmos 10 minutos para vos mostrar alguns modelos de reformulação?",
+        "Em 10 minutos consigo mostrar-lhe como o vosso site ficaria reformulado. Interessa?",
+      ],
+      proximo: [
+        "Se quiser, marcamos 10 minutos e mostro-lhe alguns modelos de como poderia ficar. Sem qualquer compromisso.",
+        "Posso mostrar-lhe numa conversa rápida, uns 10 minutos, alguns modelos de reformulação. O que acha?",
+      ],
+      curto: ["Marcamos 10 minutos para lhe mostrar alguns modelos?"],
+      pergunta: [
+        "Posso mostrar-lhe alguns modelos de reformulação numa reunião de 10 minutos?",
+        "Se marcarmos 10 minutos para lhe mostrar como o site ficaria, dá uma vista de olhos?",
+      ],
+    },
+    semSite: {
+      consultivo: [
+        "Podemos criar o vosso site de raiz. Se fizer sentido, marcamos uma reunião de 10 minutos para vos apresentar alguns modelos — sem qualquer compromisso.",
+        "O que proponho é criar um site próprio para a vossa empresa. Marcamos 10 minutos para lhe mostrar alguns modelos?",
+      ],
+      direto: [
+        "Faz sentido marcarmos 10 minutos para vos mostrar alguns modelos?",
+        "Em 10 minutos consigo mostrar-lhe como ficaria o vosso site. Interessa?",
+      ],
+      proximo: [
+        "Se quiser, marcamos 10 minutos e mostro-lhe alguns modelos de como poderia ficar. Sem qualquer compromisso.",
+        "Posso mostrar-lhe numa conversa rápida, uns 10 minutos, alguns modelos de site. O que acha?",
+      ],
+      curto: ["Marcamos 10 minutos para lhe mostrar alguns modelos?"],
+      pergunta: [
+        "Posso mostrar-lhe em 10 minutos como ficaria o vosso site?",
+        "Se marcarmos 10 minutos para lhe mostrar alguns modelos, dá uma vista de olhos?",
+      ],
+    },
   },
 };
 
@@ -415,7 +465,8 @@ export function buildWhatsappParts(
       : ganchoSiteFraco(l, style, empresa, base >> 5);
   }
 
-  const cta = pick(CTAS[l][style], base >> 7);
+  const situacao: Situacao = lead.website ? "comSite" : "semSite";
+  const cta = pick(CTAS[l][situacao][style], base >> 7);
 
   const partes = [saudacao, apresentacao, gancho];
   if (opts.includeAbout) partes.push(pick(SOBRE[l], base >> 11));
