@@ -16,7 +16,10 @@ export interface SiteAnalysis {
 const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-async function tryFetch(url: string): Promise<{ res: Response; html: string } | null> {
+async function tryFetch(
+  url: string,
+): Promise<{ res: Response; html: string; ms: number } | null> {
+  const inicio = Date.now();
   try {
     const res = await fetch(url, {
       redirect: "follow",
@@ -25,7 +28,7 @@ async function tryFetch(url: string): Promise<{ res: Response; html: string } | 
       cache: "no-store",
     });
     const html = (await res.text()).slice(0, 500_000);
-    return { res, html };
+    return { res, html, ms: Date.now() - inicio };
   } catch {
     return null;
   }
@@ -60,7 +63,7 @@ export async function analyzeWebsite(rawUrl: string): Promise<SiteAnalysis> {
     };
   }
 
-  const { res, html } = attempt;
+  const { res, html, ms } = attempt;
   const finalUrl = res.url;
   const lower = html.toLowerCase();
   const checks: SiteCheck[] = [];
@@ -196,6 +199,23 @@ export async function analyzeWebsite(rawUrl: string): Promise<SiteAnalysis> {
       },
       0,
     );
+
+  // Tempo ate o HTML chegar. Nao e o carregamento completo da pagina, mas
+  // um HTML lento ja garante uma pagina lenta — serve como piso.
+  push(
+    {
+      id: "slow",
+      label: "Velocidade de carregamento",
+      status: ms > 4000 ? "fail" : ms > 1800 ? "warn" : "pass",
+      detail:
+        ms > 4000
+          ? `A página levou ${(ms / 1000).toFixed(1)}s só para responder — boa parte dos visitantes desiste antes disso.`
+          : ms > 1800
+            ? `A página levou ${(ms / 1000).toFixed(1)}s para responder, acima do confortável.`
+            : `Respondeu em ${(ms / 1000).toFixed(1)}s.`,
+    },
+    16,
+  );
 
   const hasCharset = /charset=["']?utf-?8/i.test(html);
   if (!hasCharset)

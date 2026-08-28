@@ -157,46 +157,46 @@ const APRESENTACOES: Record<Locale, Record<MessageStyle, string[]>> = {
 function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: string, n: number): string {
   const BR = {
     consultivo: [
-      `Estive pesquisando ${empresa}${lugar} e reparei que ainda não têm um site próprio. Hoje a maioria dos clientes pesquisa no Google antes de contratar — quem não aparece acaba perdendo a venda para o concorrente que aparece.`,
-      `Encontrei ${empresa}${lugar} e notei que a empresa ainda não tem site. Isso significa que toda vez que alguém procura pelo serviço no Google, quem aparece é outro.`,
+      `Estive pesquisando ${empresa}${lugar} e vi que vocês ainda não têm um site. Hoje o site é a vitrine do negócio: é onde o cliente vê o trabalho, entende o serviço e decide se confia — tudo isso antes de falar com vocês.`,
+      `Encontrei ${empresa}${lugar} e notei que ainda não têm site próprio. Quando alguém se interessa pelo serviço, não existe um lugar organizado para mostrar o trabalho e explicar como funciona.`,
     ],
     direto: [
-      `Vi que ${empresa} ainda não tem site. Quem procura o serviço no Google hoje encontra os concorrentes, não vocês.`,
-      `Reparei que ${empresa}${lugar} não tem site próprio — e é aí que a maioria dos clientes procura antes de decidir.`,
+      `Vi que ${empresa} não tem site. Sem ele, o cliente não tem onde ver o trabalho de vocês antes de decidir.`,
+      `Reparei que ${empresa}${lugar} não tem site — falta uma vitrine para apresentar o serviço de forma organizada.`,
     ],
     proximo: [
-      `Estava pesquisando empresas${lugar} e dei de cara com ${empresa}. Achei o trabalho de vocês bom, mas vi que ainda não têm um site — e isso está deixando cliente na mesa.`,
-      `Conheci ${empresa}${lugar} e fiquei com uma pulga atrás da orelha: vocês não têm site. Quem pesquisa no Google hoje acaba indo parar no concorrente.`,
+      `Estava pesquisando empresas${lugar} e dei de cara com ${empresa}. Gostei do trabalho, mas fiquei com uma pena: não tem um site para mostrar isso direito.`,
+      `Conheci ${empresa}${lugar} e achei o serviço bom. Só senti falta de um site — um lugar onde a pessoa veja o trabalho com calma e saiba como falar com vocês.`,
     ],
     curto: [
-      `Vi que ${empresa} não tem site — e é lá que o cliente procura antes de contratar.`,
-      `${empresa} não aparece no Google porque não tem site. Dá para resolver.`,
+      `${empresa} ainda não tem site — falta uma vitrine para mostrar o trabalho de vocês.`,
+      `Vi que ${empresa} não tem site. É o lugar onde o cliente decide se confia.`,
     ],
     pergunta: [
-      `Posso fazer uma pergunta rápida? Vi que ${empresa} ainda não tem site. Isso é escolha de vocês ou só não deu tempo de montar?`,
-      `Uma dúvida sincera: ${empresa} já perdeu cliente por não aparecer no Google? Reparei que vocês ainda não têm site.`,
+      `Posso fazer uma pergunta rápida? Quando alguém quer conhecer o trabalho da ${empresa}, para onde vocês mandam a pessoa?`,
+      `Uma dúvida sincera: como o cliente de vocês vê o trabalho da ${empresa} antes de fechar? Reparei que ainda não têm site.`,
     ],
   };
   const PT = {
     consultivo: [
-      `Estive a pesquisar ${empresa}${lugar} e reparei que ainda não têm site próprio. Hoje a maioria dos clientes pesquisa no Google antes de contratar — quem não aparece acaba por perder o contacto para a concorrência.`,
-      `Encontrei ${empresa}${lugar} e notei que ainda não têm site. Sempre que alguém procura o serviço online, quem aparece é outra empresa.`,
+      `Estive a pesquisar ${empresa}${lugar} e vi que ainda não têm site. Hoje o site é a montra do negócio: é onde o cliente vê o trabalho, percebe o serviço e decide se confia — tudo isto antes de vos contactar.`,
+      `Encontrei ${empresa}${lugar} e reparei que ainda não têm site próprio. Quando alguém se interessa, não há um sítio organizado para mostrar o trabalho e explicar como funciona.`,
     ],
     direto: [
-      `Vi que ${empresa} ainda não tem site. Quem procura o serviço no Google encontra a concorrência, não a vossa empresa.`,
-      `Reparei que ${empresa}${lugar} não tem site próprio — e é aí que a maioria dos clientes procura antes de decidir.`,
+      `Vi que ${empresa} não tem site. Sem ele, o cliente não tem onde ver o vosso trabalho antes de decidir.`,
+      `Reparei que ${empresa}${lugar} não tem site — falta uma montra para apresentar o serviço de forma organizada.`,
     ],
     proximo: [
-      `Estava a pesquisar empresas${lugar} e encontrei ${empresa}. Gostei do vosso trabalho, mas reparei que ainda não têm site — e isso anda a custar contactos.`,
-      `Conheci ${empresa}${lugar} e ficou-me uma dúvida: não têm site. Quem pesquisa no Google acaba por ir ter à concorrência.`,
+      `Estava a pesquisar empresas${lugar} e encontrei ${empresa}. Gostei do trabalho, mas ficou-me uma pena: não têm um site para o mostrar como deve ser.`,
+      `Conheci ${empresa}${lugar} e achei o serviço bom. Só senti falta de um site — um sítio onde a pessoa veja o trabalho com calma e saiba como vos contactar.`,
     ],
     curto: [
-      `Vi que ${empresa} não tem site — e é aí que o cliente procura antes de contratar.`,
-      `${empresa} não aparece no Google por não ter site. Dá para resolver.`,
+      `${empresa} ainda não tem site — falta uma montra para mostrar o vosso trabalho.`,
+      `Vi que ${empresa} não tem site. É onde o cliente decide se confia.`,
     ],
     pergunta: [
-      `Posso fazer uma pergunta rápida? Reparei que ${empresa} ainda não tem site. É opção vossa ou apenas não houve tempo?`,
-      `Uma dúvida sincera: ${empresa} já perdeu clientes por não aparecer no Google? Reparei que ainda não têm site.`,
+      `Posso fazer uma pergunta rápida? Quando alguém quer conhecer o trabalho da ${empresa}, para onde encaminham a pessoa?`,
+      `Uma dúvida sincera: como é que o cliente vê o trabalho da ${empresa} antes de fechar? Reparei que ainda não têm site.`,
     ],
   };
   return pick((l === "PT" ? PT : BR)[style], n);
@@ -205,46 +205,46 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
 function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: number): string {
   const BR = {
     consultivo: [
-      `Visitei o site da ${empresa} e notei que ele está bem defasado em relação ao que o Google prioriza hoje. Isso costuma custar contatos todos os dias, sem que a empresa perceba.`,
-      `Dei uma olhada no site da ${empresa} e vi alguns pontos que provavelmente estão afastando clientes antes mesmo do primeiro contato.`,
+      `Visitei o site da ${empresa} e ele está pesado e difícil de navegar, principalmente no celular. O visitante se cansa antes de chegar no que interessa — e quem se cansa, desiste.`,
+      `Dei uma olhada no site da ${empresa}. A navegação é confusa e leva tempo para carregar; achar o serviço e o contato dá trabalho demais para quem só quer resolver.`,
     ],
     direto: [
-      `Olhei o site da ${empresa} e ele está desatualizado. Isso derruba o ranqueamento no Google e a confiança de quem chega.`,
-      `O site da ${empresa} está fora dos padrões atuais — e isso aparece para o cliente logo nos primeiros segundos.`,
+      `Olhei o site da ${empresa}: está lento e a navegação trava no celular. O visitante desiste antes de achar o que procura.`,
+      `O site da ${empresa} está difícil de usar — a pessoa não acha o serviço nem o contato com facilidade.`,
     ],
     proximo: [
-      `Entrei no site da ${empresa} e senti que ele não faz jus ao trabalho de vocês. Dá para melhorar bastante com pouca coisa.`,
-      `Fui ver o site da ${empresa} e achei que ele está devendo um pouco perto da qualidade do serviço.`,
+      `Entrei no site da ${empresa} e senti que ele não faz jus ao trabalho de vocês. Dá para deixar bem mais leve e simples de usar.`,
+      `Fui olhar o site da ${empresa} e me perdi um pouco na navegação. O serviço é bom, o site é que está atrapalhando.`,
     ],
     curto: [
-      `O site da ${empresa} está desatualizado — isso derruba o Google e a confiança de quem chega.`,
-      `Dei uma olhada no site da ${empresa}: dá para modernizar e captar bem mais.`,
+      `O site da ${empresa} está lento e difícil de navegar no celular.`,
+      `Olhei o site da ${empresa}: dá para deixar bem mais rápido e fácil de usar.`,
     ],
     pergunta: [
-      `Posso fazer uma pergunta? Quando foi a última vez que o site da ${empresa} trouxe um cliente novo? Olhei ele e vi alguns pontos que podem estar travando isso.`,
-      `Uma pergunta rápida: o site da ${empresa} ainda representa vocês? Achei ele bem defasado em relação ao trabalho que fazem.`,
+      `Posso ser direto? Abri o site da ${empresa} no celular e demorei para achar como entrar em contato. Isso costuma custar cliente.`,
+      `Uma pergunta rápida: o site da ${empresa} ainda representa vocês? Achei ele pesado e difícil de navegar perto da qualidade do serviço.`,
     ],
   };
   const PT = {
     consultivo: [
-      `Visitei o site da ${empresa} e notei que está bastante desatualizado face ao que o Google privilegia hoje. Isso costuma custar contactos todos os dias, sem a empresa dar por isso.`,
-      `Dei uma vista de olhos no site da ${empresa} e encontrei alguns pontos que estarão a afastar clientes antes mesmo do primeiro contacto.`,
+      `Visitei o site da ${empresa} e está pesado e difícil de navegar, sobretudo no telemóvel. O visitante cansa-se antes de chegar ao que interessa — e quem se cansa, desiste.`,
+      `Dei uma vista de olhos no site da ${empresa}. A navegação é confusa e demora a carregar; encontrar o serviço e o contacto dá demasiado trabalho a quem só quer resolver.`,
     ],
     direto: [
-      `Vi o site da ${empresa} e está desatualizado. Isso prejudica o posicionamento no Google e a confiança de quem lá chega.`,
-      `O site da ${empresa} está fora dos padrões atuais — e isso nota-se nos primeiros segundos.`,
+      `Vi o site da ${empresa}: está lento e a navegação falha no telemóvel. O visitante desiste antes de encontrar o que procura.`,
+      `O site da ${empresa} está difícil de usar — a pessoa não encontra o serviço nem o contacto com facilidade.`,
     ],
     proximo: [
-      `Entrei no site da ${empresa} e senti que não faz justiça ao vosso trabalho. Dá para melhorar bastante sem grande complicação.`,
-      `Fui ver o site da ${empresa} e achei que está a ficar aquém da qualidade do serviço.`,
+      `Entrei no site da ${empresa} e senti que não faz justiça ao vosso trabalho. Dá para ficar bem mais leve e simples de usar.`,
+      `Fui ver o site da ${empresa} e perdi-me um pouco na navegação. O serviço é bom, o site é que está a atrapalhar.`,
     ],
     curto: [
-      `O site da ${empresa} está desatualizado — prejudica o posicionamento no Google e a confiança de quem lá chega.`,
-      `Vi o site da ${empresa}: dá para modernizar e captar bastante mais.`,
+      `O site da ${empresa} está lento e difícil de navegar no telemóvel.`,
+      `Vi o site da ${empresa}: dá para ficar bem mais rápido e fácil de usar.`,
     ],
     pergunta: [
-      `Posso fazer uma pergunta? Quando foi a última vez que o site da ${empresa} trouxe um cliente novo? Encontrei alguns pontos que podem estar a travar isso.`,
-      `Uma pergunta rápida: o site da ${empresa} ainda vos representa? Achei-o bastante aquém do trabalho que fazem.`,
+      `Posso ser direto? Abri o site da ${empresa} no telemóvel e demorei a encontrar como vos contactar. Isso costuma custar clientes.`,
+      `Uma pergunta rápida: o site da ${empresa} ainda vos representa? Achei-o pesado e difícil de navegar face à qualidade do serviço.`,
     ],
   };
   return pick((l === "PT" ? PT : BR)[style], n);
@@ -259,8 +259,8 @@ const ACHADOS: Record<string, Record<Locale, string>> = {
     PT: "o site não tem certificado de segurança, pelo que o navegador avisa o visitante de que é “não seguro”",
   },
   responsive: {
-    BR: "ele não está adaptado para celular, de onde vem mais de 60% das visitas hoje",
-    PT: "não está adaptado a telemóveis, de onde vem mais de 60% das visitas hoje",
+    BR: "ele não está adaptado para celular — quem abre pelo telefone precisa dar zoom e arrastar a tela para conseguir ler",
+    PT: "não está adaptado a telemóveis — quem o abre pelo telefone tem de ampliar e arrastar o ecrã para conseguir ler",
   },
   flash: {
     BR: "ele usa uma tecnologia descontinuada que não abre mais em navegador nenhum",
@@ -274,13 +274,9 @@ const ACHADOS: Record<string, Record<Locale, string>> = {
     BR: "a estrutura da página segue um padrão dos anos 2000",
     PT: "a estrutura da página segue um padrão dos anos 2000",
   },
-  description: {
-    BR: "faltam as informações que o Google usa para descrever o site nos resultados",
-    PT: "faltam as informações que o Google usa para descrever o site nos resultados",
-  },
-  title: {
-    BR: "o título da página não está otimizado, o que atrapalha o ranqueamento",
-    PT: "o título da página não está otimizado, o que prejudica o posicionamento",
+  slow: {
+    BR: "a página carrega devagar, e boa parte das pessoas desiste antes de ela abrir",
+    PT: "a página demora a carregar, e boa parte das pessoas desiste antes de abrir",
   },
   social: {
     BR: "quando alguém compartilha o link no WhatsApp, ele aparece sem imagem",
@@ -300,7 +296,9 @@ function ganchoDiagnostico(
   checks: SiteCheck[],
   n: number,
 ): string | null {
-  const ordem = ["reachable", "flash", "https", "responsive", "freshness", "tables", "social", "description", "title"];
+  // Ordenado por impacto para quem visita o site. Achados puramente de SEO
+  // ficam de fora: o argumento aqui e navegabilidade, nao ranqueamento.
+  const ordem = ["reachable", "flash", "responsive", "https", "slow", "freshness", "tables", "social"];
   const achados = ordem
     .filter((id) => checks.some((c) => c.id === id && (c.status === "fail" || c.status === "warn")))
     .filter((id) => ACHADOS[id])
