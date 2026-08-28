@@ -79,6 +79,7 @@ export const CITY_PRESETS: CityPreset[] = [
 
 export const LEAD_STATUSES = [
   { key: "new", label: "Novo" },
+  { key: "scheduled", label: "Programado" },
   { key: "contacted", label: "Contatado" },
   { key: "negotiating", label: "Negociando" },
   { key: "won", label: "Fechado" },

@@ -2,6 +2,7 @@ import { LEAD_STATUSES } from "@/lib/constants";
 
 const STATUS_STYLES: Record<string, string> = {
   new: "border-volt/30 bg-volt/10 text-volt",
+  scheduled: "border-violet-300/30 bg-violet-300/10 text-violet-300",
   contacted: "border-sky-400/30 bg-sky-400/10 text-sky-300",
   negotiating: "border-amber-300/30 bg-amber-300/10 text-amber-300",
   won: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",

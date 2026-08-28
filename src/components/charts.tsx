@@ -66,6 +66,7 @@ export function BarsChart({
 
 const FUNNEL_COLORS = [
   "bg-volt",
+  "bg-violet-300",
   "bg-sky-400",
   "bg-amber-300",
   "bg-emerald-400",
