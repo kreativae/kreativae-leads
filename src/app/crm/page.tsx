@@ -21,11 +21,14 @@ import { formatPhone } from "@/lib/phone";
 import { LeadDrawer, type ClientLead } from "@/components/lead-drawer";
 
 interface Group {
+  key: string;
   segment: string;
   city: string | null;
   country: string;
   total: number;
   lastAt: string | null;
+  /** Quantas rodadas de "Buscar mais" esta pesquisa acumulou. */
+  rounds: number;
 }
 
 /** "26/08" — data curta, so para situar quando aquilo foi pesquisado. */
@@ -59,7 +62,7 @@ export default function CrmPage() {
   const [columns, setColumns] = useState<Column[] | null>(null);
   const [newTotal, setNewTotal] = useState(0);
   const [groups, setGroups] = useState<Group[]>([]);
-  // "" = todos. O valor guarda segmento e cidade juntos, como uma pesquisa.
+  // "" = todas. O valor e a chave da pesquisa devolvida pelo servidor.
   const [escopo, setEscopo] = useState("");
   const [incluirNovos, setIncluirNovos] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -72,10 +75,8 @@ export default function CrmPage() {
   // renderizacao em cascata. Quem liga e o clique em Atualizar.
   const load = useCallback(async () => {
     try {
-      const [seg, cid] = escopo ? escopo.split("|") : ["", ""];
       const qs = new URLSearchParams({ novos: incluirNovos ? "1" : "0" });
-      if (seg) qs.set("segmento", seg);
-      if (cid) qs.set("cidade", cid);
+      if (escopo) qs.set("pesquisa", escopo);
       const res = await fetch(`/api/leads/board?${qs}`);
       const data = (await res.json()) as {
         columns: Column[];
@@ -203,9 +204,10 @@ export default function CrmPage() {
             >
               <option value="">Todas as pesquisas</option>
               {groups.map((g) => (
-                <option key={`${g.segment}|${g.city}`} value={`${g.segment}|${g.city}`}>
+                <option key={g.key} value={g.key}>
                   {diaCurto(g.lastAt)} · {g.segment} · {g.city}
                   {g.country === "PT" ? " (PT)" : ""} — {g.total} leads
+                  {g.rounds > 1 ? ` · ${g.rounds} rodadas` : ""}
                 </option>
               ))}
             </select>
