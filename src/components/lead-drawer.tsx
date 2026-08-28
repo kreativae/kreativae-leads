@@ -18,6 +18,7 @@ import {
   Loader2,
   Mail,
   Map,
+  Pencil,
   MapPin,
   MessageCircle,
   Phone,
@@ -138,6 +139,59 @@ export function LeadDrawer({
   const [editado, setEditado] = useState<string[] | null>(null);
   const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
   const [modoBloco, setModoBloco] = useState(false);
+  const [editandoContato, setEditandoContato] = useState(false);
+  const [salvandoContato, setSalvandoContato] = useState(false);
+  const [erroContato, setErroContato] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    ownerName: "",
+    phone: "",
+    whatsapp: "",
+    email: "",
+  });
+
+  function abrirEdicao() {
+    setForm({
+      ownerName: lead.ownerName ?? "",
+      phone: lead.phone ?? "",
+      // Mostra com + para ficar claro que o codigo do pais faz parte.
+      whatsapp: lead.whatsapp ? `+${lead.whatsapp}` : "",
+      email: lead.email ?? "",
+    });
+    setErroContato(null);
+    setEditandoContato(true);
+  }
+
+  async function salvarContato() {
+    setSalvandoContato(true);
+    setErroContato(null);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerName: form.ownerName,
+          phone: form.phone,
+          whatsapp: form.whatsapp,
+          email: form.email,
+        }),
+      });
+      const data = (await res.json()) as {
+        ok: boolean;
+        lead?: ClientLead;
+        error?: string;
+      };
+      if (data.ok && data.lead) {
+        onPatched(data.lead);
+        setEditandoContato(false);
+      } else {
+        setErroContato(data.error ?? "Não foi possível salvar.");
+      }
+    } catch {
+      setErroContato("Falha de conexão.");
+    } finally {
+      setSalvandoContato(false);
+    }
+  }
 
   useEffect(() => setNotes(lead.notes ?? ""), [lead.id, lead.notes]);
 
@@ -362,7 +416,76 @@ export function LeadDrawer({
         <div className="flex-1 space-y-7 overflow-y-auto overflow-x-hidden p-5 md:p-6">
           {/* Contact */}
           <section>
-            <SectionTitle>Dados de contato</SectionTitle>
+            <div className="flex items-center justify-between">
+              <SectionTitle>Dados de contato</SectionTitle>
+              {!editandoContato && (
+                <button
+                  type="button"
+                  onClick={abrirEdicao}
+                  title="Corrigir telefone, WhatsApp, e-mail ou responsável"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.09] px-3 py-1 text-[11.5px] font-semibold text-zinc-500 transition-colors hover:border-volt/40 hover:text-volt"
+                >
+                  <Pencil className="h-3 w-3" />
+                  Editar
+                </button>
+              )}
+            </div>
+
+            {editandoContato ? (
+              <div className="space-y-2.5">
+                {(
+                  [
+                    ["ownerName", "Responsável", "Nome de quem atende"],
+                    ["phone", "Telefone", "+55 43 3322-1234"],
+                    ["whatsapp", "WhatsApp", lead.country === "PT" ? "+351 912 345 678" : "+55 43 99999-9999"],
+                    ["email", "E-mail", "contato@empresa.com"],
+                  ] as const
+                ).map(([campo, rotulo, exemplo]) => (
+                  <label key={campo} className="block">
+                    <span className="text-[11.5px] font-medium text-zinc-500">
+                      {rotulo}
+                    </span>
+                    <input
+                      value={form[campo]}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, [campo]: e.target.value }))
+                      }
+                      placeholder={exemplo}
+                      className="mt-1 w-full rounded-xl border border-white/[0.09] bg-ink px-3.5 py-2.5 text-[13px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-volt/50"
+                    />
+                  </label>
+                ))}
+                <p className="text-[11.5px] leading-relaxed text-zinc-500">
+                  O WhatsApp aceita fixo: se você viu o número no site do
+                  cliente, ele vale mesmo sem cara de celular.
+                </p>
+                {erroContato && (
+                  <p className="text-[12px] text-rose-300">{erroContato}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={salvarContato}
+                    disabled={salvandoContato}
+                    className="inline-flex items-center gap-2 rounded-full bg-volt px-4 py-2 text-[12.5px] font-bold text-onvolt disabled:opacity-50"
+                  >
+                    {salvandoContato ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Check className="h-3.5 w-3.5" />
+                    )}
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditandoContato(false)}
+                    className="rounded-full border border-white/[0.09] px-4 py-2 text-[12.5px] font-semibold text-zinc-400 transition-colors hover:text-zinc-100"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-2.5 text-[13.5px]">
               <DrawerRow icon={User2} label="Responsável">
                 {lead.ownerName ?? <span className="text-zinc-600">Não identificado</span>}
@@ -512,6 +635,7 @@ export function LeadDrawer({
                 </DrawerRow>
               )}
             </div>
+            )}
 
             {/* Deep enrichment */}
             <div className="mt-3.5 rounded-xl border border-white/[0.07] bg-ink/50 p-3.5">

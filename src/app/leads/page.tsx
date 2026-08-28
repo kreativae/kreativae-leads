@@ -701,9 +701,13 @@ function LeadCard({ lead, onOpen }: { lead: ClientLead; onOpen: () => void }) {
           </span>
         )}
         {lead.whatsapp ? (
-          lead.whatsappSource === "declared" ? (
+          lead.whatsappSource === "declared" || lead.whatsappSource === "manual" ? (
             <span
-              title="Confirmado: a empresa declara este número como WhatsApp."
+              title={
+                lead.whatsappSource === "manual"
+                  ? "Confirmado: número informado por você."
+                  : "Confirmado: a empresa declara este número como WhatsApp."
+              }
               className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300"
             >
               <CheckCircle2 className="h-3 w-3" />
