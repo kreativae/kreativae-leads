@@ -32,6 +32,8 @@ export interface MessageOptions {
   useAnalysis?: boolean;
   /** Acrescenta um paragrafo com os diferenciais da kreativ.ae. */
   includeAbout?: boolean;
+  /** Nome de quem esta enviando — vem da conta logada. */
+  senderName?: string | null;
 }
 
 /** Diferenciais da casa — texto curto o bastante para caber no WhatsApp. */
@@ -111,43 +113,75 @@ const SAUDACOES: Record<Locale, ((nome: string | undefined, c: string) => string
 
 /* ------------------------------------------------------------ apresentacao */
 
-const APRESENTACOES: Record<Locale, Record<MessageStyle, string[]>> = {
+const APRESENTACOES: Record<
+  Locale,
+  Record<MessageStyle, ((nome: string | null) => string)[]>
+> = {
   BR: {
     consultivo: [
-      "Aqui é da kreativ.ae, estúdio especializado em criação de sites profissionais.",
-      "Falo da kreativ.ae — trabalhamos com presença digital para empresas como a sua.",
+      (n) =>
+        n
+          ? `Meu nome é ${n}, da kreativ.ae — estúdio especializado em criação de sites profissionais.`
+          : "Aqui é da kreativ.ae, estúdio especializado em criação de sites profissionais.",
+      (n) =>
+        n
+          ? `Meu nome é ${n} e falo da kreativ.ae, onde trabalhamos a presença digital de empresas como a sua.`
+          : "Falo da kreativ.ae — trabalhamos a presença digital de empresas como a sua.",
     ],
     direto: [
-      "Sou da kreativ.ae, criamos sites profissionais.",
-      "Aqui é da kreativ.ae — estúdio de criação de sites.",
+      (n) => (n ? `Meu nome é ${n}, da kreativ.ae. Criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
+      (n) => (n ? `Aqui é o ${n}, da kreativ.ae — estúdio de criação de sites.` : "Aqui é da kreativ.ae — estúdio de criação de sites."),
     ],
     proximo: [
-      "Sou da kreativ.ae, um estúdio que cria sites para empresas daqui da região.",
-      "Aqui é da kreativ.ae — a gente cria sites profissionais para empresas como a sua.",
+      (n) =>
+        n
+          ? `Meu nome é ${n}, sou da kreativ.ae — um estúdio que cria sites para empresas daqui da região.`
+          : "Sou da kreativ.ae, um estúdio que cria sites para empresas daqui da região.",
+      (n) =>
+        n
+          ? `Aqui é o ${n}, da kreativ.ae — a gente cria sites profissionais para empresas como a sua.`
+          : "Aqui é da kreativ.ae — a gente cria sites profissionais para empresas como a sua.",
     ],
-    curto: ["Sou da kreativ.ae, criamos sites profissionais."],
+    curto: [
+      (n) => (n ? `Meu nome é ${n}, da kreativ.ae — criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
+    ],
     pergunta: [
-      "Sou da kreativ.ae, estúdio de criação de sites.",
-      "Aqui é da kreativ.ae — trabalhamos com sites profissionais.",
+      (n) => (n ? `Meu nome é ${n}, da kreativ.ae, estúdio de criação de sites.` : "Sou da kreativ.ae, estúdio de criação de sites."),
+      (n) => (n ? `Aqui é o ${n}, da kreativ.ae — trabalhamos com sites profissionais.` : "Aqui é da kreativ.ae — trabalhamos com sites profissionais."),
     ],
   },
   PT: {
     consultivo: [
-      "Falo da kreativ.ae, estúdio especializado na criação de sites profissionais.",
-      "Contacto-o da parte da kreativ.ae — trabalhamos a presença digital de empresas como a vossa.",
+      // PT usa o artigo antes do possessivo: "o meu nome", nao "meu nome".
+      (n) =>
+        n
+          ? `Chamo-me ${n}, da kreativ.ae — estúdio especializado na criação de sites profissionais.`
+          : "Falo da kreativ.ae, estúdio especializado na criação de sites profissionais.",
+      (n) =>
+        n
+          ? `O meu nome é ${n} e falo da kreativ.ae, onde trabalhamos a presença digital de empresas como a vossa.`
+          : "Contacto-o da parte da kreativ.ae — trabalhamos a presença digital de empresas como a vossa.",
     ],
     direto: [
-      "Sou da kreativ.ae, criamos sites profissionais.",
-      "Falo da kreativ.ae — estúdio de criação de sites.",
+      (n) => (n ? `Chamo-me ${n}, da kreativ.ae. Criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
+      (n) => (n ? `O meu nome é ${n}, da kreativ.ae — estúdio de criação de sites.` : "Falo da kreativ.ae — estúdio de criação de sites."),
     ],
     proximo: [
-      "Sou da kreativ.ae, um estúdio que cria sites para empresas como a vossa.",
-      "Falo da kreativ.ae — ajudamos empresas a ter uma presença online à altura do trabalho que fazem.",
+      (n) =>
+        n
+          ? `Chamo-me ${n}, sou da kreativ.ae — um estúdio que cria sites para empresas como a vossa.`
+          : "Sou da kreativ.ae, um estúdio que cria sites para empresas como a vossa.",
+      (n) =>
+        n
+          ? `O meu nome é ${n}, da kreativ.ae — ajudamos empresas a ter uma presença online à altura do trabalho que fazem.`
+          : "Falo da kreativ.ae — ajudamos empresas a ter uma presença online à altura do trabalho que fazem.",
     ],
-    curto: ["Sou da kreativ.ae, criamos sites profissionais."],
+    curto: [
+      (n) => (n ? `Chamo-me ${n}, da kreativ.ae — criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
+    ],
     pergunta: [
-      "Sou da kreativ.ae, estúdio de criação de sites.",
-      "Falo da kreativ.ae — trabalhamos com sites profissionais.",
+      (n) => (n ? `Chamo-me ${n}, da kreativ.ae, estúdio de criação de sites.` : "Sou da kreativ.ae, estúdio de criação de sites."),
+      (n) => (n ? `O meu nome é ${n}, da kreativ.ae — trabalhamos com sites profissionais.` : "Falo da kreativ.ae — trabalhamos com sites profissionais."),
     ],
   },
 };
@@ -451,7 +485,9 @@ export function buildWhatsappParts(
     primeiroNome,
     cumprimentoDoDia(lead.country),
   );
-  const apresentacao = pick(APRESENTACOES[l][style], base >> 3);
+  const apresentacao = pick(APRESENTACOES[l][style], base >> 3)(
+    opts.senderName?.trim() || null,
+  );
 
   let gancho: string | null = null;
   if (opts.useAnalysis && lead.websiteChecks?.length) {

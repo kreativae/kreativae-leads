@@ -105,6 +105,31 @@ export function formatFollowers(n: number): string {
 }
 
 
+/**
+ * Nome de quem esta logado, para assinar a abordagem. Guardado no modulo:
+ * o drawer remonta a cada lead aberto, e refazer a chamada em cada abertura
+ * seria desperdicio.
+ */
+let nomeCache: string | null | undefined;
+let nomeEmVoo: Promise<void> | null = null;
+
+function useMeuNome(): string | null {
+  const [nome, setNome] = useState<string | null>(nomeCache ?? null);
+  useEffect(() => {
+    if (nomeCache !== undefined) return;
+    nomeEmVoo ??= fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { user?: { name?: string } } | null) => {
+        nomeCache = d?.user?.name ?? null;
+      })
+      .catch(() => {
+        nomeCache = null;
+      });
+    nomeEmVoo.then(() => setNome(nomeCache ?? null));
+  }, []);
+  return nome;
+}
+
 export function LeadDrawer({
   lead,
   onClose,
@@ -141,6 +166,7 @@ export function LeadDrawer({
   const [editado, setEditado] = useState<string[] | null>(null);
   const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
   const [modoBloco, setModoBloco] = useState(false);
+  const meuNome = useMeuNome();
   const [editandoContato, setEditandoContato] = useState(false);
   const [salvandoContato, setSalvandoContato] = useState(false);
   const [erroContato, setErroContato] = useState<string | null>(null);
@@ -234,6 +260,7 @@ export function LeadDrawer({
     variant: msgVariant,
     useAnalysis: usarDiagnostico && temDiagnostico,
     includeAbout: incluirSobre,
+    senderName: meuNome,
   });
   // Editar uma parte congela todas: senao um clique em "Variar" trocaria as
   // nao editadas e a mensagem viraria uma colcha de retalhos.
