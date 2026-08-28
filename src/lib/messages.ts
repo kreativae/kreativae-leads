@@ -64,16 +64,48 @@ function pick<T>(arr: T[], n: number): T {
 
 /* ---------------------------------------------------------------- saudacao */
 
-const SAUDACOES: Record<Locale, ((nome?: string) => string)[]> = {
+const FUSO: Record<Locale, string> = {
+  BR: "America/Sao_Paulo",
+  PT: "Europe/Lisbon",
+};
+
+/**
+ * Cumprimento pelo relogio DO LEAD, nao pelo seu. Portugal esta 4h a frente
+ * de Brasilia: as 15h daqui ja e noite la, e "boa tarde" entregaria na hora
+ * que o cumprimento fica errado.
+ */
+export function cumprimentoDoDia(country: string, agora = new Date()): string {
+  const l: Locale = country === "PT" ? "PT" : "BR";
+  let hora: number;
+  try {
+    hora = Number(
+      new Intl.DateTimeFormat("pt-BR", {
+        hour: "numeric",
+        hourCycle: "h23",
+        timeZone: FUSO[l],
+      }).format(agora),
+    );
+  } catch {
+    hora = agora.getHours();
+  }
+  if (hora >= 5 && hora < 12) return "Bom dia";
+  if (hora >= 12 && hora < 19) return "Boa tarde";
+  return "Boa noite";
+}
+
+/** As variantes neutras convivem com as de horario, para o texto variar. */
+const SAUDACOES: Record<Locale, ((nome: string | undefined, c: string) => string)[]> = {
   BR: [
-    (n) => (n ? `Olá, ${n}! Tudo bem?` : "Olá! Tudo bem?"),
+    (n, c) => (n ? `${c}, ${n}! Tudo bem?` : `${c}! Tudo bem?`),
     (n) => (n ? `Oi, ${n}, tudo certo?` : "Oi! Tudo certo?"),
-    (n) => (n ? `Olá, ${n}. Espero que esteja tudo bem.` : "Olá! Espero que esteja tudo bem."),
+    (n, c) => (n ? `${c}, ${n}. Espero que esteja tudo bem.` : `${c}! Espero que esteja tudo bem.`),
+    (n) => (n ? `Olá, ${n}! Tudo bem?` : "Olá! Tudo bem?"),
   ],
   PT: [
-    (n) => (n ? `Olá, ${n}! Tudo bem?` : "Olá! Tudo bem?"),
-    (n) => (n ? `Bom dia, ${n}. Espero que esteja tudo bem.` : "Bom dia! Espero que esteja tudo bem."),
+    (n, c) => (n ? `${c}, ${n}! Tudo bem?` : `${c}! Tudo bem?`),
+    (n, c) => (n ? `${c}, ${n}. Espero que esteja tudo bem.` : `${c}! Espero que esteja tudo bem.`),
     (n) => (n ? `Olá, ${n}, como está?` : "Olá! Como está?"),
+    (n) => (n ? `Olá, ${n}! Tudo bem?` : "Olá! Tudo bem?"),
   ],
 };
 
@@ -367,7 +399,10 @@ export function buildWhatsappParts(
   const empresa = lead.companyName;
   const lugar = lead.city ? ` em ${lead.city}` : "";
 
-  const saudacao = pick(SAUDACOES[l], base)(primeiroNome);
+  const saudacao = pick(SAUDACOES[l], base)(
+    primeiroNome,
+    cumprimentoDoDia(lead.country),
+  );
   const apresentacao = pick(APRESENTACOES[l][style], base >> 3);
 
   let gancho: string | null = null;
