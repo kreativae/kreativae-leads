@@ -434,6 +434,31 @@ export function buildWhatsappMessage(
   return buildWhatsappParts(lead, opts).join("\n\n");
 }
 
+/** Assunto do e-mail: acompanha o gancho, sem parecer disparo em massa. */
+export function emailSubject(lead: {
+  companyName: string;
+  website: string | null;
+}): string {
+  return lead.website
+    ? `Sobre o site da ${lead.companyName}`
+    : `Sobre a presença digital da ${lead.companyName}`;
+}
+
+export function mailtoLink(
+  email: string | null,
+  subject: string,
+  body: string,
+): string | null {
+  if (!email) return null;
+  // O endereco vai cru: codificar o "@" como %40 e valido pela RFC 6068, mas
+  // clientes de e-mail antigos tropecam. So o que quebraria a URL sai.
+  const destino = email.trim().replace(/[\s<>"'`]/g, "");
+  if (!destino.includes("@")) return null;
+  return `mailto:${destino}?subject=${encodeURIComponent(
+    subject,
+  )}&body=${encodeURIComponent(body)}`;
+}
+
 export function waMeLink(
   whatsappDigits: string | null,
   message: string,

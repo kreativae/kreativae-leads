@@ -40,6 +40,8 @@ import {
 import { LEAD_STATUSES } from "@/lib/constants";
 import {
   buildWhatsappParts,
+  emailSubject,
+  mailtoLink,
   MESSAGE_STYLES,
   waMeLink,
   type MessageStyle,
@@ -238,6 +240,7 @@ export function LeadDrawer({
   const partes = editado ?? partesGeradas;
   const mensagemFinal = partes.join("\n\n");
   const waLink = waMeLink(lead.whatsapp, mensagemFinal);
+  const mailLink = mailtoLink(lead.email, emailSubject(lead), mensagemFinal);
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     `${lead.companyName} ${lead.address ?? ""} ${lead.city ?? ""}`,
   )}`;
@@ -1091,7 +1094,17 @@ export function LeadDrawer({
                   className="inline-flex items-center gap-2 rounded-full bg-volt px-4 py-2.5 text-[12.5px] font-bold text-onvolt transition-transform hover:scale-[1.03]"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  Enviar com mensagem pronta
+                  Enviar por WhatsApp
+                </a>
+              )}
+              {mailLink && (
+                <a
+                  href={mailLink}
+                  title={`Abre seu e-mail já preenchido para ${lead.email}`}
+                  className="inline-flex items-center gap-2 rounded-full border border-sky-400/40 px-4 py-2.5 text-[12.5px] font-semibold text-sky-300 transition-colors hover:border-sky-400/80"
+                >
+                  <Mail className="h-4 w-4" />
+                  Enviar por e-mail
                 </a>
               )}
             </div>
