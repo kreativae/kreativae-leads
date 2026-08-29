@@ -17,7 +17,10 @@ import { searchPlaces } from "@/lib/places";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+// Pior caso do caminho Places: 3 paginas x 20s + 2 esperas, e o recuo
+// automatico repete isso = ~129s. O caminho OSM, com 3 espelhos e duas
+// rodadas de repeticao, vai bem mais longe. 300s e o teto do plano.
+export const maxDuration = 300;
 
 interface SearchBody {
   segment?: unknown;
