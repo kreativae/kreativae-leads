@@ -63,6 +63,21 @@ html.light {
 
 body {
   background-color: var(--color-ink);
+  /* Sem isto, arrastar alem do topo no iOS desloca a pagina inteira — e os
+     elementos fixed vao junto, revelando conteudo acima do header. */
+  overscroll-behavior-y: none;
+}
+
+/* Rede de seguranca: pinta a faixa da area segura com a cor do header, mesmo
+   que o calculo de altura falhe em algum navegador. */
+.app-header-mobile::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background-color: var(--color-ink);
 }
 
 /* Altura do header do celular. A area segura do iOS (relogio, bateria) fica
