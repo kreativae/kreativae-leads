@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Crosshair,
   History,
@@ -153,6 +153,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Omnichannel desligado em Configuracoes some do menu.
   const navItems = waEnabled ? NAV : NAV.filter((i) => i.href !== "/conversas");
   const me = useMe(pathname);
+  const [menuAberto, setMenuAberto] = useState(false);
 
   if (AUTH_PATHS.some((p) => pathname.startsWith(p))) {
     return <>{children}</>;
@@ -241,8 +242,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* fixed, nao sticky: sticky depende de nenhum ancestral ter overflow,
           e qualquer overflow futuro o quebraria em silencio. */}
       <header className="app-header-mobile fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-white/[0.08] bg-ink px-4 lg:hidden">
-        <Wordmark />
-        <nav className="flex items-center gap-1">
+        {/* So o simbolo: com 7 itens de menu, a tipografia nao cabe. */}
+        <Link href="/" aria-label="Início" className="shrink-0">
+          <LogoKreativ markOnly className="h-7 w-auto text-white" />
+        </Link>
+        <nav className="flex items-center gap-0.5">
           {navItems.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -261,8 +265,70 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setMenuAberto((v) => !v)}
+            aria-expanded={menuAberto}
+            aria-label="Conta e preferências"
+            className={`ml-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold transition-colors ${
+              menuAberto
+                ? "border-volt bg-volt text-onvolt"
+                : "border-volt/30 bg-volt/[0.08] text-volt"
+            }`}
+          >
+            {me ? me.name.slice(0, 1).toUpperCase() : <UserRound className="h-4 w-4" />}
+          </button>
         </nav>
       </header>
+
+      {/* Conta, tema e relogios só existiam na barra lateral do desktop. */}
+      <AnimatePresence>
+        {menuAberto && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMenuAberto(false)}
+              className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.18 }}
+              className="app-menu-mobile fixed inset-x-0 z-40 space-y-1 border-b border-white/[0.08] bg-ink px-3 pb-4 pt-2 shadow-2xl lg:hidden"
+            >
+              {me && (
+                <div className="mb-2 px-3.5 py-2">
+                  <div className="truncate text-[13.5px] font-bold text-zinc-100">
+                    {me.name}
+                  </div>
+                  <div className="truncate text-[11.5px] text-zinc-500">{me.email}</div>
+                </div>
+              )}
+              <Link
+                href="/conta"
+                onClick={() => setMenuAberto(false)}
+                className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] font-medium text-zinc-300"
+              >
+                <UserRound className="h-4 w-4 text-zinc-600" strokeWidth={2} />
+                Conta
+              </Link>
+              <ThemeToggle />
+              <WorldClock />
+              <button
+                type="button"
+                onClick={doLogout}
+                className="mt-1 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] font-semibold text-rose-300"
+              >
+                <LogOut className="h-4 w-4" />
+                Sair da conta
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       <div className="app-content-offset relative lg:pl-60">
         {forceBanner && (

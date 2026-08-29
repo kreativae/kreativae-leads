@@ -6,10 +6,17 @@
  * componente entrega a logo branca no escuro e a preta no claro, sem
  * precisar de dois arquivos.
  */
-export function LogoKreativ({ className = "" }: { className?: string }) {
+export function LogoKreativ({
+  className = "",
+  markOnly = false,
+}: {
+  className?: string;
+  /** So o simbolo, sem a tipografia: o texto vive de x=156 em diante. */
+  markOnly?: boolean;
+}) {
   return (
     <svg
-      viewBox="0 0 670.62 144.81"
+      viewBox={markOnly ? "0 0 126 144.81" : "0 0 670.62 144.81"}
       role="img"
       aria-label="kreativ.ae"
       className={className}

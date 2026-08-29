@@ -77,6 +77,11 @@ body {
   padding-top: calc(4rem + env(safe-area-inset-top, 0px));
 }
 
+/* O painel de conta abre logo abaixo do header, que cobre a area segura. */
+.app-menu-mobile {
+  top: calc(4rem + env(safe-area-inset-top, 0px));
+}
+
 .app-filters-sticky {
   top: calc(4rem + env(safe-area-inset-top, 0px));
 }
