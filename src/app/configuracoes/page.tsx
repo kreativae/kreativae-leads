@@ -119,6 +119,7 @@ export default function ConfiguracoesPage() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [salvandoToken, setSalvandoToken] = useState(false);
   const [origin, setOrigin] = useState("");
   const isOwner = useIsOwner();
 
@@ -205,9 +206,25 @@ export default function ConfiguracoesPage() {
     }
   }
 
-  function generateVerifyToken() {
+  /**
+   * Gera E grava. O painel ao lado mostra o token para copiar assim que ele
+   * aparece; se dependesse do botao Salvar, era possivel colar na Meta um
+   * valor que o servidor nunca recebeu — e a verificacao falharia sem pista.
+   */
+  async function generateVerifyToken() {
     const t = `kreatae-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
     setValues((v) => ({ ...v, wa_verify_token: t }));
+    setSalvandoToken(true);
+    try {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wa_verify_token: t }),
+      });
+      await load();
+    } finally {
+      setSalvandoToken(false);
+    }
   }
 
   const webhookUrl = origin ? `${origin}/api/webhooks/whatsapp` : "/api/webhooks/whatsapp";
@@ -344,8 +361,8 @@ export default function ConfiguracoesPage() {
                       onClick={generateVerifyToken}
                       className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-volt hover:underline"
                     >
-                      <RefreshCw className="h-3 w-3" />
-                      Gerar novo
+                      <RefreshCw className={`h-3 w-3 ${salvandoToken ? "animate-spin" : ""}`} />
+                      {salvandoToken ? "Salvando…" : "Gerar e salvar"}
                     </button>
                   </div>
                   <input
@@ -382,8 +399,12 @@ export default function ConfiguracoesPage() {
                   onCopy={() => copy(webhookUrl, "url")}
                 />
                 <CopyRow
-                  label="Verify Token"
-                  value={values.wa_verify_token || "(gere e salve um token)"}
+                  label={
+                    values.wa_verify_token && !meta.wa_verify_token?.value
+                      ? "Verify Token — ainda não salvo"
+                      : "Verify Token"
+                  }
+                  value={values.wa_verify_token || "(gere um token)"}
                   copied={copied === "vt"}
                   onCopy={() => copy(values.wa_verify_token, "vt")}
                 />
