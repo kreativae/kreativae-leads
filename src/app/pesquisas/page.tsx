@@ -163,10 +163,12 @@ export default function SearchesPage() {
           <ul className="divide-y divide-white/[0.05]">
             {rows.map((s) => (
               <li key={s.id} className="p-4 md:px-6">
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+                {/* Identificacao. A data fica aqui no desktop e desce para a
+                    linha de acoes no celular, onde nao ha largura para as duas. */}
+                <div className="flex items-start gap-3">
                   <span
                     title={s.status}
-                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                    className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
                       s.status === "done"
                         ? "bg-volt"
                         : s.status === "failed"
@@ -174,14 +176,16 @@ export default function SearchesPage() {
                           : "animate-pulse bg-amber-300"
                     }`}
                   />
-                  <div className="min-w-0 flex-1 basis-48">
+                  <div className="min-w-0 flex-1">
                     <div className="truncate text-[14.5px] font-semibold text-zinc-100">
                       {s.segment}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-zinc-500">
-                      <MapPin className="h-3 w-3" />
-                      {s.city}
-                      {s.state ? ` · ${s.state}` : ""}
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-zinc-500">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">
+                        {s.city}
+                        {s.state ? ` · ${s.state}` : ""}
+                      </span>
                       <span className="rounded border border-white/10 px-1.5 py-px text-[10px] font-bold text-zinc-400">
                         {s.country}
                       </span>
@@ -190,31 +194,38 @@ export default function SearchesPage() {
                           GOOGLE
                         </span>
                       )}
+                      {s.round > 0 && (
+                        <span
+                          title="Formulação alternativa da mesma busca"
+                          className="rounded border border-volt/25 bg-volt/[0.07] px-1.5 py-px text-[10px] font-bold text-volt"
+                        >
+                          RODADA {s.round + 1}
+                        </span>
+                      )}
                     </div>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Chip label={`${s.resultsCount} encontrados`} />
-                    <Chip label={`${s.newCount} novos`} accent />
-                    <Chip label={`${s.withWhatsappCount} WhatsApp`} />
-                    <Chip label={`${s.noWebsiteCount} sem site`} danger />
-                    {s.round > 0 && (
-                      <span
-                        title="Formulação alternativa da mesma busca"
-                        className="rounded-full border border-volt/25 bg-volt/[0.07] px-2.5 py-1 text-[11px] font-bold text-volt"
-                      >
-                        rodada {s.round + 1}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="ml-auto flex items-center gap-2.5 pl-2">
-                    <div className="text-right">
-                      <div className="text-[12px] text-zinc-400">{timeAgo(s.createdAt)}</div>
-                      <div className="text-[10.5px] text-zinc-600">
-                        {formatDate(s.createdAt)}
-                      </div>
+                  <div className="hidden shrink-0 text-right md:block">
+                    <div className="text-[12px] text-zinc-400">{timeAgo(s.createdAt)}</div>
+                    <div className="text-[10.5px] text-zinc-600">
+                      {formatDate(s.createdAt)}
                     </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-1.5 pl-[22px]">
+                  <Chip label={`${s.resultsCount} encontrados`} />
+                  <Chip label={`${s.newCount} novos`} accent />
+                  <Chip label={`${s.withWhatsappCount} WhatsApp`} />
+                  <Chip label={`${s.noWebsiteCount} sem site`} danger />
+                </div>
+
+                <div className="mt-3 flex items-center gap-2 pl-[22px]">
+                  <span className="text-[11.5px] text-zinc-500 md:hidden">
+                    {timeAgo(s.createdAt)}
+                  </span>
+                  {/* whitespace-nowrap: sem isto os rotulos quebram em duas
+                      linhas e os botoes ficam com alturas diferentes. */}
+                  <div className="ml-auto flex shrink-0 items-center gap-2">
                     {(() => {
                       const total = roundsAvailable(
                         matchSegment(s.segment).key,
@@ -233,7 +244,7 @@ export default function SearchesPage() {
                               ? "Todas as formulações desta busca já foram usadas."
                               : `Roda outra formulação (${proxima + 1}ª de ${total}) para achar leads além dos 60 do Google.`
                           }
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-2 text-[12px] font-semibold text-zinc-400 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-40"
+                          className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 text-[12px] font-semibold text-zinc-400 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-40"
                         >
                           {moreId === s.id ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -247,7 +258,8 @@ export default function SearchesPage() {
                     <Link
                       href={`/buscar?segmento=${encodeURIComponent(s.segment)}&cidade=${encodeURIComponent(s.city)}&pais=${s.country}`}
                       title="Repetir pesquisa"
-                      className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-2 text-zinc-400 transition-colors hover:border-volt/40 hover:text-volt"
+                      aria-label="Repetir pesquisa"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-zinc-400 transition-colors hover:border-volt/40 hover:text-volt"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                     </Link>
@@ -257,7 +269,7 @@ export default function SearchesPage() {
                         // "Lisboa · 5 km"); leads.city guarda so o nome da cidade.
                         s.city.split(/[,·]/)[0].trim(),
                       )}`}
-                      className="rounded-lg border border-volt/25 bg-volt/[0.07] px-3 py-2 text-[12px] font-semibold text-volt transition-colors hover:bg-volt/[0.14]"
+                      className="inline-flex h-9 items-center whitespace-nowrap rounded-lg border border-volt/25 bg-volt/[0.07] px-3 text-[12px] font-semibold text-volt transition-colors hover:bg-volt/[0.14]"
                     >
                       Ver leads
                     </Link>
@@ -266,7 +278,8 @@ export default function SearchesPage() {
                       onClick={() => remove(s.id)}
                       disabled={deletingId === s.id}
                       title="Excluir pesquisa"
-                      className="rounded-lg border border-rose-400/20 bg-rose-400/[0.05] p-2 text-rose-300 transition-colors hover:bg-rose-400/15 disabled:opacity-50"
+                      aria-label="Excluir pesquisa"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-400/20 bg-rose-400/[0.05] text-rose-300 transition-colors hover:bg-rose-400/15 disabled:opacity-50"
                     >
                       {deletingId === s.id ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
