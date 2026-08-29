@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
+  Globe,
   History,
+  MessageCircle,
+  Search,
+  Sparkles,
   Loader2,
   MapPin,
   Plus,
@@ -212,11 +216,20 @@ export default function SearchesPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-1.5 pl-[22px]">
-                  <Chip label={`${s.resultsCount} encontrados`} />
-                  <Chip label={`${s.newCount} novos`} accent />
-                  <Chip label={`${s.withWhatsappCount} WhatsApp`} />
-                  <Chip label={`${s.noWebsiteCount} sem site`} danger />
+                <div className="mt-3 flex items-center gap-1.5 pl-[22px]">
+                  <Chip icon={Search} value={s.resultsCount} label="encontrados" />
+                  <Chip icon={Sparkles} value={s.newCount} label="novos" accent />
+                  <Chip
+                    icon={MessageCircle}
+                    value={s.withWhatsappCount}
+                    label="WhatsApp"
+                  />
+                  <Chip
+                    icon={Globe}
+                    value={s.noWebsiteCount}
+                    label="sem site"
+                    danger
+                  />
                 </div>
 
                 <div className="mt-3 flex items-center gap-2 pl-[22px]">
@@ -303,26 +316,37 @@ export default function SearchesPage() {
   );
 }
 
+/**
+ * No celular mostra so o icone e o numero; a palavra aparece a partir de sm.
+ * Com os quatro rotulos por extenso, a linha nao cabe em 375px e quebra.
+ */
 function Chip({
+  icon: Icon,
+  value,
   label,
   accent = false,
   danger = false,
 }: {
+  icon: typeof Search;
+  value: number;
   label: string;
   accent?: boolean;
   danger?: boolean;
 }) {
   return (
     <span
-      className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold tabular-nums ${
+      title={`${value} ${label}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums sm:px-2.5 ${
         accent
           ? "border-volt/25 bg-volt/[0.07] text-volt"
           : danger
             ? "border-rose-400/25 bg-rose-400/[0.07] text-rose-300"
-            : "border-white/[0.08] bg-white/[0.03] text-zinc-400"
+            : "border-white/[0.08] bg-white/[0.08] text-zinc-400"
       }`}
     >
-      {label}
+      <Icon className="h-3 w-3 shrink-0" />
+      {value}
+      <span className="hidden sm:inline">{label}</span>
     </span>
   );
 }
