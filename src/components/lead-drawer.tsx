@@ -1113,7 +1113,9 @@ export function LeadDrawer({
                         partes.map((p, j) => (j === i ? e.target.value : p)),
                       )
                     }
-                    rows={Math.max(2, Math.ceil(parte.length / 52))}
+                    /* 42 e nao 52: no celular a fonte sobe para 16px e cabem menos
+                       caracteres por linha. */
+                    rows={Math.max(2, Math.ceil(parte.length / 42))}
                     spellCheck
                     className="min-w-0 flex-1 resize-y bg-transparent font-sans text-[12.5px] leading-relaxed text-zinc-300 outline-none"
                   />

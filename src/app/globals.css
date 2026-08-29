@@ -61,6 +61,20 @@ html.light {
   --grid-c: rgb(10 10 15 / 0.045);
 }
 
+/*
+ * O iOS Safari aplica zoom automatico ao focar um campo com fonte menor que
+ * 16px — e sob zoom os elementos position:fixed passam a ser posicionados
+ * pelo layout, nao pelo que esta visivel: o header "descola" do topo e o
+ * conteudo aparece por tras dele. Forcar 16px evita o zoom na origem.
+ */
+@media (max-width: 1023px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 body {
   background-color: var(--color-ink);
   /* Sem isto, arrastar alem do topo no iOS desloca a pagina inteira — e os
