@@ -26,6 +26,7 @@ import {
   RefreshCw,
   Search,
   Share2,
+  Shuffle,
   Sparkles,
   Star,
   Stethoscope,
@@ -165,6 +166,9 @@ export function LeadDrawer({
   // senao o usuario trocaria de estilo e continuaria vendo o texto antigo.
   const [editado, setEditado] = useState<string[] | null>(null);
   const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
+  // Deslocamento de variante por parte: permite trocar so o item 4 sem
+  // mexer nos outros. Zerado sempre que o gerador muda como um todo.
+  const [desvios, setDesvios] = useState<number[]>([]);
   const [modoBloco, setModoBloco] = useState(false);
   const meuNome = useMeuNome();
   const [editandoContato, setEditandoContato] = useState(false);
@@ -264,7 +268,55 @@ export function LeadDrawer({
   });
   // Editar uma parte congela todas: senao um clique em "Variar" trocaria as
   // nao editadas e a mensagem viraria uma colcha de retalhos.
-  const partes = editado ?? partesGeradas;
+  // Uma parte com desvio proprio e buscada de outra variante do gerador. O
+  // numero de partes so depende de estilo e opcoes, nunca da variante, entao
+  // o indice continua valido.
+  const partesVariadas = partesGeradas.map((texto, i) => {
+    const d = desvios[i] ?? 0;
+    if (d === 0) return texto;
+    return (
+      buildWhatsappParts(lead, {
+        style: msgStyle,
+        variant: msgVariant + d * 7,
+        useAnalysis: usarDiagnostico && temDiagnostico,
+        includeAbout: incluirSobre,
+        senderName: meuNome,
+      })[i] ?? texto
+    );
+  });
+  const partes = editado ?? partesVariadas;
+
+  /** Gera a lista de partes para um deslocamento de variante. */
+  function gerarCom(desvio: number): string[] {
+    return buildWhatsappParts(lead, {
+      style: msgStyle,
+      variant: msgVariant + desvio * 7,
+      useAnalysis: usarDiagnostico && temDiagnostico,
+      includeAbout: incluirSobre,
+      senderName: meuNome,
+    });
+  }
+
+  /**
+   * Varia so uma parte. Procura o proximo deslocamento que produza um texto
+   * DIFERENTE: algumas partes tem poucas redacoes, e o sorteio por hash
+   * repetiria a atual — o usuario clicaria e nada mudaria na tela.
+   */
+  function variarParte(i: number) {
+    const atual = partes[i];
+    const de = desvios[i] ?? 0;
+    for (let k = 1; k <= 12; k++) {
+      const candidato = gerarCom(de + k)[i];
+      if (!candidato || candidato === atual) continue;
+      const novos = [...desvios];
+      novos[i] = de + k;
+      setDesvios(novos);
+      if (editado) setEditado(editado.map((p, j) => (j === i ? candidato : p)));
+      return;
+    }
+    // Sem alternativa: esta parte so tem uma redacao para o estilo atual.
+  }
+
   const mensagemFinal = partes.join("\n\n");
   const waLink = waMeLink(lead.whatsapp, mensagemFinal);
   const mailLink = mailtoLink(lead.email, emailSubject(lead), mensagemFinal);
@@ -944,6 +996,7 @@ export function LeadDrawer({
                   onClick={() => {
                     setMsgStyle(s.key);
                     setEditado(null);
+                    setDesvios([]);
                   }}
                   className={`rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
                     msgStyle === s.key
@@ -959,6 +1012,7 @@ export function LeadDrawer({
                 onClick={() => {
                   setMsgVariant((v) => v + 1);
                   setEditado(null);
+                    setDesvios([]);
                 }}
                 title="Gera outra redação com o mesmo estilo"
                 className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.09] px-3 py-1 text-[11.5px] font-semibold text-zinc-500 transition-colors hover:border-volt/40 hover:text-volt"
@@ -972,6 +1026,7 @@ export function LeadDrawer({
                   onClick={() => {
                     setUsarDiagnostico((v) => !v);
                     setEditado(null);
+                    setDesvios([]);
                   }}
                   title="Cita no texto os problemas concretos achados na análise do site"
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
@@ -989,6 +1044,7 @@ export function LeadDrawer({
                 onClick={() => {
                   setIncluirSobre((v) => !v);
                   setEditado(null);
+                    setDesvios([]);
                 }}
                 title="Acrescenta um parágrafo com os diferenciais da kreativ.ae"
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
@@ -1061,7 +1117,8 @@ export function LeadDrawer({
                     spellCheck
                     className="min-w-0 flex-1 resize-y bg-transparent font-sans text-[12.5px] leading-relaxed text-zinc-300 outline-none"
                   />
-                  <button
+                  <div className="mt-0.5 flex shrink-0 flex-col gap-1.5">
+                    <button
                     type="button"
                     onClick={async () => {
                       try {
@@ -1075,14 +1132,24 @@ export function LeadDrawer({
                     }}
                     title={`Copiar a parte ${i + 1}`}
                     aria-label={`Copiar a parte ${i + 1}`}
-                    className="mt-0.5 shrink-0 rounded-lg border border-white/[0.08] p-2 text-zinc-500 transition-colors hover:border-volt/40 hover:text-volt"
-                  >
+                    className="shrink-0 rounded-lg border border-white/[0.08] p-2 text-zinc-500 transition-colors hover:border-volt/40 hover:text-volt"
+                    >
                     {copiadoIdx === i ? (
                       <Check className="h-3.5 w-3.5 text-volt" />
                     ) : (
                       <ClipboardCopy className="h-3.5 w-3.5" />
                     )}
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => variarParte(i)}
+                      title={`Outra redação para a parte ${i + 1}`}
+                      aria-label={`Variar a parte ${i + 1}`}
+                      className="shrink-0 rounded-lg border border-white/[0.08] p-2 text-zinc-500 transition-colors hover:border-volt/40 hover:text-volt"
+                    >
+                      <Shuffle className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ol>
