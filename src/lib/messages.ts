@@ -102,12 +102,16 @@ const SAUDACOES: Record<Locale, ((nome: string | undefined, c: string) => string
     (n) => (n ? `Oi, ${n}, tudo certo?` : "Oi! Tudo certo?"),
     (n, c) => (n ? `${c}, ${n}. Espero que esteja tudo bem.` : `${c}! Espero que esteja tudo bem.`),
     (n) => (n ? `Olá, ${n}! Tudo bem?` : "Olá! Tudo bem?"),
+    (n, c) => (n ? `${c}, ${n}, como vai?` : `${c}! Como vai?`),
+    (n) => (n ? `Olá, ${n}. Espero não incomodar.` : "Olá! Espero não incomodar."),
   ],
   PT: [
     (n, c) => (n ? `${c}, ${n}! Tudo bem?` : `${c}! Tudo bem?`),
     (n, c) => (n ? `${c}, ${n}. Espero que esteja tudo bem.` : `${c}! Espero que esteja tudo bem.`),
     (n) => (n ? `Olá, ${n}, como está?` : "Olá! Como está?"),
     (n) => (n ? `Olá, ${n}! Tudo bem?` : "Olá! Tudo bem?"),
+    (n, c) => (n ? `${c}, ${n}. Espero não estar a incomodar.` : `${c}! Espero não estar a incomodar.`),
+    (n, c) => (n ? `${c}, ${n}. Como tem passado?` : `${c}! Como tem passado?`),
   ],
 };
 
@@ -141,9 +145,14 @@ const APRESENTACOES: Record<
         n
           ? `Aqui é o ${n}, da kreativ.ae — a gente cria sites profissionais para empresas como a sua.`
           : "Aqui é da kreativ.ae — a gente cria sites profissionais para empresas como a sua.",
+      (n) =>
+        n
+          ? `Meu nome é ${n} e trabalho na kreativ.ae, criando sites para quem quer aparecer melhor online.`
+          : "Sou da kreativ.ae, criamos sites para quem quer aparecer melhor online.",
     ],
     curto: [
       (n) => (n ? `Meu nome é ${n}, da kreativ.ae — criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
+      (n) => (n ? `${n}, da kreativ.ae — estúdio de sites.` : "Sou da kreativ.ae — estúdio de sites."),
     ],
     pergunta: [
       (n) => (n ? `Meu nome é ${n}, da kreativ.ae, estúdio de criação de sites.` : "Sou da kreativ.ae, estúdio de criação de sites."),
@@ -175,9 +184,14 @@ const APRESENTACOES: Record<
         n
           ? `O meu nome é ${n}, da kreativ.ae — ajudamos empresas a ter uma presença online à altura do trabalho que fazem.`
           : "Falo da kreativ.ae — ajudamos empresas a ter uma presença online à altura do trabalho que fazem.",
+      (n) =>
+        n
+          ? `Chamo-me ${n} e trabalho na kreativ.ae, a criar sites para quem quer marcar melhor presença online.`
+          : "Sou da kreativ.ae, criamos sites para quem quer marcar melhor presença online.",
     ],
     curto: [
       (n) => (n ? `Chamo-me ${n}, da kreativ.ae — criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
+      (n) => (n ? `${n}, da kreativ.ae — estúdio de sites.` : "Sou da kreativ.ae — estúdio de sites."),
     ],
     pergunta: [
       (n) => (n ? `Chamo-me ${n}, da kreativ.ae, estúdio de criação de sites.` : "Sou da kreativ.ae, estúdio de criação de sites."),
@@ -205,10 +219,12 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
     curto: [
       `${empresa} ainda não tem site — falta uma vitrine para mostrar o trabalho de vocês.`,
       `Vi que ${empresa} não tem site. É o lugar onde o cliente decide se confia.`,
+      `${empresa} não tem site — e é ali que o cliente forma a primeira impressão.`,
     ],
     pergunta: [
       `Posso fazer uma pergunta rápida? Quando alguém quer conhecer o trabalho da ${empresa}, para onde vocês mandam a pessoa?`,
       `Uma dúvida sincera: como o cliente de vocês vê o trabalho da ${empresa} antes de fechar? Reparei que ainda não têm site.`,
+      `Posso perguntar uma coisa? Hoje, quando alguém pede indicação da ${empresa}, o que vocês enviam para a pessoa conhecer o trabalho?`,
     ],
   };
   const PT = {
@@ -227,10 +243,12 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
     curto: [
       `${empresa} ainda não tem site — falta uma montra para mostrar o vosso trabalho.`,
       `Vi que ${empresa} não tem site. É onde o cliente decide se confia.`,
+      `${empresa} não tem site — e é aí que o cliente forma a primeira impressão.`,
     ],
     pergunta: [
       `Posso fazer uma pergunta rápida? Quando alguém quer conhecer o trabalho da ${empresa}, para onde encaminham a pessoa?`,
       `Uma dúvida sincera: como é que o cliente vê o trabalho da ${empresa} antes de fechar? Reparei que ainda não têm site.`,
+      `Posso perguntar uma coisa? Hoje, quando alguém pede referência da ${empresa}, o que enviam para a pessoa conhecer o trabalho?`,
     ],
   };
   return pick((l === "PT" ? PT : BR)[style], n);
@@ -239,46 +257,52 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
 function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: number): string {
   const BR = {
     consultivo: [
-      `Visitei o site da ${empresa} e ele está pesado e difícil de navegar, principalmente no celular. O visitante se cansa antes de chegar no que interessa — e quem se cansa, desiste.`,
-      `Dei uma olhada no site da ${empresa}. A navegação é confusa e leva tempo para carregar; achar o serviço e o contato dá trabalho demais para quem só quer resolver.`,
+      `Visitei o site da ${empresa} e gostei do trabalho de vocês. Vi alguns pontos que, ajustados, fariam o visitante chegar bem mais rápido ao que procura — e isso costuma virar contato.`,
+      `Dei uma olhada no site da ${empresa}. A base está lá; o que eu vejo é espaço para deixar a navegação mais direta e aproveitar melhor quem já visita a página.`,
+      `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria — pequenas mudanças na estrutura que costumam aumentar bastante o número de contatos.`,
     ],
     direto: [
-      `Olhei o site da ${empresa}: está lento e a navegação trava no celular. O visitante desiste antes de achar o que procura.`,
-      `O site da ${empresa} está difícil de usar — a pessoa não acha o serviço nem o contato com facilidade.`,
+      `Olhei o site da ${empresa} e vi espaço para melhorar a experiência de quem visita — o tipo de ajuste que costuma render mais contatos.`,
+      `O site da ${empresa} tem uma base boa. Com alguns ajustes de navegação, ele converteria bem mais.`,
+      `Vi o site da ${empresa} e identifiquei alguns pontos de melhoria que fariam diferença no resultado.`,
     ],
     proximo: [
-      `Entrei no site da ${empresa} e senti que ele não faz jus ao trabalho de vocês. Dá para deixar bem mais leve e simples de usar.`,
-      `Fui olhar o site da ${empresa} e me perdi um pouco na navegação. O serviço é bom, o site é que está atrapalhando.`,
+      `Entrei no site da ${empresa} e achei que dá para tirar bem mais proveito dele — o trabalho de vocês merece uma vitrine à altura.`,
+      `Fui olhar o site da ${empresa} com calma. Tem coisa boa ali, e algumas melhorias simples deixariam a experiência bem mais fluida.`,
+      `Dei uma passada no site da ${empresa} e fiquei pensando em algumas ideias que poderiam render mais contatos para vocês.`,
     ],
     curto: [
-      `O site da ${empresa} está lento e difícil de navegar no celular.`,
-      `Olhei o site da ${empresa}: dá para deixar bem mais rápido e fácil de usar.`,
+      `Vi o site da ${empresa} e tem alguns pontos de melhoria que renderiam mais contatos.`,
+      `Olhei o site da ${empresa}: dá para deixar a navegação bem mais direta.`,
     ],
     pergunta: [
-      `Posso ser direto? Abri o site da ${empresa} no celular e demorei para achar como entrar em contato. Isso costuma custar cliente.`,
-      `Uma pergunta rápida: o site da ${empresa} ainda representa vocês? Achei ele pesado e difícil de navegar perto da qualidade do serviço.`,
+      `Posso te fazer uma pergunta? O site da ${empresa} tem trazido o número de contatos que vocês esperam? Vi alguns pontos que poderiam melhorar isso.`,
+      `Uma pergunta rápida: quantos clientes chegam até vocês pelo site hoje? Olhei ele e vi espaço para esse número crescer.`,
     ],
   };
   const PT = {
     consultivo: [
-      `Visitei o site da ${empresa} e está pesado e difícil de navegar, sobretudo no telemóvel. O visitante cansa-se antes de chegar ao que interessa — e quem se cansa, desiste.`,
-      `Dei uma vista de olhos no site da ${empresa}. A navegação é confusa e demora a carregar; encontrar o serviço e o contacto dá demasiado trabalho a quem só quer resolver.`,
+      `Visitei o site da ${empresa} e gostei do vosso trabalho. Notei alguns pontos que, ajustados, fariam o visitante chegar mais depressa ao que procura — e isso costuma traduzir-se em contactos.`,
+      `Dei uma vista de olhos no site da ${empresa}. A base está lá; o que vejo é margem para tornar a navegação mais direta e aproveitar melhor quem já visita a página.`,
+      `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria — mudanças simples na estrutura que costumam aumentar bastante os contactos.`,
     ],
     direto: [
-      `Vi o site da ${empresa}: está lento e a navegação falha no telemóvel. O visitante desiste antes de encontrar o que procura.`,
-      `O site da ${empresa} está difícil de usar — a pessoa não encontra o serviço nem o contacto com facilidade.`,
+      `Vi o site da ${empresa} e há margem para melhorar a experiência de quem visita — o tipo de ajuste que costuma render mais contactos.`,
+      `O site da ${empresa} tem uma boa base. Com alguns ajustes de navegação, converteria bastante mais.`,
+      `Vi o site da ${empresa} e identifiquei alguns pontos de melhoria que fariam diferença no resultado.`,
     ],
     proximo: [
-      `Entrei no site da ${empresa} e senti que não faz justiça ao vosso trabalho. Dá para ficar bem mais leve e simples de usar.`,
-      `Fui ver o site da ${empresa} e perdi-me um pouco na navegação. O serviço é bom, o site é que está a atrapalhar.`,
+      `Entrei no site da ${empresa} e achei que se pode tirar bastante mais partido dele — o vosso trabalho merece uma montra à altura.`,
+      `Fui ver o site da ${empresa} com calma. Há coisa boa ali, e algumas melhorias simples tornariam a experiência bem mais fluida.`,
+      `Passei pelo site da ${empresa} e fiquei a pensar nalgumas ideias que poderiam render mais contactos.`,
     ],
     curto: [
-      `O site da ${empresa} está lento e difícil de navegar no telemóvel.`,
-      `Vi o site da ${empresa}: dá para ficar bem mais rápido e fácil de usar.`,
+      `Vi o site da ${empresa} e há pontos de melhoria que renderiam mais contactos.`,
+      `Vi o site da ${empresa}: dá para tornar a navegação bem mais direta.`,
     ],
     pergunta: [
-      `Posso ser direto? Abri o site da ${empresa} no telemóvel e demorei a encontrar como vos contactar. Isso costuma custar clientes.`,
-      `Uma pergunta rápida: o site da ${empresa} ainda vos representa? Achei-o pesado e difícil de navegar face à qualidade do serviço.`,
+      `Posso fazer-lhe uma pergunta? O site da ${empresa} tem trazido os contactos que esperam? Notei alguns pontos que poderiam melhorar isso.`,
+      `Uma pergunta rápida: quantos clientes vos chegam hoje pelo site? Vi-o e há margem para esse número crescer.`,
     ],
   };
   return pick((l === "PT" ? PT : BR)[style], n);
@@ -389,7 +413,10 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
         "Se quiser, a gente marca uns 10 minutinhos e eu te mostro alguns modelos de como ficaria. Sem compromisso nenhum.",
         "Posso te mostrar numa conversa rápida, uns 10 minutos, alguns modelos de redesign. O que acha?",
       ],
-      curto: ["Topa 10 minutos para eu mostrar alguns modelos de redesign?"],
+      curto: [
+        "Topa 10 minutos para eu mostrar alguns modelos de redesign?",
+        "Consigo mostrar em 10 minutos como ficaria. Quer ver?",
+      ],
       pergunta: [
         "Posso te mostrar alguns modelos de redesign numa reunião de 10 minutos?",
         "Se eu marcar 10 minutos para mostrar como o site ficaria reformulado, você dá uma olhada?",
@@ -408,7 +435,10 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
         "Se quiser, a gente marca uns 10 minutinhos e eu te mostro alguns modelos de como ficaria. Sem compromisso nenhum.",
         "Posso te mostrar numa conversa rápida, uns 10 minutos, alguns modelos de site. O que acha?",
       ],
-      curto: ["Topa 10 minutos para eu mostrar alguns modelos?"],
+      curto: [
+        "Topa 10 minutos para eu mostrar alguns modelos?",
+        "Consigo mostrar em 10 minutos como ficaria. Quer ver?",
+      ],
       pergunta: [
         "Posso te mostrar em 10 minutos como ficaria o site de vocês?",
         "Se eu marcar 10 minutos para mostrar alguns modelos, você dá uma olhada?",
@@ -429,7 +459,10 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
         "Se quiser, marcamos 10 minutos e mostro-lhe alguns modelos de como poderia ficar. Sem qualquer compromisso.",
         "Posso mostrar-lhe numa conversa rápida, uns 10 minutos, alguns modelos de reformulação. O que acha?",
       ],
-      curto: ["Marcamos 10 minutos para lhe mostrar alguns modelos?"],
+      curto: [
+        "Marcamos 10 minutos para lhe mostrar alguns modelos?",
+        "Em 10 minutos mostro-lhe como poderia ficar. Interessa?",
+      ],
       pergunta: [
         "Posso mostrar-lhe alguns modelos de reformulação numa reunião de 10 minutos?",
         "Se marcarmos 10 minutos para lhe mostrar como o site ficaria, dá uma vista de olhos?",
@@ -448,7 +481,10 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
         "Se quiser, marcamos 10 minutos e mostro-lhe alguns modelos de como poderia ficar. Sem qualquer compromisso.",
         "Posso mostrar-lhe numa conversa rápida, uns 10 minutos, alguns modelos de site. O que acha?",
       ],
-      curto: ["Marcamos 10 minutos para lhe mostrar alguns modelos?"],
+      curto: [
+        "Marcamos 10 minutos para lhe mostrar alguns modelos?",
+        "Em 10 minutos mostro-lhe como poderia ficar. Interessa?",
+      ],
       pergunta: [
         "Posso mostrar-lhe em 10 minutos como ficaria o vosso site?",
         "Se marcarmos 10 minutos para lhe mostrar alguns modelos, dá uma vista de olhos?",
@@ -458,8 +494,20 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
 };
 
 const FECHOS: Record<Locale, string[]> = {
-  BR: ["Fica o convite. Obrigado!", "Qualquer coisa, é só chamar. Obrigado!", "Fico à disposição. Obrigado!"],
-  PT: ["Fica o convite. Obrigado!", "Fico ao dispor. Obrigado!", "Qualquer questão, diga. Obrigado!"],
+  BR: [
+    "Fica o convite. Obrigado!",
+    "Qualquer coisa, é só chamar. Obrigado!",
+    "Fico à disposição. Obrigado!",
+    "Se fizer sentido, me avisa. Obrigado pela atenção!",
+    "Obrigado pela atenção — e bom trabalho por aí!",
+  ],
+  PT: [
+    "Fica o convite. Obrigado!",
+    "Fico ao dispor. Obrigado!",
+    "Qualquer questão, diga. Obrigado!",
+    "Se fizer sentido, é só dizer. Obrigado pela atenção!",
+    "Obrigado pela atenção — e bom trabalho!",
+  ],
 };
 
 /* ------------------------------------------------------------------ montagem */
