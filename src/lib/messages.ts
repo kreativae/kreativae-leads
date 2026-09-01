@@ -129,8 +129,8 @@ const APRESENTACOES: Record<
           : "Aqui é da kreativ.ae, estúdio especializado em criação de sites profissionais.",
       (n) =>
         n
-          ? `Meu nome é ${n} e falo da kreativ.ae, onde trabalhamos a presença digital de empresas como a sua.`
-          : "Falo da kreativ.ae. Trabalhamos a presença digital de empresas como a sua.",
+          ? `Meu nome é ${n} e falo da kreativ.ae. Trabalhamos com desenvolvimento de sites sob medida, com design próprio.`
+          : "Falo da kreativ.ae. Trabalhamos com desenvolvimento de sites sob medida, com design próprio.",
     ],
     direto: [
       (n) => (n ? `Meu nome é ${n}, da kreativ.ae. Criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
@@ -147,8 +147,8 @@ const APRESENTACOES: Record<
           : "Aqui é da kreativ.ae. A gente cria sites profissionais para empresas como a sua.",
       (n) =>
         n
-          ? `Meu nome é ${n} e trabalho na kreativ.ae, criando sites para quem quer aparecer melhor online.`
-          : "Sou da kreativ.ae, criamos sites para quem quer aparecer melhor online.",
+          ? `Meu nome é ${n} e trabalho na kreativ.ae, criando sites do zero, com design feito para cada negócio.`
+          : "Sou da kreativ.ae, criamos sites do zero, com design feito para cada negócio.",
     ],
     curto: [
       (n) => (n ? `Meu nome é ${n}, da kreativ.ae, criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
@@ -156,7 +156,7 @@ const APRESENTACOES: Record<
     ],
     pergunta: [
       (n) => (n ? `Meu nome é ${n}, da kreativ.ae, estúdio de criação de sites.` : "Sou da kreativ.ae, estúdio de criação de sites."),
-      (n) => (n ? `Aqui é o ${n}, da kreativ.ae. Trabalhamos com sites profissionais.` : "Aqui é da kreativ.ae. Trabalhamos com sites profissionais."),
+      (n) => (n ? `Aqui é o ${n}, da kreativ.ae. Trabalhamos com criação e redesign de sites.` : "Aqui é da kreativ.ae. Trabalhamos com criação e redesign de sites."),
     ],
   },
   PT: {
@@ -168,8 +168,8 @@ const APRESENTACOES: Record<
           : "Falo da kreativ.ae, estúdio especializado na criação de sites profissionais.",
       (n) =>
         n
-          ? `O meu nome é ${n} e falo da kreativ.ae, onde trabalhamos a presença digital de empresas como a vossa.`
-          : "Contacto-o da parte da kreativ.ae. Trabalhamos a presença digital de empresas como a vossa.",
+          ? `O meu nome é ${n} e falo da kreativ.ae. Trabalhamos com desenvolvimento de sites à medida, com design próprio.`
+          : "Contacto-o da parte da kreativ.ae. Trabalhamos com desenvolvimento de sites à medida, com design próprio.",
     ],
     direto: [
       (n) => (n ? `Chamo-me ${n}, da kreativ.ae. Criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
@@ -182,12 +182,12 @@ const APRESENTACOES: Record<
           : "Sou da kreativ.ae, um estúdio que cria sites para empresas como a vossa.",
       (n) =>
         n
-          ? `O meu nome é ${n}, da kreativ.ae. Ajudamos empresas a ter uma presença online à altura do trabalho que fazem.`
-          : "Falo da kreativ.ae. Ajudamos empresas a ter uma presença online à altura do trabalho que fazem.",
+          ? `O meu nome é ${n}, da kreativ.ae. Desenhamos e desenvolvemos sites à altura do trabalho que as empresas fazem.`
+          : "Falo da kreativ.ae. Desenhamos e desenvolvemos sites à altura do trabalho que as empresas fazem.",
       (n) =>
         n
-          ? `Chamo-me ${n} e trabalho na kreativ.ae, a criar sites para quem quer marcar melhor presença online.`
-          : "Sou da kreativ.ae, criamos sites para quem quer marcar melhor presença online.",
+          ? `Chamo-me ${n} e trabalho na kreativ.ae, a criar sites de raiz, com design pensado para cada negócio.`
+          : "Sou da kreativ.ae, criamos sites de raiz, com design pensado para cada negócio.",
     ],
     curto: [
       (n) => (n ? `Chamo-me ${n}, da kreativ.ae, criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
@@ -195,7 +195,7 @@ const APRESENTACOES: Record<
     ],
     pergunta: [
       (n) => (n ? `Chamo-me ${n}, da kreativ.ae, estúdio de criação de sites.` : "Sou da kreativ.ae, estúdio de criação de sites."),
-      (n) => (n ? `O meu nome é ${n}, da kreativ.ae. Trabalhamos com sites profissionais.` : "Falo da kreativ.ae. Trabalhamos com sites profissionais."),
+      (n) => (n ? `O meu nome é ${n}, da kreativ.ae. Trabalhamos com criação e redesign de sites.` : "Falo da kreativ.ae. Trabalhamos com criação e redesign de sites."),
     ],
   },
 };
@@ -574,7 +574,7 @@ export function emailSubject(lead: {
 }): string {
   return lead.website
     ? `Sobre o site da ${lead.companyName}`
-    : `Sobre a presença digital da ${lead.companyName}`;
+    : `Um site para a ${lead.companyName}`;
 }
 
 export function mailtoLink(
