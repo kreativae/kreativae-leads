@@ -39,12 +39,12 @@ export interface MessageOptions {
 /** Diferenciais da casa — texto curto o bastante para caber no WhatsApp. */
 const SOBRE: Record<Locale, string[]> = {
   BR: [
-    "Sobre a gente: atendemos empresas em mais de 7 países, criamos sites em qualquer idioma e não cobramos mensalidade — o site é seu, sem aluguel.",
-    "Só para você situar: já atendemos clientes em mais de 7 países, trabalhamos em qualquer idioma e não existe mensalidade — você paga uma vez e o site é seu.",
+    "Sobre a gente: atendemos empresas em mais de 7 países, criamos sites em qualquer idioma e não cobramos mensalidade. O site é seu, sem aluguel.",
+    "Só para você situar: já atendemos clientes em mais de 7 países, trabalhamos em qualquer idioma e não existe mensalidade. Você paga uma vez e o site é seu.",
   ],
   PT: [
-    "Sobre nós: trabalhamos com empresas em mais de 7 países, criamos sites em qualquer idioma e não cobramos mensalidade — o site fica vosso, sem alugueres.",
-    "Só para situar: já trabalhámos com clientes em mais de 7 países, em qualquer idioma, e não há mensalidades — paga uma vez e o site é vosso.",
+    "Sobre nós: trabalhamos com empresas em mais de 7 países, criamos sites em qualquer idioma e não cobramos mensalidade. O site fica vosso, sem alugueres.",
+    "Só para situar: já trabalhámos com clientes em mais de 7 países, em qualquer idioma, e não há mensalidades. Paga uma vez e o site é vosso.",
   ],
 };
 
@@ -125,38 +125,38 @@ const APRESENTACOES: Record<
     consultivo: [
       (n) =>
         n
-          ? `Meu nome é ${n}, da kreativ.ae — estúdio especializado em criação de sites profissionais.`
+          ? `Meu nome é ${n}, da kreativ.ae, estúdio especializado em criação de sites profissionais.`
           : "Aqui é da kreativ.ae, estúdio especializado em criação de sites profissionais.",
       (n) =>
         n
           ? `Meu nome é ${n} e falo da kreativ.ae, onde trabalhamos a presença digital de empresas como a sua.`
-          : "Falo da kreativ.ae — trabalhamos a presença digital de empresas como a sua.",
+          : "Falo da kreativ.ae. Trabalhamos a presença digital de empresas como a sua.",
     ],
     direto: [
       (n) => (n ? `Meu nome é ${n}, da kreativ.ae. Criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
-      (n) => (n ? `Aqui é o ${n}, da kreativ.ae — estúdio de criação de sites.` : "Aqui é da kreativ.ae — estúdio de criação de sites."),
+      (n) => (n ? `Aqui é o ${n}, da kreativ.ae, estúdio de criação de sites.` : "Aqui é da kreativ.ae, estúdio de criação de sites."),
     ],
     proximo: [
       (n) =>
         n
-          ? `Meu nome é ${n}, sou da kreativ.ae — um estúdio que cria sites para empresas daqui da região.`
+          ? `Meu nome é ${n}, sou da kreativ.ae, um estúdio que cria sites para empresas daqui da região.`
           : "Sou da kreativ.ae, um estúdio que cria sites para empresas daqui da região.",
       (n) =>
         n
-          ? `Aqui é o ${n}, da kreativ.ae — a gente cria sites profissionais para empresas como a sua.`
-          : "Aqui é da kreativ.ae — a gente cria sites profissionais para empresas como a sua.",
+          ? `Aqui é o ${n}, da kreativ.ae. A gente cria sites profissionais para empresas como a sua.`
+          : "Aqui é da kreativ.ae. A gente cria sites profissionais para empresas como a sua.",
       (n) =>
         n
           ? `Meu nome é ${n} e trabalho na kreativ.ae, criando sites para quem quer aparecer melhor online.`
           : "Sou da kreativ.ae, criamos sites para quem quer aparecer melhor online.",
     ],
     curto: [
-      (n) => (n ? `Meu nome é ${n}, da kreativ.ae — criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
-      (n) => (n ? `${n}, da kreativ.ae — estúdio de sites.` : "Sou da kreativ.ae — estúdio de sites."),
+      (n) => (n ? `Meu nome é ${n}, da kreativ.ae, criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
+      (n) => (n ? `${n}, da kreativ.ae, estúdio de sites.` : "Sou da kreativ.ae, estúdio de sites."),
     ],
     pergunta: [
       (n) => (n ? `Meu nome é ${n}, da kreativ.ae, estúdio de criação de sites.` : "Sou da kreativ.ae, estúdio de criação de sites."),
-      (n) => (n ? `Aqui é o ${n}, da kreativ.ae — trabalhamos com sites profissionais.` : "Aqui é da kreativ.ae — trabalhamos com sites profissionais."),
+      (n) => (n ? `Aqui é o ${n}, da kreativ.ae. Trabalhamos com sites profissionais.` : "Aqui é da kreativ.ae. Trabalhamos com sites profissionais."),
     ],
   },
   PT: {
@@ -164,38 +164,38 @@ const APRESENTACOES: Record<
       // PT usa o artigo antes do possessivo: "o meu nome", nao "meu nome".
       (n) =>
         n
-          ? `Chamo-me ${n}, da kreativ.ae — estúdio especializado na criação de sites profissionais.`
+          ? `Chamo-me ${n}, da kreativ.ae, estúdio especializado na criação de sites profissionais.`
           : "Falo da kreativ.ae, estúdio especializado na criação de sites profissionais.",
       (n) =>
         n
           ? `O meu nome é ${n} e falo da kreativ.ae, onde trabalhamos a presença digital de empresas como a vossa.`
-          : "Contacto-o da parte da kreativ.ae — trabalhamos a presença digital de empresas como a vossa.",
+          : "Contacto-o da parte da kreativ.ae. Trabalhamos a presença digital de empresas como a vossa.",
     ],
     direto: [
       (n) => (n ? `Chamo-me ${n}, da kreativ.ae. Criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
-      (n) => (n ? `O meu nome é ${n}, da kreativ.ae — estúdio de criação de sites.` : "Falo da kreativ.ae — estúdio de criação de sites."),
+      (n) => (n ? `O meu nome é ${n}, da kreativ.ae, estúdio de criação de sites.` : "Falo da kreativ.ae, estúdio de criação de sites."),
     ],
     proximo: [
       (n) =>
         n
-          ? `Chamo-me ${n}, sou da kreativ.ae — um estúdio que cria sites para empresas como a vossa.`
+          ? `Chamo-me ${n}, sou da kreativ.ae, um estúdio que cria sites para empresas como a vossa.`
           : "Sou da kreativ.ae, um estúdio que cria sites para empresas como a vossa.",
       (n) =>
         n
-          ? `O meu nome é ${n}, da kreativ.ae — ajudamos empresas a ter uma presença online à altura do trabalho que fazem.`
-          : "Falo da kreativ.ae — ajudamos empresas a ter uma presença online à altura do trabalho que fazem.",
+          ? `O meu nome é ${n}, da kreativ.ae. Ajudamos empresas a ter uma presença online à altura do trabalho que fazem.`
+          : "Falo da kreativ.ae. Ajudamos empresas a ter uma presença online à altura do trabalho que fazem.",
       (n) =>
         n
           ? `Chamo-me ${n} e trabalho na kreativ.ae, a criar sites para quem quer marcar melhor presença online.`
           : "Sou da kreativ.ae, criamos sites para quem quer marcar melhor presença online.",
     ],
     curto: [
-      (n) => (n ? `Chamo-me ${n}, da kreativ.ae — criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
-      (n) => (n ? `${n}, da kreativ.ae — estúdio de sites.` : "Sou da kreativ.ae — estúdio de sites."),
+      (n) => (n ? `Chamo-me ${n}, da kreativ.ae, criamos sites profissionais.` : "Sou da kreativ.ae, criamos sites profissionais."),
+      (n) => (n ? `${n}, da kreativ.ae, estúdio de sites.` : "Sou da kreativ.ae, estúdio de sites."),
     ],
     pergunta: [
       (n) => (n ? `Chamo-me ${n}, da kreativ.ae, estúdio de criação de sites.` : "Sou da kreativ.ae, estúdio de criação de sites."),
-      (n) => (n ? `O meu nome é ${n}, da kreativ.ae — trabalhamos com sites profissionais.` : "Falo da kreativ.ae — trabalhamos com sites profissionais."),
+      (n) => (n ? `O meu nome é ${n}, da kreativ.ae. Trabalhamos com sites profissionais.` : "Falo da kreativ.ae. Trabalhamos com sites profissionais."),
     ],
   },
 };
@@ -205,21 +205,21 @@ const APRESENTACOES: Record<
 function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: string, n: number): string {
   const BR = {
     consultivo: [
-      `Estive pesquisando ${empresa}${lugar} e vi que vocês ainda não têm um site. Hoje o site é a vitrine do negócio: é onde o cliente vê o trabalho, entende o serviço e decide se confia — tudo isso antes de falar com vocês.`,
+      `Estive pesquisando ${empresa}${lugar} e vi que vocês ainda não têm um site. Hoje o site é a vitrine do negócio: é onde o cliente vê o trabalho, entende o serviço e decide se confia, tudo isso antes de falar com vocês.`,
       `Encontrei ${empresa}${lugar} e notei que ainda não têm site próprio. Quando alguém se interessa pelo serviço, não existe um lugar organizado para mostrar o trabalho e explicar como funciona.`,
     ],
     direto: [
       `Vi que ${empresa} não tem site. Sem ele, o cliente não tem onde ver o trabalho de vocês antes de decidir.`,
-      `Reparei que ${empresa}${lugar} não tem site — falta uma vitrine para apresentar o serviço de forma organizada.`,
+      `Reparei que ${empresa}${lugar} não tem site. Falta uma vitrine para apresentar o serviço de forma organizada.`,
     ],
     proximo: [
       `Estava pesquisando empresas${lugar} e dei de cara com ${empresa}. Gostei do trabalho, mas fiquei com uma pena: não tem um site para mostrar isso direito.`,
-      `Conheci ${empresa}${lugar} e achei o serviço bom. Só senti falta de um site — um lugar onde a pessoa veja o trabalho com calma e saiba como falar com vocês.`,
+      `Conheci ${empresa}${lugar} e achei o serviço bom. Só senti falta de um site, um lugar onde a pessoa veja o trabalho com calma e saiba como falar com vocês.`,
     ],
     curto: [
-      `${empresa} ainda não tem site — falta uma vitrine para mostrar o trabalho de vocês.`,
+      `${empresa} ainda não tem site. Falta uma vitrine para mostrar o trabalho de vocês.`,
       `Vi que ${empresa} não tem site. É o lugar onde o cliente decide se confia.`,
-      `${empresa} não tem site — e é ali que o cliente forma a primeira impressão.`,
+      `${empresa} não tem site, e é ali que o cliente forma a primeira impressão.`,
     ],
     pergunta: [
       `Posso fazer uma pergunta rápida? Quando alguém quer conhecer o trabalho da ${empresa}, para onde vocês mandam a pessoa?`,
@@ -229,21 +229,21 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
   };
   const PT = {
     consultivo: [
-      `Estive a pesquisar ${empresa}${lugar} e vi que ainda não têm site. Hoje o site é a montra do negócio: é onde o cliente vê o trabalho, percebe o serviço e decide se confia — tudo isto antes de vos contactar.`,
+      `Estive a pesquisar ${empresa}${lugar} e vi que ainda não têm site. Hoje o site é a montra do negócio: é onde o cliente vê o trabalho, percebe o serviço e decide se confia, tudo isto antes de vos contactar.`,
       `Encontrei ${empresa}${lugar} e reparei que ainda não têm site próprio. Quando alguém se interessa, não há um sítio organizado para mostrar o trabalho e explicar como funciona.`,
     ],
     direto: [
       `Vi que ${empresa} não tem site. Sem ele, o cliente não tem onde ver o vosso trabalho antes de decidir.`,
-      `Reparei que ${empresa}${lugar} não tem site — falta uma montra para apresentar o serviço de forma organizada.`,
+      `Reparei que ${empresa}${lugar} não tem site. Falta uma montra para apresentar o serviço de forma organizada.`,
     ],
     proximo: [
       `Estava a pesquisar empresas${lugar} e encontrei ${empresa}. Gostei do trabalho, mas ficou-me uma pena: não têm um site para o mostrar como deve ser.`,
-      `Conheci ${empresa}${lugar} e achei o serviço bom. Só senti falta de um site — um sítio onde a pessoa veja o trabalho com calma e saiba como vos contactar.`,
+      `Conheci ${empresa}${lugar} e achei o serviço bom. Só senti falta de um site, um sítio onde a pessoa veja o trabalho com calma e saiba como vos contactar.`,
     ],
     curto: [
-      `${empresa} ainda não tem site — falta uma montra para mostrar o vosso trabalho.`,
+      `${empresa} ainda não tem site. Falta uma montra para mostrar o vosso trabalho.`,
       `Vi que ${empresa} não tem site. É onde o cliente decide se confia.`,
-      `${empresa} não tem site — e é aí que o cliente forma a primeira impressão.`,
+      `${empresa} não tem site, e é aí que o cliente forma a primeira impressão.`,
     ],
     pergunta: [
       `Posso fazer uma pergunta rápida? Quando alguém quer conhecer o trabalho da ${empresa}, para onde encaminham a pessoa?`,
@@ -257,17 +257,17 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
 function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: number): string {
   const BR = {
     consultivo: [
-      `Visitei o site da ${empresa} e gostei do trabalho de vocês. Vi alguns pontos que, ajustados, fariam o visitante chegar bem mais rápido ao que procura — e isso costuma virar contato.`,
+      `Visitei o site da ${empresa} e gostei do trabalho de vocês. Vi alguns pontos que, ajustados, fariam o visitante chegar bem mais rápido ao que procura, e isso costuma virar contato.`,
       `Dei uma olhada no site da ${empresa}. A base está lá; o que eu vejo é espaço para deixar a navegação mais direta e aproveitar melhor quem já visita a página.`,
-      `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria — pequenas mudanças na estrutura que costumam aumentar bastante o número de contatos.`,
+      `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria, pequenas mudanças na estrutura que costumam aumentar bastante o número de contatos.`,
     ],
     direto: [
-      `Olhei o site da ${empresa} e vi espaço para melhorar a experiência de quem visita — o tipo de ajuste que costuma render mais contatos.`,
+      `Olhei o site da ${empresa} e vi espaço para melhorar a experiência de quem visita, o tipo de ajuste que costuma render mais contatos.`,
       `O site da ${empresa} tem uma base boa. Com alguns ajustes de navegação, ele converteria bem mais.`,
       `Vi o site da ${empresa} e identifiquei alguns pontos de melhoria que fariam diferença no resultado.`,
     ],
     proximo: [
-      `Entrei no site da ${empresa} e achei que dá para tirar bem mais proveito dele — o trabalho de vocês merece uma vitrine à altura.`,
+      `Entrei no site da ${empresa} e achei que dá para tirar bem mais proveito dele. O trabalho de vocês merece uma vitrine à altura.`,
       `Fui olhar o site da ${empresa} com calma. Tem coisa boa ali, e algumas melhorias simples deixariam a experiência bem mais fluida.`,
       `Dei uma passada no site da ${empresa} e fiquei pensando em algumas ideias que poderiam render mais contatos para vocês.`,
     ],
@@ -282,17 +282,17 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
   };
   const PT = {
     consultivo: [
-      `Visitei o site da ${empresa} e gostei do vosso trabalho. Notei alguns pontos que, ajustados, fariam o visitante chegar mais depressa ao que procura — e isso costuma traduzir-se em contactos.`,
+      `Visitei o site da ${empresa} e gostei do vosso trabalho. Notei alguns pontos que, ajustados, fariam o visitante chegar mais depressa ao que procura, e isso costuma traduzir-se em contactos.`,
       `Dei uma vista de olhos no site da ${empresa}. A base está lá; o que vejo é margem para tornar a navegação mais direta e aproveitar melhor quem já visita a página.`,
-      `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria — mudanças simples na estrutura que costumam aumentar bastante os contactos.`,
+      `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria, mudanças simples na estrutura que costumam aumentar bastante os contactos.`,
     ],
     direto: [
-      `Vi o site da ${empresa} e há margem para melhorar a experiência de quem visita — o tipo de ajuste que costuma render mais contactos.`,
+      `Vi o site da ${empresa} e há margem para melhorar a experiência de quem visita, o tipo de ajuste que costuma render mais contactos.`,
       `O site da ${empresa} tem uma boa base. Com alguns ajustes de navegação, converteria bastante mais.`,
       `Vi o site da ${empresa} e identifiquei alguns pontos de melhoria que fariam diferença no resultado.`,
     ],
     proximo: [
-      `Entrei no site da ${empresa} e achei que se pode tirar bastante mais partido dele — o vosso trabalho merece uma montra à altura.`,
+      `Entrei no site da ${empresa} e achei que se pode tirar bastante mais partido dele. O vosso trabalho merece uma montra à altura.`,
       `Fui ver o site da ${empresa} com calma. Há coisa boa ali, e algumas melhorias simples tornariam a experiência bem mais fluida.`,
       `Passei pelo site da ${empresa} e fiquei a pensar nalgumas ideias que poderiam render mais contactos.`,
     ],
@@ -317,8 +317,8 @@ const ACHADOS: Record<string, Record<Locale, string>> = {
     PT: "o site não tem certificado de segurança, pelo que o navegador avisa o visitante de que é “não seguro”",
   },
   responsive: {
-    BR: "ele não está adaptado para celular — quem abre pelo telefone precisa dar zoom e arrastar a tela para conseguir ler",
-    PT: "não está adaptado a telemóveis — quem o abre pelo telefone tem de ampliar e arrastar o ecrã para conseguir ler",
+    BR: "ele não está adaptado para celular, e quem abre pelo telefone precisa dar zoom e arrastar a tela para conseguir ler",
+    PT: "não está adaptado a telemóveis, e quem o abre pelo telefone tem de ampliar e arrastar o ecrã para conseguir ler",
   },
   flash: {
     BR: "ele usa uma tecnologia descontinuada que não abre mais em navegador nenhum",
@@ -341,8 +341,8 @@ const ACHADOS: Record<string, Record<Locale, string>> = {
     PT: "quando alguém partilha a ligação no WhatsApp, aparece sem imagem",
   },
   reachable: {
-    BR: "o site simplesmente não está no ar — pode ser hospedagem vencida ou domínio expirado",
-    PT: "o site não está no ar — pode ser alojamento vencido ou domínio expirado",
+    BR: "o site simplesmente não está no ar, talvez por hospedagem vencida ou domínio expirado",
+    PT: "o site não está no ar, talvez por alojamento vencido ou domínio expirado",
   },
 };
 
@@ -402,7 +402,7 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
   BR: {
     comSite: {
       consultivo: [
-        "Podemos fazer uma reformulação completa do site de vocês. Se quiser, marco uma reunião de 10 minutos para apresentar alguns modelos — sem compromisso.",
+        "Podemos fazer uma reformulação completa do site de vocês. Se quiser, marco uma reunião de 10 minutos para apresentar alguns modelos, sem compromisso.",
         "O que proponho é um redesign do site atual. Posso marcar 10 minutos para te mostrar alguns modelos e você avaliar com calma?",
       ],
       direto: [
@@ -424,7 +424,7 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
     },
     semSite: {
       consultivo: [
-        "Podemos criar o site de vocês do zero. Se fizer sentido, marco uma reunião de 10 minutos para apresentar alguns modelos — sem compromisso.",
+        "Podemos criar o site de vocês do zero. Se fizer sentido, marco uma reunião de 10 minutos para apresentar alguns modelos, sem compromisso.",
         "O que proponho é criar um site próprio para vocês. Posso marcar 10 minutos para te mostrar alguns modelos?",
       ],
       direto: [
@@ -448,7 +448,7 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
   PT: {
     comSite: {
       consultivo: [
-        "Podemos fazer uma reformulação completa do vosso site. Se quiser, marcamos uma reunião de 10 minutos para vos apresentar alguns modelos — sem qualquer compromisso.",
+        "Podemos fazer uma reformulação completa do vosso site. Se quiser, marcamos uma reunião de 10 minutos para vos apresentar alguns modelos, sem qualquer compromisso.",
         "O que proponho é um redesign do site atual. Marcamos 10 minutos para lhe mostrar alguns modelos e avaliar com calma?",
       ],
       direto: [
@@ -470,7 +470,7 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
     },
     semSite: {
       consultivo: [
-        "Podemos criar o vosso site de raiz. Se fizer sentido, marcamos uma reunião de 10 minutos para vos apresentar alguns modelos — sem qualquer compromisso.",
+        "Podemos criar o vosso site de raiz. Se fizer sentido, marcamos uma reunião de 10 minutos para vos apresentar alguns modelos, sem qualquer compromisso.",
         "O que proponho é criar um site próprio para a vossa empresa. Marcamos 10 minutos para lhe mostrar alguns modelos?",
       ],
       direto: [
@@ -499,14 +499,14 @@ const FECHOS: Record<Locale, string[]> = {
     "Qualquer coisa, é só chamar. Obrigado!",
     "Fico à disposição. Obrigado!",
     "Se fizer sentido, me avisa. Obrigado pela atenção!",
-    "Obrigado pela atenção — e bom trabalho por aí!",
+    "Obrigado pela atenção, e bom trabalho por aí!",
   ],
   PT: [
     "Fica o convite. Obrigado!",
     "Fico ao dispor. Obrigado!",
     "Qualquer questão, diga. Obrigado!",
     "Se fizer sentido, é só dizer. Obrigado pela atenção!",
-    "Obrigado pela atenção — e bom trabalho!",
+    "Obrigado pela atenção, e bom trabalho!",
   ],
 };
 
