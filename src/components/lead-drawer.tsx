@@ -318,6 +318,9 @@ export function LeadDrawer({
   }
 
   const mensagemFinal = partes.join("\n\n");
+  // Dois destinos diferentes de proposito: "Chamar" abre a conversa limpa,
+  // para quem quer escrever do zero; "Enviar" leva a abordagem preenchida.
+  const waChatLink = lead.whatsapp ? `https://wa.me/${lead.whatsapp}` : null;
   const waLink = waMeLink(lead.whatsapp, mensagemFinal);
   const mailLink = mailtoLink(lead.email, emailSubject(lead), mensagemFinal);
   const mapsLink = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -782,11 +785,12 @@ export function LeadDrawer({
               </div>
             </div>
             <div className="mt-3.5 flex flex-wrap gap-2">
-              {waLink && (
+              {waChatLink && (
                 <a
-                  href={waLink}
+                  href={waChatLink}
                   target="_blank"
                   rel="noreferrer"
+                  title="Abre a conversa sem nenhum texto preenchido"
                   className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-[12.5px] font-bold text-[#fff] transition-transform hover:scale-[1.03]"
                 >
                   <MessageCircle className="h-4 w-4" />
@@ -802,7 +806,7 @@ export function LeadDrawer({
                   Ligar
                 </a>
               )}
-              {!waLink && lead.phone && toWhatsappDigits(lead.phone, lead.country) && (
+              {!waChatLink && lead.phone && toWhatsappDigits(lead.phone, lead.country) && (
                 <a
                   href={`https://wa.me/${toWhatsappDigits(lead.phone, lead.country)}`}
                   target="_blank"
@@ -1187,6 +1191,7 @@ export function LeadDrawer({
                   href={waLink}
                   target="_blank"
                   rel="noreferrer"
+                  title="Abre a conversa com a abordagem acima já preenchida"
                   className="inline-flex items-center gap-2 rounded-full bg-volt px-4 py-2.5 text-[12.5px] font-bold text-onvolt transition-transform hover:scale-[1.03]"
                 >
                   <MessageCircle className="h-4 w-4" />
