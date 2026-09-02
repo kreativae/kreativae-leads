@@ -34,6 +34,31 @@ export interface MessageOptions {
   includeAbout?: boolean;
   /** Nome de quem esta enviando — vem da conta logada. */
   senderName?: string | null;
+  /** Bloco de assinatura no fim. Faz sentido em e-mail, nao no WhatsApp. */
+  includeSignature?: boolean;
+}
+
+/** Cargo e pracas da assinatura. Editar aqui muda em todo o sistema. */
+export const ASSINATURA_CARGO = "Dev · kreativ.ae";
+export const ASSINATURA_PRACAS = [
+  "Brazil",
+  "Italy",
+  "Portugal",
+  "United Kingdom",
+  "Spain",
+];
+
+/**
+ * Bloco de assinatura. Texto puro: o mailto nao aceita HTML, entao a
+ * formatacao vem das quebras de linha e do separador entre as pracas.
+ */
+export function buildSignature(senderName?: string | null): string {
+  // Sem nome de conta, a linha do nome sai: repetir "kreativ.ae" duas vezes
+  // seguidas fica estranho.
+  const nome = senderName?.trim();
+  return [nome, ASSINATURA_CARGO, ASSINATURA_PRACAS.join(" • ")]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Diferenciais da casa — texto curto o bastante para caber no WhatsApp. */
@@ -104,6 +129,9 @@ const SAUDACOES: Record<Locale, ((nome: string | undefined, c: string) => string
     (n) => (n ? `Olá, ${n}! Tudo bem?` : "Olá! Tudo bem?"),
     (n, c) => (n ? `${c}, ${n}, como vai?` : `${c}! Como vai?`),
     (n) => (n ? `Olá, ${n}. Espero não incomodar.` : "Olá! Espero não incomodar."),
+    (n, c) => (n ? `${c}, ${n}. Tudo certo por aí?` : `${c}! Tudo certo por aí?`),
+    (n) => (n ? `Oi, ${n}! Como estão as coisas?` : "Oi! Como estão as coisas?"),
+    (n, c) => (n ? `${c}, ${n}. Posso roubar um minuto?` : `${c}! Posso roubar um minuto?`),
   ],
   PT: [
     (n, c) => (n ? `${c}, ${n}! Tudo bem?` : `${c}! Tudo bem?`),
@@ -112,6 +140,9 @@ const SAUDACOES: Record<Locale, ((nome: string | undefined, c: string) => string
     (n) => (n ? `Olá, ${n}! Tudo bem?` : "Olá! Tudo bem?"),
     (n, c) => (n ? `${c}, ${n}. Espero não estar a incomodar.` : `${c}! Espero não estar a incomodar.`),
     (n, c) => (n ? `${c}, ${n}. Como tem passado?` : `${c}! Como tem passado?`),
+    (n, c) => (n ? `${c}, ${n}. Está tudo bem por aí?` : `${c}! Está tudo bem por aí?`),
+    (n) => (n ? `Olá, ${n}. Posso roubar-lhe um minuto?` : "Olá! Posso roubar um minuto?"),
+    (n, c) => (n ? `${c}, ${n}. Espero que o dia esteja a correr bem.` : `${c}! Espero que o dia esteja a correr bem.`),
   ],
 };
 
@@ -207,6 +238,7 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
     consultivo: [
       `Estive pesquisando ${empresa}${lugar} e vi que vocês ainda não têm um site. Hoje o site é a vitrine do negócio: é onde o cliente vê o trabalho, entende o serviço e decide se confia, tudo isso antes de falar com vocês.`,
       `Encontrei ${empresa}${lugar} e notei que ainda não têm site próprio. Quando alguém se interessa pelo serviço, não existe um lugar organizado para mostrar o trabalho e explicar como funciona.`,
+      `Estava olhando empresas do setor${lugar} e cheguei em ${empresa}. Vi que ainda não têm site, e é justamente ali que o cliente costuma tirar as dúvidas antes de procurar vocês.`,
     ],
     direto: [
       `Vi que ${empresa} não tem site. Sem ele, o cliente não tem onde ver o trabalho de vocês antes de decidir.`,
@@ -231,6 +263,7 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
     consultivo: [
       `Estive a pesquisar ${empresa}${lugar} e vi que ainda não têm site. Hoje o site é a montra do negócio: é onde o cliente vê o trabalho, percebe o serviço e decide se confia, tudo isto antes de vos contactar.`,
       `Encontrei ${empresa}${lugar} e reparei que ainda não têm site próprio. Quando alguém se interessa, não há um sítio organizado para mostrar o trabalho e explicar como funciona.`,
+      `Estava a ver empresas do setor${lugar} e cheguei a ${empresa}. Reparei que ainda não têm site, e é aí que o cliente costuma esclarecer dúvidas antes de vos procurar.`,
     ],
     direto: [
       `Vi que ${empresa} não tem site. Sem ele, o cliente não tem onde ver o vosso trabalho antes de decidir.`,
@@ -260,16 +293,19 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
       `Visitei o site da ${empresa} e gostei do trabalho de vocês. Vi alguns pontos que, ajustados, fariam o visitante chegar bem mais rápido ao que procura, e isso costuma virar contato.`,
       `Dei uma olhada no site da ${empresa}. A base está lá; o que eu vejo é espaço para deixar a navegação mais direta e aproveitar melhor quem já visita a página.`,
       `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria, pequenas mudanças na estrutura que costumam aumentar bastante o número de contatos.`,
+      `Passei pelo site da ${empresa} e achei que ele já cumpre o básico. O que vejo é a chance de deixá-lo trabalhar mais a favor de vocês, guiando o visitante até o contato.`,
     ],
     direto: [
       `Olhei o site da ${empresa} e vi espaço para melhorar a experiência de quem visita, o tipo de ajuste que costuma render mais contatos.`,
       `O site da ${empresa} tem uma base boa. Com alguns ajustes de navegação, ele converteria bem mais.`,
       `Vi o site da ${empresa} e identifiquei alguns pontos de melhoria que fariam diferença no resultado.`,
+      `Analisei o site da ${empresa}: há ajustes simples que aumentariam os contatos vindos dele.`,
     ],
     proximo: [
       `Entrei no site da ${empresa} e achei que dá para tirar bem mais proveito dele. O trabalho de vocês merece uma vitrine à altura.`,
       `Fui olhar o site da ${empresa} com calma. Tem coisa boa ali, e algumas melhorias simples deixariam a experiência bem mais fluida.`,
       `Dei uma passada no site da ${empresa} e fiquei pensando em algumas ideias que poderiam render mais contatos para vocês.`,
+      `Olhei o site da ${empresa} e vi potencial. Com uns ajustes, ele passaria a trabalhar bem melhor para vocês.`,
     ],
     curto: [
       `Vi o site da ${empresa} e tem alguns pontos de melhoria que renderiam mais contatos.`,
@@ -285,16 +321,19 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
       `Visitei o site da ${empresa} e gostei do vosso trabalho. Notei alguns pontos que, ajustados, fariam o visitante chegar mais depressa ao que procura, e isso costuma traduzir-se em contactos.`,
       `Dei uma vista de olhos no site da ${empresa}. A base está lá; o que vejo é margem para tornar a navegação mais direta e aproveitar melhor quem já visita a página.`,
       `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria, mudanças simples na estrutura que costumam aumentar bastante os contactos.`,
+      `Passei pelo site da ${empresa} e cumpre o essencial. O que vejo é a hipótese de o pôr a trabalhar mais a vosso favor, guiando o visitante até ao contacto.`,
     ],
     direto: [
       `Vi o site da ${empresa} e há margem para melhorar a experiência de quem visita, o tipo de ajuste que costuma render mais contactos.`,
       `O site da ${empresa} tem uma boa base. Com alguns ajustes de navegação, converteria bastante mais.`,
       `Vi o site da ${empresa} e identifiquei alguns pontos de melhoria que fariam diferença no resultado.`,
+      `Analisei o site da ${empresa}: há ajustes simples que aumentariam os contactos vindos dele.`,
     ],
     proximo: [
       `Entrei no site da ${empresa} e achei que se pode tirar bastante mais partido dele. O vosso trabalho merece uma montra à altura.`,
       `Fui ver o site da ${empresa} com calma. Há coisa boa ali, e algumas melhorias simples tornariam a experiência bem mais fluida.`,
       `Passei pelo site da ${empresa} e fiquei a pensar nalgumas ideias que poderiam render mais contactos.`,
+      `Vi o site da ${empresa} e tem potencial. Com alguns ajustes, passaria a trabalhar bastante melhor a vosso favor.`,
     ],
     curto: [
       `Vi o site da ${empresa} e há pontos de melhoria que renderiam mais contactos.`,
@@ -500,6 +539,8 @@ const FECHOS: Record<Locale, string[]> = {
     "Fico à disposição. Obrigado!",
     "Se fizer sentido, me avisa. Obrigado pela atenção!",
     "Obrigado pela atenção, e bom trabalho por aí!",
+    "Sem pressa nenhuma. Obrigado!",
+    "Qualquer dúvida, estou por aqui. Abraço!",
   ],
   PT: [
     "Fica o convite. Obrigado!",
@@ -507,6 +548,8 @@ const FECHOS: Record<Locale, string[]> = {
     "Qualquer questão, diga. Obrigado!",
     "Se fizer sentido, é só dizer. Obrigado pela atenção!",
     "Obrigado pela atenção, e bom trabalho!",
+    "Sem pressa nenhuma. Obrigado!",
+    "Qualquer dúvida, estou por aqui. Cumprimentos!",
   ],
 };
 
@@ -556,6 +599,7 @@ export function buildWhatsappParts(
   // O estilo "curto" existe para caber em poucas linhas: um paragrafo de
   // despedida derrubaria justamente o que ele tem de util.
   if (style !== "curto") partes.push(pick(FECHOS[l], base >> 9));
+  if (opts.includeSignature) partes.push(buildSignature(opts.senderName));
 
   return partes;
 }

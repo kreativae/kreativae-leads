@@ -162,6 +162,9 @@ export function LeadDrawer({
   const [msgVariant, setMsgVariant] = useState(0);
   const [usarDiagnostico, setUsarDiagnostico] = useState(false);
   const [incluirSobre, setIncluirSobre] = useState(false);
+  // Ligada por padrao quando ha e-mail: assinatura e convencao de e-mail,
+  // nao de WhatsApp. Continua sendo um botao, entao da para desligar.
+  const [incluirAssinatura, setIncluirAssinatura] = useState(!!lead.email);
   // null = usar o texto gerado. Qualquer mudanca no gerador limpa a edicao,
   // senao o usuario trocaria de estilo e continuaria vendo o texto antigo.
   const [editado, setEditado] = useState<string[] | null>(null);
@@ -264,6 +267,7 @@ export function LeadDrawer({
     variant: msgVariant,
     useAnalysis: usarDiagnostico && temDiagnostico,
     includeAbout: incluirSobre,
+    includeSignature: incluirAssinatura,
     senderName: meuNome,
   });
   // Editar uma parte congela todas: senao um clique em "Variar" trocaria as
@@ -293,6 +297,7 @@ export function LeadDrawer({
       variant: msgVariant + desvio * 7,
       useAnalysis: usarDiagnostico && temDiagnostico,
       includeAbout: incluirSobre,
+      includeSignature: incluirAssinatura,
       senderName: meuNome,
     });
   }
@@ -1043,6 +1048,23 @@ export function LeadDrawer({
                   Usar diagnóstico
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setIncluirAssinatura((v) => !v);
+                  setEditado(null);
+                  setDesvios([]);
+                }}
+                title="Acrescenta nome, cargo e praças no fim — convenção de e-mail"
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+                  incluirAssinatura
+                    ? "border-volt/50 bg-volt/10 text-volt"
+                    : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                <Mail className="h-3 w-3" />
+                Assinatura
+              </button>
               <button
                 type="button"
                 onClick={() => {
