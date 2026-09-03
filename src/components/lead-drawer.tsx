@@ -20,6 +20,8 @@ import {
   Map,
   Pencil,
   MapPin,
+  Pin,
+  PinOff,
   MessageCircle,
   Phone,
   QrCode,
@@ -40,6 +42,7 @@ import {
 } from "lucide-react";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { copiarRico } from "@/lib/clipboard";
+import { lerPref, gravarPref, type CampoFixavel } from "@/lib/message-prefs";
 import {
   buildWhatsappParts,
   emailSubject,
@@ -163,10 +166,27 @@ export function LeadDrawer({
   const [msgStyle, setMsgStyle] = useState<MessageStyle>("consultivo");
   const [msgVariant, setMsgVariant] = useState(0);
   const [usarDiagnostico, setUsarDiagnostico] = useState(false);
-  const [incluirSobre, setIncluirSobre] = useState(false);
+  // Cada um destes tres tem uma versao "fixada": o usuario prende o valor
+  // atual e ele passa a valer para o proximo lead e sobrevive a um F5, em
+  // vez de voltar ao padrao a cada troca. So o padrao muda quando NAO esta
+  // fixado — e por isso o estado inicial olha o localStorage antes de cair
+  // no comportamento de sempre.
+  const prefSobre = lerPref("diferenciais");
+  const [incluirSobre, setIncluirSobre] = useState(
+    prefSobre?.fixado ? prefSobre.valor : false,
+  );
+  const [fixarSobre, setFixarSobre] = useState(prefSobre?.fixado ?? false);
+
   // Ligada por padrao quando ha e-mail: assinatura e convencao de e-mail,
-  // nao de WhatsApp. Continua sendo um botao, entao da para desligar.
-  const [incluirAssinatura, setIncluirAssinatura] = useState(!!lead.email);
+  // nao de WhatsApp. So esse padrao e ignorado quando o usuario fixou um
+  // valor proprio.
+  const prefAssinatura = lerPref("assinatura");
+  const [incluirAssinatura, setIncluirAssinatura] = useState(
+    prefAssinatura?.fixado ? prefAssinatura.valor : !!lead.email,
+  );
+  const [fixarAssinatura, setFixarAssinatura] = useState(
+    prefAssinatura?.fixado ?? false,
+  );
   // null = usar o texto gerado. Qualquer mudanca no gerador limpa a edicao,
   // senao o usuario trocaria de estilo e continuaria vendo o texto antigo.
   const [editado, setEditado] = useState<string[] | null>(null);
@@ -174,7 +194,43 @@ export function LeadDrawer({
   // Deslocamento de variante por parte: permite trocar so o item 4 sem
   // mexer nos outros. Zerado sempre que o gerador muda como um todo.
   const [desvios, setDesvios] = useState<number[]>([]);
-  const [modoBloco, setModoBloco] = useState(false);
+  const prefModoBloco = lerPref("modoBloco");
+  const [modoBloco, setModoBloco] = useState(
+    prefModoBloco?.fixado ? prefModoBloco.valor : false,
+  );
+  const [fixarModoBloco, setFixarModoBloco] = useState(
+    prefModoBloco?.fixado ?? false,
+  );
+
+  /**
+   * Alterna um dos tres campos fixaveis. Quando esta fixado, toda mudanca de
+   * valor grava junto — senao o usuario mudaria de ideia num lead e a
+   * preferencia fixada ficaria desatualizada ate ele mexer de novo.
+   */
+  function alternarFixavel(
+    campo: CampoFixavel,
+    fixado: boolean,
+    setValor: (fn: (v: boolean) => boolean) => void,
+  ) {
+    setValor((v) => {
+      const novo = !v;
+      if (fixado) gravarPref(campo, true, novo);
+      return novo;
+    });
+  }
+
+  /** Liga/desliga o cadeado. Ligar grava o valor de agora; desligar nao apaga o ultimo valor salvo, so para de aplica-lo. */
+  function alternarFixar(
+    campo: CampoFixavel,
+    valorAtual: boolean,
+    setFixado: (fn: (v: boolean) => boolean) => void,
+  ) {
+    setFixado((v) => {
+      const novo = !v;
+      gravarPref(campo, novo, valorAtual);
+      return novo;
+    });
+  }
   const meuNome = useMeuNome();
   const [editandoContato, setEditandoContato] = useState(false);
   const [salvandoContato, setSalvandoContato] = useState(false);
@@ -1041,42 +1097,90 @@ export function LeadDrawer({
                   Usar diagnóstico
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setIncluirAssinatura((v) => !v);
-                  setEditado(null);
-                  setDesvios([]);
-                }}
-                title="Acrescenta nome, cargo e praças no fim — convenção de e-mail"
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+              <span
+                className={`inline-flex items-center rounded-full border transition-colors ${
                   incluirAssinatura
                     ? "border-volt/50 bg-volt/10 text-volt"
-                    : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+                    : "border-white/[0.09] text-zinc-500"
                 }`}
               >
-                <Mail className="h-3 w-3" />
-                Assinatura
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIncluirSobre((v) => !v);
-                  setEditado(null);
+                <button
+                  type="button"
+                  onClick={() => {
+                    alternarFixavel("assinatura", fixarAssinatura, setIncluirAssinatura);
+                    setEditado(null);
                     setDesvios([]);
-                }}
-                title="Acrescenta um parágrafo com os diferenciais da kreativ.ae"
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+                  }}
+                  title="Acrescenta nome, cargo e praças no fim — convenção de e-mail"
+                  className="inline-flex items-center gap-1.5 py-1 pl-3 pr-1.5 text-[11.5px] font-semibold hover:text-zinc-200"
+                >
+                  <Mail className="h-3 w-3" />
+                  Assinatura
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    alternarFixar("assinatura", incluirAssinatura, setFixarAssinatura)
+                  }
+                  title={
+                    fixarAssinatura
+                      ? "Fixado: vale para os próximos leads e sobrevive a um F5. Clique para soltar."
+                      : "Fixar este valor para os próximos leads e depois de atualizar a página"
+                  }
+                  className={`rounded-full p-1 mr-0.5 transition-colors ${
+                    fixarAssinatura ? "text-volt" : "text-zinc-600 hover:text-zinc-300"
+                  }`}
+                >
+                  {fixarAssinatura ? (
+                    <Pin className="h-3 w-3" />
+                  ) : (
+                    <PinOff className="h-3 w-3" />
+                  )}
+                </button>
+              </span>
+              <span
+                className={`inline-flex items-center rounded-full border transition-colors ${
                   incluirSobre
                     ? "border-volt/50 bg-volt/10 text-volt"
-                    : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+                    : "border-white/[0.09] text-zinc-500"
                 }`}
               >
-                <Sparkles className="h-3 w-3" />
-                Diferenciais
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    alternarFixavel("diferenciais", fixarSobre, setIncluirSobre);
+                    setEditado(null);
+                    setDesvios([]);
+                  }}
+                  title="Acrescenta um parágrafo com os diferenciais da kreativ.ae"
+                  className="inline-flex items-center gap-1.5 py-1 pl-3 pr-1.5 text-[11.5px] font-semibold hover:text-zinc-200"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Diferenciais
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    alternarFixar("diferenciais", incluirSobre, setFixarSobre)
+                  }
+                  title={
+                    fixarSobre
+                      ? "Fixado: vale para os próximos leads e sobrevive a um F5. Clique para soltar."
+                      : "Fixar este valor para os próximos leads e depois de atualizar a página"
+                  }
+                  className={`rounded-full p-1 mr-0.5 transition-colors ${
+                    fixarSobre ? "text-volt" : "text-zinc-600 hover:text-zinc-300"
+                  }`}
+                >
+                  {fixarSobre ? (
+                    <Pin className="h-3 w-3" />
+                  ) : (
+                    <PinOff className="h-3 w-3" />
+                  )}
+                </button>
+              </span>
               <div className="ml-auto flex items-center gap-2">
-                <div className="flex rounded-full border border-white/[0.09] p-0.5">
+                <div className="flex items-center rounded-full border border-white/[0.09] p-0.5">
                   {[
                     { bloco: false, label: "Em partes" },
                     { bloco: true, label: "Bloco único" },
@@ -1084,7 +1188,10 @@ export function LeadDrawer({
                     <button
                       key={o.label}
                       type="button"
-                      onClick={() => setModoBloco(o.bloco)}
+                      onClick={() => {
+                        setModoBloco(o.bloco);
+                        if (fixarModoBloco) gravarPref("modoBloco", true, o.bloco);
+                      }}
                       className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
                         modoBloco === o.bloco
                           ? "bg-volt/15 text-volt"
@@ -1094,6 +1201,26 @@ export function LeadDrawer({
                       {o.label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      alternarFixar("modoBloco", modoBloco, setFixarModoBloco)
+                    }
+                    title={
+                      fixarModoBloco
+                        ? "Fixado: vale para os próximos leads e sobrevive a um F5. Clique para soltar."
+                        : "Fixar este modo para os próximos leads e depois de atualizar a página"
+                    }
+                    className={`ml-0.5 rounded-full p-1 transition-colors ${
+                      fixarModoBloco ? "text-volt" : "text-zinc-600 hover:text-zinc-300"
+                    }`}
+                  >
+                    {fixarModoBloco ? (
+                      <Pin className="h-3 w-3" />
+                    ) : (
+                      <PinOff className="h-3 w-3" />
+                    )}
+                  </button>
                 </div>
                 <span className="text-[11px] font-medium text-zinc-600">
                   {lead.country === "PT" ? "PT-PT" : "PT-BR"}
