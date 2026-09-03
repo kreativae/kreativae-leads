@@ -62,12 +62,17 @@ export const ASSINATURA_CONTATOS = [
  * Bloco de assinatura. Texto puro: o mailto nao aceita HTML, entao nao existe
  * negrito aqui. A formatacao vem das quebras de linha e dos separadores.
  */
-export function buildSignature(senderName?: string | null): string {
+export function buildSignature(
+  senderName?: string | null,
+  comLinks = true,
+): string {
   // Sem nome de conta, a linha do nome sai: repetir "kreativ.ae" duas vezes
   // seguidas fica estranho.
   const nome = senderName?.trim();
-  const contatos = ASSINATURA_CONTATOS.map(
-    (c) => `${c.regiao}: ${c.telefone} · https://wa.me/${c.digitos}`,
+  const contatos = ASSINATURA_CONTATOS.map((c) =>
+    comLinks
+      ? `${c.regiao}: ${c.telefone} · https://wa.me/${c.digitos}`
+      : `${c.regiao}: ${c.telefone}`,
   );
   return [nome, ASSINATURA_CARGO, ASSINATURA_PRACAS.join(" • "), ...contatos]
     .filter(Boolean)
@@ -612,7 +617,16 @@ export function buildWhatsappParts(
   // O estilo "curto" existe para caber em poucas linhas: um paragrafo de
   // despedida derrubaria justamente o que ele tem de util.
   if (style !== "curto") partes.push(pick(FECHOS[l], base >> 9));
-  if (opts.includeSignature) partes.push(buildSignature(opts.senderName));
+  // A assinatura tambem varia: uma versao traz o wa.me escrito, para o link
+  // sobreviver em texto puro, e a outra so os numeros, para quando o destino
+  // ja entende HTML ou o endereco a vista atrapalha.
+  //
+  // Alterna pela paridade do variant, nao por um bit do hash: com so duas
+  // redacoes, o hash deixava leads onde as 12 tentativas do botao caiam
+  // todas do mesmo lado e ele parecia morto. Assim o passo seguinte troca
+  // sempre.
+  if (opts.includeSignature)
+    partes.push(buildSignature(opts.senderName, Math.abs(variant) % 2 === 0));
 
   return partes;
 }
@@ -666,6 +680,8 @@ function escaparHtml(t: string): string {
 }
 
 const LINHA_CONTATO = /^([^:]+):[ \t]*(\+[0-9 ()\-]+?)[ \t]*·[ \t]*(https:\/\/wa\.me\/[0-9]+)$/;
+/** A mesma linha na variacao sem link: so rotulo e numero. */
+const LINHA_CONTATO_SIMPLES = /^([^:]+):[ \t]*(\+[0-9 ()\-]+)$/;
 
 /**
  * Versao HTML da mensagem, para quem cola num editor de e-mail. So aqui o
@@ -683,6 +699,11 @@ export function textoParaHtmlEmail(texto: string): string {
       if (contato) {
         const [, regiao, numero, url] = contato;
         return `<strong>${regiao}:</strong> <a href="${url}">${numero}</a>`;
+      }
+      const simples = linha.match(LINHA_CONTATO_SIMPLES);
+      if (simples) {
+        // Sem endereco nao ha o que linkar, mas o rotulo destaca do mesmo jeito.
+        return `<strong>${simples[1]}:</strong> ${simples[2]}`;
       }
       return linha.replace(
         /(https?:\/\/[^\s<]+)/g,
