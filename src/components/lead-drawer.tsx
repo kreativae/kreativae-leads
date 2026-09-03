@@ -279,16 +279,7 @@ export function LeadDrawer({
   // o indice continua valido.
   const partesVariadas = partesGeradas.map((texto, i) => {
     const d = desvios[i] ?? 0;
-    if (d === 0) return texto;
-    return (
-      buildWhatsappParts(lead, {
-        style: msgStyle,
-        variant: msgVariant + d * 7,
-        useAnalysis: usarDiagnostico && temDiagnostico,
-        includeAbout: incluirSobre,
-        senderName: meuNome,
-      })[i] ?? texto
-    );
+    return d === 0 ? texto : (gerarCom(d)[i] ?? texto);
   });
   const partes = editado ?? partesVariadas;
 
