@@ -656,3 +656,38 @@ export function waMeLink(
   if (!whatsappDigits) return null;
   return `https://wa.me/${whatsappDigits}?text=${encodeURIComponent(message)}`;
 }
+
+/** Escapa o que o navegador leria como marcacao. */
+function escaparHtml(t: string): string {
+  return t
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+const LINHA_CONTATO = /^([^:]+):[ \t]*(\+[0-9 ()\-]+?)[ \t]*·[ \t]*(https:\/\/wa\.me\/[0-9]+)$/;
+
+/**
+ * Versao HTML da mensagem, para quem cola num editor de e-mail. So aqui o
+ * numero pode virar o proprio link e o endereco wa.me sumir da vista: em
+ * texto puro nao existe ancora, o endereco tem de aparecer para ser clicavel.
+ *
+ * Trabalha sobre o texto que esta na tela, nao sobre o gerado, para nao
+ * desfazer as edicoes feitas a mao.
+ */
+export function textoParaHtmlEmail(texto: string): string {
+  const linhas = escaparHtml(texto)
+    .split("\n")
+    .map((linha) => {
+      const contato = linha.match(LINHA_CONTATO);
+      if (contato) {
+        const [, regiao, numero, url] = contato;
+        return `<strong>${regiao}:</strong> <a href="${url}">${numero}</a>`;
+      }
+      return linha.replace(
+        /(https?:\/\/[^\s<]+)/g,
+        (u) => `<a href="${u}">${u}</a>`,
+      );
+    });
+  return `<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.5">${linhas.join("<br>")}</div>`;
+}

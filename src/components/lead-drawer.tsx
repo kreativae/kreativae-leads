@@ -39,9 +39,11 @@ import {
   XCircle,
 } from "lucide-react";
 import { LEAD_STATUSES } from "@/lib/constants";
+import { copiarRico } from "@/lib/clipboard";
 import {
   buildWhatsappParts,
   emailSubject,
+  textoParaHtmlEmail,
   mailtoLink,
   MESSAGE_STYLES,
   waMeLink,
@@ -411,7 +413,7 @@ export function LeadDrawer({
 
   async function copyMessage() {
     try {
-      await navigator.clipboard.writeText(mensagemFinal);
+      await copiarRico(mensagemFinal, textoParaHtmlEmail(mensagemFinal));
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -1150,7 +1152,7 @@ export function LeadDrawer({
                     type="button"
                     onClick={async () => {
                       try {
-                        await navigator.clipboard.writeText(parte);
+                        await copiarRico(parte, textoParaHtmlEmail(parte));
                       } catch {
                         window.prompt("Copie esta parte:", parte);
                         return;
