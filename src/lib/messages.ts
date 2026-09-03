@@ -49,14 +49,27 @@ export const ASSINATURA_PRACAS = [
 ];
 
 /**
- * Bloco de assinatura. Texto puro: o mailto nao aceita HTML, entao a
- * formatacao vem das quebras de linha e do separador entre as pracas.
+ * Contactos por regiao. O numero fica legivel para quem le e o wa.me ao lado
+ * e o que vira link: em texto puro nao ha como esconder o endereco atras da
+ * palavra, e o cliente de e-mail so transforma em link o que parece URL.
+ */
+export const ASSINATURA_CONTATOS = [
+  { regiao: "Latin America", telefone: "+55 11 3042 0065", digitos: "551130420065" },
+  { regiao: "Europe", telefone: "+351 961 267 424", digitos: "351961267424" },
+];
+
+/**
+ * Bloco de assinatura. Texto puro: o mailto nao aceita HTML, entao nao existe
+ * negrito aqui. A formatacao vem das quebras de linha e dos separadores.
  */
 export function buildSignature(senderName?: string | null): string {
   // Sem nome de conta, a linha do nome sai: repetir "kreativ.ae" duas vezes
   // seguidas fica estranho.
   const nome = senderName?.trim();
-  return [nome, ASSINATURA_CARGO, ASSINATURA_PRACAS.join(" • ")]
+  const contatos = ASSINATURA_CONTATOS.map(
+    (c) => `${c.regiao}: ${c.telefone} · https://wa.me/${c.digitos}`,
+  );
+  return [nome, ASSINATURA_CARGO, ASSINATURA_PRACAS.join(" • "), ...contatos]
     .filter(Boolean)
     .join("\n");
 }
