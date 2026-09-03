@@ -14,7 +14,9 @@ import {
   MessageCircle,
   Phone,
   RefreshCw,
+  Search,
   SquareKanban,
+  X,
 } from "lucide-react";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { formatPhone } from "@/lib/phone";
@@ -66,6 +68,9 @@ export default function CrmPage() {
   // "" = todas. O valor e a chave da pesquisa devolvida pelo servidor.
   const [escopo, setEscopo] = useState("");
   const [incluirNovos, setIncluirNovos] = useState(false);
+  // "termo" e o que esta sendo digitado; "busca" e o que ja foi ao servidor.
+  const [termo, setTermo] = useState("");
+  const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(true);
   const [arrastando, setArrastando] = useState<string | null>(null);
   const [alvo, setAlvo] = useState<string | null>(null);
@@ -78,6 +83,7 @@ export default function CrmPage() {
     try {
       const qs = new URLSearchParams({ novos: incluirNovos ? "1" : "0" });
       if (escopo) qs.set("pesquisa", escopo);
+      if (busca) qs.set("q", busca);
       const res = await fetch(`/api/leads/board?${qs}`);
       const data = (await res.json()) as {
         columns: Column[];
@@ -90,11 +96,19 @@ export default function CrmPage() {
     } finally {
       setLoading(false);
     }
-  }, [incluirNovos, escopo]);
+  }, [incluirNovos, escopo, busca]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Espera a digitacao parar: uma consulta por tecla castigaria o banco.
+  // Menos de 2 letras casaria com quase tudo, entao vale como "sem busca".
+  useEffect(() => {
+    const limpo = termo.trim();
+    const id = setTimeout(() => setBusca(limpo.length >= 2 ? limpo : ""), 300);
+    return () => clearTimeout(id);
+  }, [termo]);
 
   /** Move otimista: o cartao pula de coluna antes da resposta do servidor. */
   async function mover(id: string, para: string) {
@@ -176,6 +190,10 @@ export default function CrmPage() {
     ? colunaAtual.leads.findIndex((l) => l.id === selecionado?.id)
     : -1;
 
+  const encontrados = columns
+    ? columns.reduce((soma, c) => soma + c.total, 0)
+    : 0;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -196,8 +214,9 @@ export default function CrmPage() {
             <select
               value={escopo}
               onChange={(e) => setEscopo(e.target.value)}
+              disabled={!!busca}
               aria-label="Filtrar por pesquisa"
-              className={`w-full appearance-none rounded-full border bg-ink py-2.5 pl-4 pr-9 text-[12.5px] font-semibold outline-none transition-colors focus:border-volt/50 ${
+              className={`w-full appearance-none rounded-full border bg-ink py-2.5 pl-4 pr-9 text-[12.5px] font-semibold outline-none transition-colors focus:border-volt/50 disabled:opacity-40 ${
                 escopo
                   ? "border-volt/50 text-volt"
                   : "border-white/[0.09] text-zinc-400"
@@ -226,10 +245,34 @@ export default function CrmPage() {
               Abrir em Leads
             </Link>
           )}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
+            <input
+              value={termo}
+              onChange={(e) => setTermo(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && setTermo("")}
+              placeholder="Nome, e-mail, telefone, site"
+              aria-label="Buscar lead"
+              className={`w-[220px] rounded-full border bg-ink py-2.5 pl-9 pr-9 text-[12.5px] font-medium text-zinc-100 outline-none transition-colors placeholder:font-normal placeholder:text-zinc-600 focus:border-volt/50 ${
+                busca ? "border-volt/50" : "border-white/[0.09]"
+              }`}
+            />
+            {termo && (
+              <button
+                type="button"
+                onClick={() => setTermo("")}
+                aria-label="Limpar busca"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 transition-colors hover:text-zinc-200"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setIncluirNovos((v) => !v)}
-            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12.5px] font-semibold transition-colors ${
+            disabled={!!busca}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12.5px] font-semibold transition-colors disabled:opacity-40 ${
               incluirNovos
                 ? "border-volt/50 bg-volt/10 text-volt"
                 : "border-white/[0.09] text-zinc-400 hover:text-zinc-100"
@@ -251,6 +294,29 @@ export default function CrmPage() {
           </button>
         </div>
       </div>
+
+      {busca && columns && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl border border-volt/25 bg-volt/[0.06] px-4 py-3 text-[13px]">
+          <Search className="h-3.5 w-3.5 flex-none text-volt" />
+          <span className="font-semibold text-volt">
+            {encontrados === 0
+              ? "Nenhum lead encontrado"
+              : `${encontrados} ${encontrados === 1 ? "lead" : "leads"}`}{" "}
+            para “{busca}”
+          </span>
+          <span className="text-zinc-400">
+            A busca varre todos os leads, incluindo os novos, e ignora o filtro
+            de pesquisa.
+          </span>
+          <button
+            type="button"
+            onClick={() => setTermo("")}
+            className="font-semibold text-zinc-300 underline underline-offset-2 transition-colors hover:text-volt"
+          >
+            limpar
+          </button>
+        </div>
+      )}
 
       {columns === null ? (
         <div className="flex justify-center py-24">

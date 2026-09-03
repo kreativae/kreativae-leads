@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { leads, searches } from "@/db/schema";
-import { and, count, desc, eq, inArray, isNull, or, type SQL } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
 
@@ -29,6 +40,9 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const incluirNovos = sp.get("novos") === "1";
   const pesquisa = sp.get("pesquisa") ?? "";
+  // Uma letra so casaria com quase tudo; nao vale a viagem ao banco.
+  const termo = (sp.get("q") ?? "").trim();
+  const buscando = termo.length >= 2;
 
   const historico = await db
     .select({
@@ -79,7 +93,33 @@ export async function GET(req: Request) {
     (a, b) => b.lastAt.getTime() - a.lastAt.getTime(),
   );
 
-  const alvo = pesquisa ? porChave.get(pesquisa) : undefined;
+  // Busca livre: nome da empresa, do contato, e-mail, site e telefones.
+  // % e _ sao curingas do LIKE; escapo para que "50%" procure "50%" mesmo.
+  const busca: SQL | undefined = (() => {
+    if (!buscando) return undefined;
+    const like = `%${termo.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const campos: SQL[] = [
+      ilike(leads.companyName, like),
+      ilike(leads.ownerName, like),
+      ilike(leads.email, like),
+      ilike(leads.website, like),
+      ilike(leads.instagram, like),
+    ];
+    // Telefone digitado com mascara ("(11) 98765-4321") tem de achar o que
+    // esta gravado cru ("5511987654321"): comparo so os digitos dos dois lados.
+    const digitos = termo.replace(/[^0-9]/g, "");
+    if (digitos.length >= 4) {
+      const alvoNum = `%${digitos}%`;
+      for (const col of [leads.phone, leads.phoneAlt, leads.whatsapp]) {
+        campos.push(
+          sql`regexp_replace(coalesce(${col}, ''), '[^0-9]', '', 'g') LIKE ${alvoNum}`,
+        );
+      }
+    }
+    return or(...campos) as SQL;
+  })();
+
+  const alvo = pesquisa && !buscando ? porChave.get(pesquisa) : undefined;
   const escopo: SQL | undefined = alvo
     ? (or(
         inArray(leads.searchId, alvo.ids),
@@ -93,11 +133,15 @@ export async function GET(req: Request) {
       ) as SQL)
     : undefined;
 
+  // Procurar e "achar o lead": nao faz sentido a busca respeitar o filtro de
+  // pesquisa nem a coluna Novos escondida. A tela avisa que ela e global.
+  const restricao = busca ?? escopo;
+
   const filtro = (chave: string) =>
-    escopo ? and(eq(leads.status, chave), escopo) : eq(leads.status, chave);
+    restricao ? and(eq(leads.status, chave), restricao) : eq(leads.status, chave);
 
   const chaves = LEAD_STATUSES.map((s) => s.key).filter(
-    (k) => incluirNovos || k !== "new",
+    (k) => incluirNovos || buscando || k !== "new",
   );
 
   const colunas = await Promise.all(
@@ -143,6 +187,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     columns: colunas,
+    searching: buscando,
     newTotal: novos?.value ?? 0,
     groups: grupos.map((g, i) => ({
       key: g.chave,
