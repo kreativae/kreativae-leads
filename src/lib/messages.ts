@@ -257,24 +257,29 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
       `Estive pesquisando ${empresa}${lugar} e vi que vocês ainda não têm um site. Hoje o site é a vitrine do negócio: é onde o cliente vê o trabalho, entende o serviço e decide se confia, tudo isso antes de falar com vocês.`,
       `Encontrei ${empresa}${lugar} e notei que ainda não têm site próprio. Quando alguém se interessa pelo serviço, não existe um lugar organizado para mostrar o trabalho e explicar como funciona.`,
       `Estava olhando empresas do setor${lugar} e cheguei em ${empresa}. Vi que ainda não têm site, e é justamente ali que o cliente costuma tirar as dúvidas antes de procurar vocês.`,
+      `Vi que ${empresa}${lugar} ainda não tem site. É justamente o que costuma dar confiança para quem está decidindo entre vocês e outra opção.`,
     ],
     direto: [
       `Vi que ${empresa} não tem site. Sem ele, o cliente não tem onde ver o trabalho de vocês antes de decidir.`,
       `Reparei que ${empresa}${lugar} não tem site. Falta uma vitrine para apresentar o serviço de forma organizada.`,
+      `${empresa} não tem site ainda. Sem ele, fica mais difícil o cliente novo bater o olho e já confiar no trabalho.`,
     ],
     proximo: [
       `Estava pesquisando empresas${lugar} e dei de cara com ${empresa}. Gostei do trabalho, mas fiquei com uma pena: não tem um site para mostrar isso direito.`,
       `Conheci ${empresa}${lugar} e achei o serviço bom. Só senti falta de um site, um lugar onde a pessoa veja o trabalho com calma e saiba como falar com vocês.`,
+      `Passei pelo perfil da ${empresa}${lugar} e vi que falta um site. Seria uma pena o trabalho de vocês não ter um lugar à altura para aparecer.`,
     ],
     curto: [
       `${empresa} ainda não tem site. Falta uma vitrine para mostrar o trabalho de vocês.`,
       `Vi que ${empresa} não tem site. É o lugar onde o cliente decide se confia.`,
       `${empresa} não tem site, e é ali que o cliente forma a primeira impressão.`,
+      `${empresa} não tem site. É o que costuma dar confiança para fechar negócio.`,
     ],
     pergunta: [
       `Posso fazer uma pergunta rápida? Quando alguém quer conhecer o trabalho da ${empresa}, para onde vocês mandam a pessoa?`,
       `Uma dúvida sincera: como o cliente de vocês vê o trabalho da ${empresa} antes de fechar? Reparei que ainda não têm site.`,
       `Posso perguntar uma coisa? Hoje, quando alguém pede indicação da ${empresa}, o que vocês enviam para a pessoa conhecer o trabalho?`,
+      `Posso perguntar? Hoje, sem site, como o cliente novo conhece o trabalho da ${empresa} antes de decidir?`,
     ],
   };
   const PT = {
@@ -282,24 +287,29 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
       `Estive a pesquisar ${empresa}${lugar} e vi que ainda não têm site. Hoje o site é a montra do negócio: é onde o cliente vê o trabalho, percebe o serviço e decide se confia, tudo isto antes de vos contactar.`,
       `Encontrei ${empresa}${lugar} e reparei que ainda não têm site próprio. Quando alguém se interessa, não há um sítio organizado para mostrar o trabalho e explicar como funciona.`,
       `Estava a ver empresas do setor${lugar} e cheguei a ${empresa}. Reparei que ainda não têm site, e é aí que o cliente costuma esclarecer dúvidas antes de vos procurar.`,
+      `Vi que ${empresa}${lugar} ainda não tem site. É precisamente o que costuma dar confiança a quem está a decidir entre a vossa empresa e outra opção.`,
     ],
     direto: [
       `Vi que ${empresa} não tem site. Sem ele, o cliente não tem onde ver o vosso trabalho antes de decidir.`,
       `Reparei que ${empresa}${lugar} não tem site. Falta uma montra para apresentar o serviço de forma organizada.`,
+      `${empresa} ainda não tem site. Sem ele, fica mais difícil o cliente novo confiar no trabalho à primeira vista.`,
     ],
     proximo: [
       `Estava a pesquisar empresas${lugar} e encontrei ${empresa}. Gostei do trabalho, mas ficou-me uma pena: não têm um site para o mostrar como deve ser.`,
       `Conheci ${empresa}${lugar} e achei o serviço bom. Só senti falta de um site, um sítio onde a pessoa veja o trabalho com calma e saiba como vos contactar.`,
+      `Passei pelo perfil da ${empresa}${lugar} e vi que falta um site. Seria uma pena o vosso trabalho não ter um sítio à altura para aparecer.`,
     ],
     curto: [
       `${empresa} ainda não tem site. Falta uma montra para mostrar o vosso trabalho.`,
       `Vi que ${empresa} não tem site. É onde o cliente decide se confia.`,
       `${empresa} não tem site, e é aí que o cliente forma a primeira impressão.`,
+      `${empresa} não tem site. É o que costuma dar confiança para fechar negócio.`,
     ],
     pergunta: [
       `Posso fazer uma pergunta rápida? Quando alguém quer conhecer o trabalho da ${empresa}, para onde encaminham a pessoa?`,
       `Uma dúvida sincera: como é que o cliente vê o trabalho da ${empresa} antes de fechar? Reparei que ainda não têm site.`,
       `Posso perguntar uma coisa? Hoje, quando alguém pede referência da ${empresa}, o que enviam para a pessoa conhecer o trabalho?`,
+      `Posso perguntar? Hoje, sem site, como é que o cliente novo conhece o trabalho da ${empresa} antes de decidir?`,
     ],
   };
   return pick((l === "PT" ? PT : BR)[style], n);
@@ -312,26 +322,31 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
       `Dei uma olhada no site da ${empresa}. A base está lá; o que eu vejo é espaço para deixar a navegação mais direta e aproveitar melhor quem já visita a página.`,
       `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria, pequenas mudanças na estrutura que costumam aumentar bastante o número de contatos.`,
       `Passei pelo site da ${empresa} e achei que ele já cumpre o básico. O que vejo é a chance de deixá-lo trabalhar mais a favor de vocês, guiando o visitante até o contato.`,
+      `Entrei no site da ${empresa} e notei alguns pontos técnicos que valem a pena ajustar, elementos que não carregam direito em alguns aparelhos, por exemplo. Isso tem impacto direto em quantas pessoas conseguem chegar até vocês.`,
     ],
     direto: [
       `Olhei o site da ${empresa} e vi espaço para melhorar a experiência de quem visita, o tipo de ajuste que costuma render mais contatos.`,
       `O site da ${empresa} tem uma base boa. Com alguns ajustes de navegação, ele converteria bem mais.`,
       `Vi o site da ${empresa} e identifiquei alguns pontos de melhoria que fariam diferença no resultado.`,
       `Analisei o site da ${empresa}: há ajustes simples que aumentariam os contatos vindos dele.`,
+      `O site da ${empresa} tem alguns pontos técnicos para ajustar: elementos que não carregam certo em alguns navegadores. Dá para resolver e melhorar bastante a experiência.`,
     ],
     proximo: [
       `Entrei no site da ${empresa} e achei que dá para tirar bem mais proveito dele. O trabalho de vocês merece uma vitrine à altura.`,
       `Fui olhar o site da ${empresa} com calma. Tem coisa boa ali, e algumas melhorias simples deixariam a experiência bem mais fluida.`,
       `Dei uma passada no site da ${empresa} e fiquei pensando em algumas ideias que poderiam render mais contatos para vocês.`,
       `Olhei o site da ${empresa} e vi potencial. Com uns ajustes, ele passaria a trabalhar bem melhor para vocês.`,
+      `Reparei em alguns detalhes técnicos no site da ${empresa}, coisas como elementos que não aparecem certo em alguns aparelhos. Nada grave, mas vale a pena ajustar.`,
     ],
     curto: [
       `Vi o site da ${empresa} e tem alguns pontos de melhoria que renderiam mais contatos.`,
       `Olhei o site da ${empresa}: dá para deixar a navegação bem mais direta.`,
+      `O site da ${empresa} tem pontos técnicos para ajustar, elementos que não carregam certo em alguns aparelhos.`,
     ],
     pergunta: [
       `Posso te fazer uma pergunta? O site da ${empresa} tem trazido o número de contatos que vocês esperam? Vi alguns pontos que poderiam melhorar isso.`,
       `Uma pergunta rápida: quantos clientes chegam até vocês pelo site hoje? Olhei ele e vi espaço para esse número crescer.`,
+      `Já reparou se o site da ${empresa} abre certo em todos os aparelhos? Notei alguns elementos que não carregam direito em alguns navegadores.`,
     ],
   };
   const PT = {
@@ -340,26 +355,31 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
       `Dei uma vista de olhos no site da ${empresa}. A base está lá; o que vejo é margem para tornar a navegação mais direta e aproveitar melhor quem já visita a página.`,
       `Entrei no site da ${empresa} e reparei em algumas oportunidades de melhoria, mudanças simples na estrutura que costumam aumentar bastante os contactos.`,
       `Passei pelo site da ${empresa} e cumpre o essencial. O que vejo é a hipótese de o pôr a trabalhar mais a vosso favor, guiando o visitante até ao contacto.`,
+      `Entrei no site da ${empresa} e notei alguns pontos técnicos que vale a pena ajustar, elementos que não carregam bem em alguns aparelhos, por exemplo. Isso tem impacto direto em quantas pessoas conseguem chegar até ao contacto.`,
     ],
     direto: [
       `Vi o site da ${empresa} e há margem para melhorar a experiência de quem visita, o tipo de ajuste que costuma render mais contactos.`,
       `O site da ${empresa} tem uma boa base. Com alguns ajustes de navegação, converteria bastante mais.`,
       `Vi o site da ${empresa} e identifiquei alguns pontos de melhoria que fariam diferença no resultado.`,
       `Analisei o site da ${empresa}: há ajustes simples que aumentariam os contactos vindos dele.`,
+      `O site da ${empresa} tem alguns pontos técnicos a ajustar: elementos que não carregam bem em alguns navegadores. Dá para resolver e melhorar bastante a experiência.`,
     ],
     proximo: [
       `Entrei no site da ${empresa} e achei que se pode tirar bastante mais partido dele. O vosso trabalho merece uma montra à altura.`,
       `Fui ver o site da ${empresa} com calma. Há coisa boa ali, e algumas melhorias simples tornariam a experiência bem mais fluida.`,
       `Passei pelo site da ${empresa} e fiquei a pensar nalgumas ideias que poderiam render mais contactos.`,
       `Vi o site da ${empresa} e tem potencial. Com alguns ajustes, passaria a trabalhar bastante melhor a vosso favor.`,
+      `Reparei nalguns detalhes técnicos no site da ${empresa}, coisas como elementos que não aparecem bem em alguns aparelhos. Nada grave, mas vale a pena ajustar.`,
     ],
     curto: [
       `Vi o site da ${empresa} e há pontos de melhoria que renderiam mais contactos.`,
       `Vi o site da ${empresa}: dá para tornar a navegação bem mais direta.`,
+      `O site da ${empresa} tem pontos técnicos a ajustar, elementos que não carregam bem em alguns aparelhos.`,
     ],
     pergunta: [
       `Posso fazer-lhe uma pergunta? O site da ${empresa} tem trazido os contactos que esperam? Notei alguns pontos que poderiam melhorar isso.`,
       `Uma pergunta rápida: quantos clientes vos chegam hoje pelo site? Vi-o e há margem para esse número crescer.`,
+      `Já reparou se o site da ${empresa} abre bem em todos os aparelhos? Notei alguns elementos que não carregam bem em alguns navegadores.`,
     ],
   };
   return pick((l === "PT" ? PT : BR)[style], n);
@@ -550,25 +570,47 @@ const CTAS: Record<Locale, Record<Situacao, Record<MessageStyle, string[]>>> = {
   },
 };
 
-const FECHOS: Record<Locale, string[]> = {
-  BR: [
-    "Fica o convite. Obrigado!",
-    "Qualquer coisa, é só chamar. Obrigado!",
-    "Fico à disposição. Obrigado!",
-    "Se fizer sentido, me avisa. Obrigado pela atenção!",
-    "Obrigado pela atenção, e bom trabalho por aí!",
-    "Sem pressa nenhuma. Obrigado!",
-    "Qualquer dúvida, estou por aqui. Abraço!",
-  ],
-  PT: [
-    "Fica o convite. Obrigado!",
-    "Fico ao dispor. Obrigado!",
-    "Qualquer questão, diga. Obrigado!",
-    "Se fizer sentido, é só dizer. Obrigado pela atenção!",
-    "Obrigado pela atenção, e bom trabalho!",
-    "Sem pressa nenhuma. Obrigado!",
-    "Qualquer dúvida, estou por aqui. Cumprimentos!",
-  ],
+const FECHOS: Record<Locale, Record<Situacao, string[]>> = {
+  BR: {
+    comSite: [
+      "Fica o convite. Obrigado!",
+      "Qualquer dúvida sobre esses pontos, é só chamar. Obrigado!",
+      "Fico à disposição para detalhar qualquer um desses pontos. Obrigado!",
+      "Se quiser, te mostro esses detalhes com calma. Obrigado pela atenção!",
+      "Obrigado pela atenção, e bom trabalho por aí!",
+      "Sem pressa nenhuma para responder. Obrigado!",
+      "Qualquer dúvida sobre o que apontei, estou por aqui. Abraço!",
+    ],
+    semSite: [
+      "Fica o convite. Obrigado!",
+      "Qualquer coisa, é só chamar. Obrigado!",
+      "Fico à disposição para conversar quando fizer sentido. Obrigado!",
+      "Se fizer sentido, me avisa. Obrigado pela atenção!",
+      "Obrigado pela atenção, e bom trabalho por aí!",
+      "Sem pressa nenhuma. Quando quiser dar o primeiro passo, estou por aqui. Obrigado!",
+      "Qualquer dúvida sobre como funcionaria, estou por aqui. Abraço!",
+    ],
+  },
+  PT: {
+    comSite: [
+      "Fica o convite. Obrigado!",
+      "Qualquer questão sobre esses pontos, diga. Obrigado!",
+      "Fico ao dispor para detalhar qualquer um desses pontos. Obrigado!",
+      "Se quiser, mostro-lhe esses detalhes com calma. Obrigado pela atenção!",
+      "Obrigado pela atenção, e bom trabalho!",
+      "Sem pressa nenhuma para responder. Obrigado!",
+      "Qualquer dúvida sobre o que referi, estou por aqui. Cumprimentos!",
+    ],
+    semSite: [
+      "Fica o convite. Obrigado!",
+      "Qualquer questão, diga. Obrigado!",
+      "Fico ao dispor para conversar quando fizer sentido. Obrigado!",
+      "Se fizer sentido, é só dizer. Obrigado pela atenção!",
+      "Obrigado pela atenção, e bom trabalho!",
+      "Sem pressa nenhuma. Quando quiser dar o primeiro passo, estou por aqui. Obrigado!",
+      "Qualquer dúvida sobre como funcionaria, estou por aqui. Cumprimentos!",
+    ],
+  },
 };
 
 /* ------------------------------------------------------------------ montagem */
@@ -616,7 +658,7 @@ export function buildWhatsappParts(
   partes.push(cta);
   // O estilo "curto" existe para caber em poucas linhas: um paragrafo de
   // despedida derrubaria justamente o que ele tem de util.
-  if (style !== "curto") partes.push(pick(FECHOS[l], base >> 9));
+  if (style !== "curto") partes.push(pick(FECHOS[l][situacao], base >> 9));
   // A assinatura tambem varia: uma versao traz o wa.me escrito, para o link
   // sobreviver em texto puro, e a outra so os numeros, para quando o destino
   // ja entende HTML ou o endereco a vista atrapalha.
