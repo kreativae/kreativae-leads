@@ -1223,7 +1223,7 @@ export function LeadDrawer({
                 }
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
                   favoritoAtual
-                    ? "border-amber-300/40 bg-amber-300/10 text-amber-300"
+                    ? "border-volt/50 bg-volt/10 text-volt"
                     : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
                 }`}
               >
@@ -1609,7 +1609,7 @@ export function LeadDrawer({
                           aria-label={favoritado ? `Remover a parte ${i + 1} dos favoritos` : `Favoritar a parte ${i + 1}`}
                           className={`shrink-0 rounded-lg border p-2 transition-colors ${
                             favoritado
-                              ? "border-amber-300/40 bg-amber-300/10 text-amber-300"
+                              ? "border-volt/50 bg-volt/10 text-volt"
                               : "border-white/[0.08] text-zinc-500 hover:border-volt/40 hover:text-volt"
                           }`}
                         >
