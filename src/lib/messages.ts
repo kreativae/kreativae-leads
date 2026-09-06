@@ -7,6 +7,12 @@ export type MessageStyle =
   | "curto"
   | "pergunta";
 
+/** Os 5 itens cuja REDACAO pode ser favoritada individualmente. */
+export type Slot = "saudacao" | "apresentacao" | "gancho" | "cta" | "fecho";
+
+/** Ordem em que os itens aparecem na mensagem, dado um conjunto de opcoes. */
+export type ParteNome = Slot | "sobre" | "assinatura";
+
 export const MESSAGE_STYLES: { key: MessageStyle; label: string }[] = [
   { key: "consultivo", label: "Consultivo" },
   { key: "direto", label: "Direto" },
@@ -36,6 +42,43 @@ export interface MessageOptions {
   senderName?: string | null;
   /** Bloco de assinatura no fim. Faz sentido em e-mail, nao no WhatsApp. */
   includeSignature?: boolean;
+  /**
+   * Forca um item a usar um indice especifico da lista dele, em vez do
+   * indice tirado do hash. E o que aplica uma frase favoritada: as outras
+   * partes continuam variando normalmente, so o item forcado fica fixo.
+   * O indice e levado ao modulo do tamanho da lista, entao sobrevive mesmo
+   * que a lista mude de tamanho depois (a frase pode deixar de ser
+   * exatamente a mesma, mas nunca quebra).
+   */
+  forcarIndices?: Partial<Record<Slot, number>>;
+}
+
+/**
+ * A "receita" por tras de uma mensagem: qual indice de cada lista foi usado.
+ * null em "gancho" significa diagnostico automatico (não vem de uma lista,
+ * entao nao da para favoritar); null em "fecho" significa estilo "curto"
+ * (que nao tem fecho).
+ */
+export interface Receita {
+  saudacao: number;
+  apresentacao: number;
+  gancho: number | null;
+  cta: number;
+  fecho: number | null;
+}
+
+/** Em que ordem os itens aparecem na mensagem, dadas as opcoes escolhidas. */
+export function ordemDasPartes(opts: {
+  includeAbout?: boolean;
+  includeSignature?: boolean;
+  style: MessageStyle;
+}): ParteNome[] {
+  const ordem: ParteNome[] = ["saudacao", "apresentacao", "gancho"];
+  if (opts.includeAbout) ordem.push("sobre");
+  ordem.push("cta");
+  if (opts.style !== "curto") ordem.push("fecho");
+  if (opts.includeSignature) ordem.push("assinatura");
+  return ordem;
 }
 
 /** Cargo e pracas da assinatura. Editar aqui muda em todo o sistema. */
@@ -105,6 +148,16 @@ function seed(str: string): number {
 
 function pick<T>(arr: T[], n: number): T {
   return arr[n % arr.length];
+}
+
+/**
+ * Resolve o indice de uma lista: usa o forcado quando existe (favorito
+ * aplicado), senao cai no valor tirado do hash. O modulo garante indice
+ * valido mesmo com um numero forcado fora da faixa ou negativo.
+ */
+function resolverIndice(forcado: number | undefined, n: number, tamanho: number): number {
+  const bruto = forcado ?? n;
+  return ((bruto % tamanho) + tamanho) % tamanho;
 }
 
 /* ---------------------------------------------------------------- saudacao */
@@ -251,7 +304,14 @@ const APRESENTACOES: Record<
 
 /* ----------------------------------------------------------------- ganchos */
 
-function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: string, n: number): string {
+function ganchoSemSite(
+  l: Locale,
+  style: MessageStyle,
+  empresa: string,
+  lugar: string,
+  n: number,
+  forcarIndice?: number,
+): { texto: string; indice: number } {
   const BR = {
     consultivo: [
       `Estive pesquisando ${empresa}${lugar} e vi que vocês ainda não têm um site. Hoje o site é a vitrine do negócio: é onde o cliente vê o trabalho, entende o serviço e decide se confia, tudo isso antes de falar com vocês.`,
@@ -312,10 +372,18 @@ function ganchoSemSite(l: Locale, style: MessageStyle, empresa: string, lugar: s
       `Posso perguntar? Hoje, sem site, como é que o cliente novo conhece o trabalho da ${empresa} antes de decidir?`,
     ],
   };
-  return pick((l === "PT" ? PT : BR)[style], n);
+  const lista = (l === "PT" ? PT : BR)[style];
+  const indice = resolverIndice(forcarIndice, n, lista.length);
+  return { texto: lista[indice], indice };
 }
 
-function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: number): string {
+function ganchoSiteFraco(
+  l: Locale,
+  style: MessageStyle,
+  empresa: string,
+  n: number,
+  forcarIndice?: number,
+): { texto: string; indice: number } {
   const BR = {
     consultivo: [
       `Visitei o site da ${empresa} e gostei do trabalho de vocês. Vi alguns pontos que, ajustados, fariam o visitante chegar bem mais rápido ao que procura, e isso costuma virar contato.`,
@@ -382,7 +450,9 @@ function ganchoSiteFraco(l: Locale, style: MessageStyle, empresa: string, n: num
       `Já reparou se o site da ${empresa} abre bem em todos os aparelhos? Notei alguns elementos que não carregam bem em alguns navegadores.`,
     ],
   };
-  return pick((l === "PT" ? PT : BR)[style], n);
+  const lista = (l === "PT" ? PT : BR)[style];
+  const indice = resolverIndice(forcarIndice, n, lista.length);
+  return { texto: lista[indice], indice };
 }
 
 /* -------------------------------------------- gancho a partir do diagnostico */
@@ -467,7 +537,7 @@ function ganchoDiagnostico(
 
 /* --------------------------------------------------------------------- cta */
 
-type Situacao = "comSite" | "semSite";
+export type Situacao = "comSite" | "semSite";
 
 /**
  * A oferta muda conforme o lead: quem tem site recebe proposta de
@@ -619,46 +689,58 @@ const FECHOS: Record<Locale, Record<Situacao, string[]>> = {
  * Devolve a mensagem em partes. Mandar 4 mensagens curtas em sequencia soa
  * como alguem digitando; um bloco unico soa como disparo automatico.
  */
-export function buildWhatsappParts(
+/** Monta as partes e a receita (indices) de uma so vez: uma unica fonte de verdade. */
+function montar(
   lead: MessageLead,
-  opts: MessageOptions = {},
-): string[] {
+  opts: MessageOptions,
+): { partes: string[]; receita: Receita; situacao: Situacao; style: MessageStyle } {
   const l: Locale = lead.country === "PT" ? "PT" : "BR";
   const variant = opts.variant ?? 0;
   const base = seed(`${lead.id}:${variant}`);
   const style = opts.style ?? pick(MESSAGE_STYLES, base).key;
+  const forcar = opts.forcarIndices;
 
   const primeiroNome = lead.ownerName?.trim().split(/\s+/)[0];
   const empresa = lead.companyName;
   const lugar = lead.city ? ` em ${lead.city}` : "";
 
-  const saudacao = pick(SAUDACOES[l], base)(
-    primeiroNome,
-    cumprimentoDoDia(lead.country),
-  );
-  const apresentacao = pick(APRESENTACOES[l][style], base >> 3)(
-    opts.senderName?.trim() || null,
-  );
+  const saudacaoLista = SAUDACOES[l];
+  const saudacaoIdx = resolverIndice(forcar?.saudacao, base, saudacaoLista.length);
+  const saudacao = saudacaoLista[saudacaoIdx](primeiroNome, cumprimentoDoDia(lead.country));
+
+  const apresentacaoLista = APRESENTACOES[l][style];
+  const apresentacaoIdx = resolverIndice(forcar?.apresentacao, base >> 3, apresentacaoLista.length);
+  const apresentacao = apresentacaoLista[apresentacaoIdx](opts.senderName?.trim() || null);
 
   let gancho: string | null = null;
+  let ganchoIdx: number | null = null;
   if (opts.useAnalysis && lead.websiteChecks?.length) {
     gancho = ganchoDiagnostico(l, style, empresa, lead.websiteChecks, base >> 5);
   }
   if (!gancho) {
-    gancho = !lead.website
-      ? ganchoSemSite(l, style, empresa, lugar, base >> 5)
-      : ganchoSiteFraco(l, style, empresa, base >> 5);
+    const r = !lead.website
+      ? ganchoSemSite(l, style, empresa, lugar, base >> 5, forcar?.gancho)
+      : ganchoSiteFraco(l, style, empresa, base >> 5, forcar?.gancho);
+    gancho = r.texto;
+    ganchoIdx = r.indice;
   }
 
   const situacao: Situacao = lead.website ? "comSite" : "semSite";
-  const cta = pick(CTAS[l][situacao][style], base >> 7);
+  const ctaLista = CTAS[l][situacao][style];
+  const ctaIdx = resolverIndice(forcar?.cta, base >> 7, ctaLista.length);
+  const cta = ctaLista[ctaIdx];
 
   const partes = [saudacao, apresentacao, gancho];
   if (opts.includeAbout) partes.push(pick(SOBRE[l], base >> 11));
   partes.push(cta);
   // O estilo "curto" existe para caber em poucas linhas: um paragrafo de
   // despedida derrubaria justamente o que ele tem de util.
-  if (style !== "curto") partes.push(pick(FECHOS[l][situacao], base >> 9));
+  let fechoIdx: number | null = null;
+  if (style !== "curto") {
+    const fechoLista = FECHOS[l][situacao];
+    fechoIdx = resolverIndice(forcar?.fecho, base >> 9, fechoLista.length);
+    partes.push(fechoLista[fechoIdx]);
+  }
   // A assinatura tambem varia: uma versao traz o wa.me escrito, para o link
   // sobreviver em texto puro, e a outra so os numeros, para quando o destino
   // ja entende HTML ou o endereco a vista atrapalha.
@@ -670,7 +752,30 @@ export function buildWhatsappParts(
   if (opts.includeSignature)
     partes.push(buildSignature(opts.senderName, Math.abs(variant) % 2 === 0));
 
-  return partes;
+  return {
+    partes,
+    receita: {
+      saudacao: saudacaoIdx,
+      apresentacao: apresentacaoIdx,
+      gancho: ganchoIdx,
+      cta: ctaIdx,
+      fecho: fechoIdx,
+    },
+    situacao,
+    style,
+  };
+}
+
+export function buildWhatsappParts(
+  lead: MessageLead,
+  opts: MessageOptions = {},
+): string[] {
+  return montar(lead, opts).partes;
+}
+
+/** So a receita (quais indices foram usados), sem gerar o texto de novo por fora. */
+export function buildReceita(lead: MessageLead, opts: MessageOptions = {}): Receita {
+  return montar(lead, opts).receita;
 }
 
 export function buildWhatsappMessage(

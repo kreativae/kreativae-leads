@@ -51,13 +51,23 @@ import {
   type Favorito,
 } from "@/lib/message-favorites";
 import {
+  listarFavoritosPartes,
+  ehFavoritoParte,
+  alternarFavoritoParte,
+  removerFavoritoParte,
+  type FavoritoParte,
+} from "@/lib/message-part-favorites";
+import {
   buildWhatsappParts,
+  buildReceita,
+  ordemDasPartes,
   emailSubject,
   textoParaHtmlEmail,
   mailtoLink,
   MESSAGE_STYLES,
   waMeLink,
   type MessageStyle,
+  type Slot,
 } from "@/lib/messages";
 import { formatPhone, toWhatsappDigits } from "@/lib/phone";
 import { timeAgo } from "@/lib/format";
@@ -143,6 +153,15 @@ function useMeuNome(): string | null {
   return nome;
 }
 
+/** Rotulo de cada item favoritavel, na ordem em que aparecem no painel de favoritos. */
+const SLOTS_COM_LABEL: [Slot, string][] = [
+  ["saudacao", "Saudação"],
+  ["apresentacao", "Apresentação"],
+  ["gancho", "Gancho"],
+  ["cta", "Proposta"],
+  ["fecho", "Fechamento"],
+];
+
 export function LeadDrawer({
   lead,
   onClose,
@@ -223,6 +242,76 @@ export function LeadDrawer({
     setMsgVariant(fav.variant);
     setEditado(null);
     setDesvios([]);
+    // Uma mensagem inteira favoritada e um recomeco: qualquer item forcado
+    // de antes pode nem existir mais nesse novo estilo (o "curto" nao tem
+    // fecho, por exemplo).
+    setForcados({});
+    setMostrarFavoritos(false);
+  }
+
+  // --- favoritos POR ITEM (item 1, item 3, item 5...) -----------------
+  const [favoritosPartes, setFavoritosPartes] = useState<FavoritoParte[]>(
+    () => listarFavoritosPartes(),
+  );
+  // Indice forcado por item: o que faz "Usar" (de um favorito de item)
+  // realmente prender aquela frase, enquanto os outros itens continuam
+  // variando normalmente.
+  const [forcados, setForcados] = useState<Partial<Record<Slot, number>>>({});
+
+  const ordemAtual = ordemDasPartes({
+    includeAbout: incluirSobre,
+    includeSignature: incluirAssinatura,
+    style: msgStyle,
+  });
+
+  /** Estilo e situacao que identificam um favorito deste item — null quando o item nao varia por isso. */
+  function chaveDoItem(slot: Slot): { style: MessageStyle | null; situacao: "comSite" | "semSite" | null } {
+    return {
+      style: slot === "saudacao" ? null : msgStyle,
+      situacao: slot === "gancho" || slot === "cta" || slot === "fecho" ? situacaoAtual : null,
+    };
+  }
+
+  /** A receita (indices) de fato usada na parte i, incluindo desvio proprio e itens forcados. */
+  function receitaDaLinha(i: number) {
+    const d = desvios[i] ?? 0;
+    return buildReceita(lead, {
+      style: msgStyle,
+      variant: msgVariant + d * 7,
+      useAnalysis: usarDiagnostico && temDiagnostico,
+      includeAbout: incluirSobre,
+      forcarIndices: forcados,
+    });
+  }
+
+  /** Favorita ou desfavorita a frase que esta na tela agora, na parte i. */
+  function favoritarParte(i: number) {
+    const slot = ordemAtual[i];
+    if (slot !== "saudacao" && slot !== "apresentacao" && slot !== "gancho" && slot !== "cta" && slot !== "fecho")
+      return;
+    const receita = receitaDaLinha(i);
+    const indice = receita[slot];
+    if (indice === null) return; // diagnostico automatico, ou "curto" sem fecho: nao ha o que favoritar
+    const { style, situacao } = chaveDoItem(slot);
+    setFavoritosPartes(alternarFavoritoParte(slot, style, situacao, indice));
+  }
+
+  const favoritosPartesAplicaveis = favoritosPartes.filter(
+    (f) => f.situacao === null || f.situacao === situacaoAtual,
+  );
+
+  /** Aplica um favorito de item: prende so aquele item, sem mexer no resto da mensagem. */
+  function usarFavoritoParte(fav: FavoritoParte) {
+    const estiloMudou = fav.style !== null && fav.style !== msgStyle;
+    if (estiloMudou) setMsgStyle(fav.style as MessageStyle);
+    setForcados((atual) => {
+      // Trocar de estilo invalida os OUTROS itens forcados que dependem de
+      // estilo (a lista de frases e outra); a saudacao sobrevive, porque
+      // nao depende de estilo.
+      const base = estiloMudou ? { saudacao: atual.saudacao } : { ...atual };
+      return { ...base, [fav.slot]: fav.indice };
+    });
+    setEditado(null);
     setMostrarFavoritos(false);
   }
   const [fixarModoBloco, setFixarModoBloco] = useState(
@@ -354,6 +443,7 @@ export function LeadDrawer({
     includeAbout: incluirSobre,
     includeSignature: incluirAssinatura,
     senderName: meuNome,
+    forcarIndices: forcados,
   });
   // Editar uma parte congela todas: senao um clique em "Variar" trocaria as
   // nao editadas e a mensagem viraria uma colcha de retalhos.
@@ -367,7 +457,10 @@ export function LeadDrawer({
   const partes = editado ?? partesVariadas;
 
   /** Gera a lista de partes para um deslocamento de variante. */
-  function gerarCom(desvio: number): string[] {
+  function gerarCom(
+    desvio: number,
+    forcarIndicesSobrescrito?: Partial<Record<Slot, number>>,
+  ): string[] {
     return buildWhatsappParts(lead, {
       style: msgStyle,
       variant: msgVariant + desvio * 7,
@@ -375,6 +468,7 @@ export function LeadDrawer({
       includeAbout: incluirSobre,
       includeSignature: incluirAssinatura,
       senderName: meuNome,
+      forcarIndices: forcarIndicesSobrescrito ?? forcados,
     });
   }
 
@@ -384,18 +478,32 @@ export function LeadDrawer({
    * repetiria a atual — o usuario clicaria e nada mudaria na tela.
    */
   function variarParte(i: number) {
+    // Pedir outra redacao e um "nao quero mais esta": solta qualquer item
+    // forcado por um favorito aplicado nesta posicao antes de procurar.
+    // Sem isso, a busca giraria as 12 tentativas sem achar nada diferente,
+    // porque o indice forcado ignora a variante.
+    const slot = ordemAtual[i];
+    const tinhaForcado =
+      (slot === "saudacao" || slot === "apresentacao" || slot === "gancho" || slot === "cta" || slot === "fecho") &&
+      forcados[slot] !== undefined;
+    const semForcar = { ...forcados };
+    if (tinhaForcado) delete semForcar[slot as Slot];
+
     const atual = partes[i];
     const de = desvios[i] ?? 0;
     for (let k = 1; k <= 12; k++) {
-      const candidato = gerarCom(de + k)[i];
+      const candidato = gerarCom(de + k, semForcar)[i];
       if (!candidato || candidato === atual) continue;
       const novos = [...desvios];
       novos[i] = de + k;
       setDesvios(novos);
+      if (tinhaForcado) setForcados(semForcar);
       if (editado) setEditado(editado.map((p, j) => (j === i ? candidato : p)));
       return;
     }
-    // Sem alternativa: esta parte so tem uma redacao para o estilo atual.
+    // Nenhuma redacao diferente: ainda assim solta o item forcado, porque o
+    // pedido foi "quero outra coisa", nao "mantenha esta".
+    if (tinhaForcado) setForcados(semForcar);
   }
 
   const mensagemFinal = partes.join("\n\n");
@@ -1125,11 +1233,11 @@ export function LeadDrawer({
                 />
                 Favoritar
               </button>
-              {favoritos.length > 0 && (
+              {(favoritos.length > 0 || favoritosPartesAplicaveis.length > 0) && (
                 <button
                   type="button"
                   onClick={() => setMostrarFavoritos((v) => !v)}
-                  title="Suas combinações favoritas, prontas para aplicar em qualquer lead"
+                  title="Suas combinações e frases favoritas, prontas para aplicar em qualquer lead"
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
                     mostrarFavoritos
                       ? "border-volt/50 bg-volt/10 text-volt"
@@ -1138,7 +1246,7 @@ export function LeadDrawer({
                 >
                   Favoritos
                   <span className="rounded-full bg-white/10 px-1.5 py-px text-[10px] text-zinc-300">
-                    {favoritos.length}
+                    {favoritos.length + favoritosPartesAplicaveis.length}
                   </span>
                 </button>
               )}
@@ -1292,53 +1400,121 @@ export function LeadDrawer({
               </div>
             </div>
             {mostrarFavoritos && (
-              <div className="mb-2.5 flex flex-col gap-1.5 rounded-xl border border-white/[0.09] bg-white/[0.03] p-3">
-                {favoritos.length === 0 ? (
+              <div className="mb-2.5 flex flex-col gap-2.5 rounded-xl border border-white/[0.09] bg-white/[0.03] p-3">
+                {favoritos.length === 0 && favoritosPartesAplicaveis.length === 0 ? (
                   <p className="text-[12px] text-zinc-500">
-                    Nenhum favorito ainda. Clique em “Favoritar” quando gostar de uma redação.
+                    Nenhum favorito ainda. Clique na estrela ao lado de “Variar”, ou na estrela de
+                    um item específico, quando gostar de uma redação.
                   </p>
                 ) : (
-                  favoritos.map((fav) => {
-                    // Refaz a receita com os dados DESTE lead: o texto muda
-                    // de lead para lead, a combinacao (estilo + variante) e
-                    // o que foi favoritado.
-                    const preview =
-                      buildWhatsappParts(lead, {
-                        style: fav.style,
-                        variant: fav.variant,
-                      })[2] ?? "";
-                    return (
-                      <div
-                        key={fav.id}
-                        className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2"
-                      >
-                        <span className="shrink-0 rounded-full border border-white/[0.09] px-2 py-0.5 text-[10.5px] font-semibold text-zinc-400">
-                          {MESSAGE_STYLES.find((s) => s.key === fav.style)?.label ?? fav.style}
-                        </span>
-                        <p
-                          className="min-w-0 flex-1 truncate text-[12px] text-zinc-400"
-                          title={preview}
-                        >
-                          {preview}
+                  <>
+                    {favoritos.length > 0 && (
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-600">
+                          Mensagem completa
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => usarFavorito(fav)}
-                          className="shrink-0 rounded-full border border-volt/40 px-2.5 py-1 text-[11px] font-semibold text-volt transition-colors hover:bg-volt/10"
-                        >
-                          Usar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFavoritos(removerFavorito(fav.id))}
-                          title="Remover favorito"
-                          className="shrink-0 text-zinc-600 transition-colors hover:text-rose-400"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {favoritos.map((fav) => {
+                          // Refaz a receita com os dados DESTE lead: o texto muda
+                          // de lead para lead, a combinacao (estilo + variante) e
+                          // o que foi favoritado.
+                          const preview =
+                            buildWhatsappParts(lead, {
+                              style: fav.style,
+                              variant: fav.variant,
+                            })[2] ?? "";
+                          return (
+                            <div
+                              key={fav.id}
+                              className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2"
+                            >
+                              <span className="shrink-0 rounded-full border border-white/[0.09] px-2 py-0.5 text-[10.5px] font-semibold text-zinc-400">
+                                {MESSAGE_STYLES.find((s) => s.key === fav.style)?.label ?? fav.style}
+                              </span>
+                              <p
+                                className="min-w-0 flex-1 truncate text-[12px] text-zinc-400"
+                                title={preview}
+                              >
+                                {preview}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => usarFavorito(fav)}
+                                className="shrink-0 rounded-full border border-volt/40 px-2.5 py-1 text-[11px] font-semibold text-volt transition-colors hover:bg-volt/10"
+                              >
+                                Usar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setFavoritos(removerFavorito(fav.id))}
+                                title="Remover favorito"
+                                className="shrink-0 text-zinc-600 transition-colors hover:text-rose-400"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })
+                    )}
+                    {SLOTS_COM_LABEL.map(([slot, label]) => {
+                      // So oferece favoritos da MESMA situacao deste lead: aplicar
+                      // um gancho de "sem site" a um lead que tem site nao faz
+                      // sentido, entao nem aparece na lista.
+                      const doSlot = favoritosPartes.filter(
+                        (f) => f.slot === slot && (f.situacao === null || f.situacao === situacaoAtual),
+                      );
+                      if (doSlot.length === 0) return null;
+                      return (
+                        <div key={slot} className="flex flex-col gap-1.5">
+                          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-600">
+                            {label}
+                          </p>
+                          {doSlot.map((fav) => {
+                            const style = fav.style ?? msgStyle;
+                            const opts = {
+                              style,
+                              forcarIndices: { [fav.slot]: fav.indice } as Partial<Record<Slot, number>>,
+                            };
+                            const idx = ordemDasPartes(opts).indexOf(fav.slot);
+                            const preview = buildWhatsappParts(lead, opts)[idx] ?? "";
+                            return (
+                              <div
+                                key={fav.id}
+                                className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2"
+                              >
+                                {fav.style && (
+                                  <span className="shrink-0 rounded-full border border-white/[0.09] px-2 py-0.5 text-[10.5px] font-semibold text-zinc-400">
+                                    {MESSAGE_STYLES.find((s) => s.key === fav.style)?.label ?? fav.style}
+                                  </span>
+                                )}
+                                <p
+                                  className="min-w-0 flex-1 truncate text-[12px] text-zinc-400"
+                                  title={preview}
+                                >
+                                  {preview}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => usarFavoritoParte(fav)}
+                                  className="shrink-0 rounded-full border border-volt/40 px-2.5 py-1 text-[11px] font-semibold text-volt transition-colors hover:bg-volt/10"
+                                >
+                                  Usar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setFavoritosPartes(removerFavoritoParte(fav.id))}
+                                  title="Remover favorito"
+                                  className="shrink-0 text-zinc-600 transition-colors hover:text-rose-400"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </>
                 )}
               </div>
             )}
@@ -1412,6 +1588,35 @@ export function LeadDrawer({
                     >
                       <Shuffle className="h-3.5 w-3.5" />
                     </button>
+                    {(() => {
+                      const slot = ordemAtual[i];
+                      const favoritavel =
+                        slot === "saudacao" || slot === "apresentacao" || slot === "gancho" || slot === "cta" || slot === "fecho";
+                      if (!favoritavel) return null;
+                      const receita = receitaDaLinha(i);
+                      const indice = receita[slot];
+                      // Diagnostico automatico (gancho) ou estilo "curto" (sem fecho): nao ha indice para favoritar.
+                      if (indice === null) return null;
+                      // Texto editado a mao pode nao bater mais com o indice: favoritar aqui confundiria "o que foi salvo" com "o que esta na tela".
+                      if (editado !== null) return null;
+                      const { style, situacao } = chaveDoItem(slot);
+                      const favoritado = ehFavoritoParte(favoritosPartes, slot, style, situacao, indice);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => favoritarParte(i)}
+                          title={favoritado ? `Remover a parte ${i + 1} dos favoritos` : `Favoritar a redação da parte ${i + 1}`}
+                          aria-label={favoritado ? `Remover a parte ${i + 1} dos favoritos` : `Favoritar a parte ${i + 1}`}
+                          className={`shrink-0 rounded-lg border p-2 transition-colors ${
+                            favoritado
+                              ? "border-amber-300/40 bg-amber-300/10 text-amber-300"
+                              : "border-white/[0.08] text-zinc-500 hover:border-volt/40 hover:text-volt"
+                          }`}
+                        >
+                          <Star className="h-3.5 w-3.5" fill={favoritado ? "currentColor" : "none"} />
+                        </button>
+                      );
+                    })()}
                   </div>
                 </li>
               ))}
