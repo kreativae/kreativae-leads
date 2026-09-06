@@ -44,6 +44,13 @@ import { LEAD_STATUSES } from "@/lib/constants";
 import { copiarRico } from "@/lib/clipboard";
 import { lerPref, gravarPref, type CampoFixavel } from "@/lib/message-prefs";
 import {
+  listarFavoritos,
+  ehFavorito,
+  alternarFavorito,
+  removerFavorito,
+  type Favorito,
+} from "@/lib/message-favorites";
+import {
   buildWhatsappParts,
   emailSubject,
   textoParaHtmlEmail,
@@ -198,6 +205,26 @@ export function LeadDrawer({
   const [modoBloco, setModoBloco] = useState(
     prefModoBloco?.fixado ? prefModoBloco.valor : false,
   );
+  const situacaoAtual: "comSite" | "semSite" = lead.website ? "comSite" : "semSite";
+  const [favoritos, setFavoritos] = useState<Favorito[]>(() => listarFavoritos());
+  const [mostrarFavoritos, setMostrarFavoritos] = useState(false);
+  const favoritoAtual = favoritos.find(
+    (f) => f.style === msgStyle && f.variant === msgVariant,
+  );
+
+  /** Favorita ou desfavorita a combinacao (estilo, variante) atual. */
+  function favoritarAtual() {
+    setFavoritos(alternarFavorito(msgStyle, msgVariant, situacaoAtual));
+  }
+
+  /** Aplica um favorito: refaz a receita com os dados DESTE lead. */
+  function usarFavorito(fav: Favorito) {
+    setMsgStyle(fav.style);
+    setMsgVariant(fav.variant);
+    setEditado(null);
+    setDesvios([]);
+    setMostrarFavoritos(false);
+  }
   const [fixarModoBloco, setFixarModoBloco] = useState(
     prefModoBloco?.fixado ?? false,
   );
@@ -1078,6 +1105,43 @@ export function LeadDrawer({
                 <RefreshCw className="h-3 w-3" />
                 Variar
               </button>
+              <button
+                type="button"
+                onClick={favoritarAtual}
+                title={
+                  favoritoAtual
+                    ? "Remover dos favoritos"
+                    : "Favoritar esta combinação de estilo e redação"
+                }
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+                  favoritoAtual
+                    ? "border-amber-300/40 bg-amber-300/10 text-amber-300"
+                    : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                <Star
+                  className="h-3 w-3"
+                  fill={favoritoAtual ? "currentColor" : "none"}
+                />
+                Favoritar
+              </button>
+              {favoritos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMostrarFavoritos((v) => !v)}
+                  title="Suas combinações favoritas, prontas para aplicar em qualquer lead"
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-semibold transition-colors ${
+                    mostrarFavoritos
+                      ? "border-volt/50 bg-volt/10 text-volt"
+                      : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+                  }`}
+                >
+                  Favoritos
+                  <span className="rounded-full bg-white/10 px-1.5 py-px text-[10px] text-zinc-300">
+                    {favoritos.length}
+                  </span>
+                </button>
+              )}
               {temDiagnostico && (
                 <button
                   type="button"
@@ -1227,6 +1291,57 @@ export function LeadDrawer({
                 </span>
               </div>
             </div>
+            {mostrarFavoritos && (
+              <div className="mb-2.5 flex flex-col gap-1.5 rounded-xl border border-white/[0.09] bg-white/[0.03] p-3">
+                {favoritos.length === 0 ? (
+                  <p className="text-[12px] text-zinc-500">
+                    Nenhum favorito ainda. Clique em “Favoritar” quando gostar de uma redação.
+                  </p>
+                ) : (
+                  favoritos.map((fav) => {
+                    // Refaz a receita com os dados DESTE lead: o texto muda
+                    // de lead para lead, a combinacao (estilo + variante) e
+                    // o que foi favoritado.
+                    const preview =
+                      buildWhatsappParts(lead, {
+                        style: fav.style,
+                        variant: fav.variant,
+                      })[2] ?? "";
+                    return (
+                      <div
+                        key={fav.id}
+                        className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2"
+                      >
+                        <span className="shrink-0 rounded-full border border-white/[0.09] px-2 py-0.5 text-[10.5px] font-semibold text-zinc-400">
+                          {MESSAGE_STYLES.find((s) => s.key === fav.style)?.label ?? fav.style}
+                        </span>
+                        <p
+                          className="min-w-0 flex-1 truncate text-[12px] text-zinc-400"
+                          title={preview}
+                        >
+                          {preview}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => usarFavorito(fav)}
+                          className="shrink-0 rounded-full border border-volt/40 px-2.5 py-1 text-[11px] font-semibold text-volt transition-colors hover:bg-volt/10"
+                        >
+                          Usar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFavoritos(removerFavorito(fav.id))}
+                          title="Remover favorito"
+                          className="shrink-0 text-zinc-600 transition-colors hover:text-rose-400"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
             {modoBloco ? (
               <textarea
                 value={mensagemFinal}
