@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -190,6 +190,16 @@ export function LeadDrawer({
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [horariosAbertos, setHorariosAbertos] = useState(false);
+  // Altura de cada textarea da lista "Em partes" segue o CONTEUDO, nao uma
+  // estimativa de caracteres por linha: essa estimativa era calibrada para
+  // tela estreita, e numa tela larga o texto quebra em menos linhas do que
+  // a conta previa, deixando a caixa com sobra vazia por baixo.
+  const partesRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
+  function ajustarAlturaParte(el: HTMLTextAreaElement | null) {
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }
   const [igBusy, setIgBusy] = useState(false);
   const [igMsg, setIgMsg] = useState<string | null>(null);
   const [msgStyle, setMsgStyle] = useState<MessageStyle>("consultivo");
@@ -461,6 +471,9 @@ export function LeadDrawer({
     return d === 0 ? texto : (gerarCom(d)[i] ?? texto);
   });
   const partes = editado ?? partesVariadas;
+  useEffect(() => {
+    partesRefs.current.forEach(ajustarAlturaParte);
+  }, [partes]);
 
   /** Gera a lista de partes para um deslocamento de variante. */
   function gerarCom(
@@ -1593,17 +1606,20 @@ export function LeadDrawer({
                     {i + 1}
                   </span>
                   <textarea
+                    ref={(el) => {
+                      partesRefs.current[i] = el;
+                      ajustarAlturaParte(el);
+                    }}
                     value={parte}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setEditado(
                         partes.map((p, j) => (j === i ? e.target.value : p)),
-                      )
-                    }
-                    /* 42 e nao 52: no celular a fonte sobe para 16px e cabem menos
-                       caracteres por linha. */
-                    rows={Math.max(2, Math.ceil(parte.length / 42))}
+                      );
+                      ajustarAlturaParte(e.target);
+                    }}
+                    rows={2}
                     spellCheck
-                    className="min-w-0 flex-1 resize-y bg-transparent font-sans text-[12.5px] leading-relaxed text-zinc-300 outline-none"
+                    className="min-w-0 flex-1 resize-none overflow-hidden bg-transparent font-sans text-[12.5px] leading-relaxed text-zinc-300 outline-none"
                   />
                   <div className="mt-0.5 flex shrink-0 flex-col gap-1.5">
                     <button
