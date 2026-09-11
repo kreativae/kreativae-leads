@@ -108,6 +108,8 @@ function LeadsApp() {
   const [avulso, setAvulso] = useState<ClientLead | null>(null);
   const [batch, setBatch] = useState<BatchState | null>(null);
   const cancelBatch = useRef(false);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [excluindoLote, setExcluindoLote] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q), 350);
@@ -300,6 +302,39 @@ function LeadsApp() {
     await fetch(`/api/leads/${id}`, { method: "DELETE" });
     setSelectedId(null);
     fetchLeads();
+  }
+
+  function alternarSelecao(id: string) {
+    setSelecionados((atual) => {
+      const novo = new Set(atual);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  }
+
+  /** Exclusao em massa reusa a mesma rota do lead unico, uma chamada por id
+   * de uma vez: sao deletes simples, sem chamada externa para respeitar. */
+  async function excluirSelecionados() {
+    const n = selecionados.size;
+    if (n === 0 || excluindoLote) return;
+    if (
+      !window.confirm(
+        `Excluir ${n} lead${n > 1 ? "s" : ""} permanentemente? Essa ação não pode ser desfeita.`,
+      )
+    )
+      return;
+    setExcluindoLote(true);
+    try {
+      await Promise.all(
+        [...selecionados].map((id) => fetch(`/api/leads/${id}`, { method: "DELETE" })),
+      );
+      if (selectedId && selecionados.has(selectedId)) setSelectedId(null);
+      setSelecionados(new Set());
+      await fetchLeads();
+    } finally {
+      setExcluindoLote(false);
+    }
   }
 
   return (
@@ -577,22 +612,65 @@ function LeadsApp() {
           </p>
         </div>
       ) : (
-        <motion.ul layout className="grid grid-cols-1 gap-3.5 md:grid-cols-2 2xl:grid-cols-3">
-          <AnimatePresence>
-            {leads.map((l, i) => (
-              <motion.li
-                key={l.id}
-                layout
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.35, delay: Math.min(i * 0.025, 0.4), ease: [0.16, 1, 0.3, 1] }}
+        <>
+          {selecionados.size > 0 && (
+            <div className="sticky top-[4.5rem] z-30 mb-3.5 flex flex-wrap items-center gap-2.5 rounded-2xl border border-rose-400/30 bg-rose-400/[0.07] px-4 py-3 backdrop-blur-xl">
+              <span className="text-[13px] font-semibold text-zinc-100">
+                {selecionados.size} selecionado{selecionados.size > 1 ? "s" : ""}
+              </span>
+              {selecionados.size < leads.length && (
+                <button
+                  type="button"
+                  onClick={() => setSelecionados(new Set(leads.map((l) => l.id)))}
+                  className="text-[12.5px] font-semibold text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+                >
+                  Selecionar {leads.length === data?.total ? "todos" : `os ${leads.length} carregados`}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setSelecionados(new Set())}
+                className="text-[12.5px] font-semibold text-zinc-400 hover:text-zinc-200"
               >
-                <LeadCard lead={l} onOpen={() => setSelectedId(l.id)} />
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </motion.ul>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={excluirSelecionados}
+                disabled={excluindoLote}
+                className="ml-auto inline-flex items-center gap-2 rounded-full bg-rose-400 px-4 py-2 text-[12.5px] font-bold text-ink disabled:opacity-50"
+              >
+                {excluindoLote ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Excluir selecionados
+              </button>
+            </div>
+          )}
+          <motion.ul layout className="grid grid-cols-1 gap-3.5 md:grid-cols-2 2xl:grid-cols-3">
+            <AnimatePresence>
+              {leads.map((l, i) => (
+                <motion.li
+                  key={l.id}
+                  layout
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.35, delay: Math.min(i * 0.025, 0.4), ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <LeadCard
+                    lead={l}
+                    onOpen={() => setSelectedId(l.id)}
+                    selecionado={selecionados.has(l.id)}
+                    onToggleSelecionado={() => alternarSelecao(l.id)}
+                  />
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </motion.ul>
+        </>
       )}
 
       {/* Drawer */}
@@ -651,14 +729,43 @@ function FilterSelect({
 }
 
 /** 12.345 -> "12,3 mil"; 1.234.567 -> "1,2 mi" */
-function LeadCard({ lead, onOpen }: { lead: ClientLead; onOpen: () => void }) {
+function LeadCard({
+  lead,
+  onOpen,
+  selecionado,
+  onToggleSelecionado,
+}: {
+  lead: ClientLead;
+  onOpen: () => void;
+  selecionado: boolean;
+  onToggleSelecionado: () => void;
+}) {
   const phoneDisplay = formatPhone(lead.phone ?? lead.whatsapp, lead.country);
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group w-full rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-left transition-all hover:border-volt/25 hover:bg-white/[0.035]"
-    >
+    <div className="group relative">
+      {/* Fora do botao do card, de proposito: um checkbox dentro de um
+          <button> quebraria a semantica (botao dentro de botao) e um clique
+          nele abriria o drawer junto. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleSelecionado();
+        }}
+        title={selecionado ? "Remover da seleção" : "Selecionar"}
+        className={`absolute right-4 top-4 z-10 flex h-5 w-5 items-center justify-center rounded-md border transition-colors ${
+          selecionado
+            ? "border-volt bg-volt text-onvolt"
+            : "border-white/15 bg-ink/80 text-transparent opacity-0 group-hover:opacity-100 hover:border-volt/50"
+        }`}
+      >
+        <Check className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-left transition-all hover:border-volt/25 hover:bg-white/[0.035]"
+      >
       <div className="flex items-start gap-3.5">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-ink font-display text-[15px] font-bold text-volt">
           {lead.companyName.slice(0, 1).toUpperCase()}
@@ -767,7 +874,8 @@ function LeadCard({ lead, onOpen }: { lead: ClientLead; onOpen: () => void }) {
           <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
         </span>
       </div>
-    </button>
+      </button>
+    </div>
   );
 }
 
