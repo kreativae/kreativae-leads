@@ -62,16 +62,17 @@ html.light {
 }
 
 /*
- * O iOS Safari aplica zoom automatico ao focar um campo com fonte menor que
- * 16px — e sob zoom os elementos position:fixed passam a ser posicionados
- * pelo layout, nao pelo que esta visivel: o header "descola" do topo e o
- * conteudo aparece por tras dele. Forcar 16px evita o zoom na origem.
+ * 14px por pedido explicito, sabendo do efeito colateral: abaixo de 16px o
+ * iOS Safari aplica zoom automatico ao focar um campo, e sob esse zoom os
+ * elementos position:fixed passam a ser posicionados pelo layout, nao pelo
+ * que esta visivel — o header "descola" do topo e o conteudo aparece por
+ * tras dele. Era esse bug que o 16px evitava.
  */
 @media (max-width: 1023px) {
   input,
   select,
   textarea {
-    font-size: 16px;
+    font-size: 14px;
   }
 }
 
