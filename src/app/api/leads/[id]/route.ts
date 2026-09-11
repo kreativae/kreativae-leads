@@ -4,7 +4,7 @@ import { leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { toWhatsappDigits } from "@/lib/phone";
-import { contactScore } from "@/lib/osm";
+import { contactScore, normalizeWebsite } from "@/lib/osm";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     whatsapp?: unknown;
     email?: unknown;
     ownerName?: unknown;
+    website?: unknown;
   };
   try {
     body = await req.json();
@@ -52,6 +53,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
     whatsappSource?: string | null;
     email?: string | null;
     ownerName?: string | null;
+    website?: string | null;
+    // Um site corrigido a mao invalida qualquer analise anterior: ela era
+    // sobre outro site (ou sobre nao ter site nenhum).
+    opportunity?: string;
+    analyzedAt?: null;
+    websiteScore?: null;
+    websiteGrade?: null;
+    websiteChecks?: null;
     contactScore?: number;
     updatedAt: Date;
   } = { updatedAt: new Date() };
@@ -87,6 +96,24 @@ export async function PATCH(req: Request, ctx: Ctx) {
     patch.email = email;
   }
 
+  // A ferramenta erra de vez em quando: o site existe mas nao foi achado,
+  // ou mudou de endereco. Sem "https://" na frente, o link ficaria relativo
+  // e quebraria — mesma normalizacao usada quando o site vem do OSM.
+  if (typeof body.website === "string" || body.website === null) {
+    const bruto = typeof body.website === "string" ? body.website.trim() : "";
+    const website = bruto ? normalizeWebsite(bruto) : null;
+    if (bruto && !website)
+      return NextResponse.json({ ok: false, error: "Site inválido." }, { status: 400 });
+    if (website !== (atual.website ?? null)) {
+      patch.website = website;
+      patch.opportunity = website ? "unreviewed" : "no_website";
+      patch.analyzedAt = null;
+      patch.websiteScore = null;
+      patch.websiteGrade = null;
+      patch.websiteChecks = null;
+    }
+  }
+
   const whats = texto(body.whatsapp, 40);
   if (whats !== undefined) {
     // Numero informado a mao vale mesmo sendo fixo: quem digitou viu de onde
@@ -103,7 +130,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   // Mexer em contato muda a riqueza do lead: recalcula para a ordenacao
   // "dados mais completos" continuar honesta.
-  if (patch.phone !== undefined || patch.whatsapp !== undefined || patch.email !== undefined || patch.ownerName !== undefined) {
+  if (patch.phone !== undefined || patch.whatsapp !== undefined || patch.email !== undefined || patch.ownerName !== undefined || patch.website !== undefined) {
     const merged = { ...atual, ...patch };
     patch.contactScore = contactScore({
       osmId: merged.osmId,

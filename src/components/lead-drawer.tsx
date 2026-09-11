@@ -356,6 +356,7 @@ export function LeadDrawer({
     phone: "",
     whatsapp: "",
     email: "",
+    website: "",
   });
 
   function abrirEdicao() {
@@ -365,6 +366,7 @@ export function LeadDrawer({
       // Mostra com + para ficar claro que o codigo do pais faz parte.
       whatsapp: lead.whatsapp ? `+${lead.whatsapp}` : "",
       email: lead.email ?? "",
+      website: lead.website ?? "",
     });
     setErroContato(null);
     setEditandoContato(true);
@@ -382,6 +384,7 @@ export function LeadDrawer({
           phone: form.phone,
           whatsapp: form.whatsapp,
           email: form.email,
+          website: form.website,
         }),
       });
       const data = (await res.json()) as {
@@ -713,6 +716,7 @@ export function LeadDrawer({
                     ["phone", "Telefone", "+55 43 3322-1234"],
                     ["whatsapp", "WhatsApp", lead.country === "PT" ? "+351 912 345 678" : "+55 43 99999-9999"],
                     ["email", "E-mail", "contato@empresa.com"],
+                    ["website", "Site", "empresa.com"],
                   ] as const
                 ).map(([campo, rotulo, exemplo]) => (
                   <label key={campo} className="block">
@@ -731,7 +735,10 @@ export function LeadDrawer({
                 ))}
                 <p className="text-[11.5px] leading-relaxed text-zinc-500">
                   O WhatsApp aceita fixo: se você viu o número no site do
-                  cliente, ele vale mesmo sem cara de celular.
+                  cliente, ele vale mesmo sem cara de celular. E se a
+                  ferramenta disse que a empresa não tem site mas você achou
+                  um, corrija aqui: sem &quot;https://&quot; funciona, a
+                  gente completa.
                 </p>
                 {erroContato && (
                   <p className="text-[12px] text-rose-300">{erroContato}</p>

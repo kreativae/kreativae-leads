@@ -267,7 +267,7 @@ function pick(tags: Record<string, string>, ...keys: string[]): string | null {
   return null;
 }
 
-function normalizeWebsite(raw: string | null): string | null {
+export function normalizeWebsite(raw: string | null): string | null {
   if (!raw) return null;
   let w = raw.trim();
   if (!w) return null;
