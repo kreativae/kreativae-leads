@@ -8,6 +8,7 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardCopy,
@@ -70,6 +71,7 @@ import {
   type Slot,
 } from "@/lib/messages";
 import { formatPhone, toWhatsappDigits } from "@/lib/phone";
+import { estaAbertoAgora } from "@/lib/opening-hours";
 import { timeAgo } from "@/lib/format";
 import { OpportunityBadge, StatusPill, statusLabel } from "@/components/badges";
 import { ScoreDial } from "@/components/charts";
@@ -187,6 +189,7 @@ export function LeadDrawer({
   const [enrichMsg, setEnrichMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [horariosAbertos, setHorariosAbertos] = useState(false);
   const [igBusy, setIgBusy] = useState(false);
   const [igMsg, setIgMsg] = useState<string | null>(null);
   const [msgStyle, setMsgStyle] = useState<MessageStyle>("consultivo");
@@ -828,7 +831,46 @@ export function LeadDrawer({
               )}
               {lead.openingHours && (
                 <DrawerRow icon={Clock4} label="Horários">
-                  <span className="text-[12.5px] text-zinc-400">{lead.openingHours}</span>
+                  {(() => {
+                    const aberto = estaAbertoAgora(lead.openingHours, lead.country);
+                    return (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setHorariosAbertos((v) => !v)}
+                          className="inline-flex items-center gap-1.5"
+                        >
+                          {aberto !== null && (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                                aberto
+                                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                                  : "border-white/10 bg-white/[0.04] text-zinc-400"
+                              }`}
+                            >
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${aberto ? "bg-emerald-400" : "bg-zinc-500"}`}
+                              />
+                              {aberto ? "Aberto agora" : "Fechado agora"}
+                            </span>
+                          )}
+                          <span className="text-[12px] text-zinc-500 hover:text-zinc-300">
+                            {horariosAbertos ? "Ocultar horários" : "Ver horários"}
+                          </span>
+                          <ChevronDown
+                            className={`h-3 w-3 text-zinc-600 transition-transform ${
+                              horariosAbertos ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                        {horariosAbertos && (
+                          <p className="mt-1.5 text-[12.5px] leading-relaxed text-zinc-400">
+                            {lead.openingHours}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </DrawerRow>
               )}
               {(lead.instagram || lead.facebook || lead.linkedin) && (
