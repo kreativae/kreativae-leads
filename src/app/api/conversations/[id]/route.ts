@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { conversations, messages } from "@/db/schema";
+import { conversations, leads, messages } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
 import { getWaAccount } from "@/lib/settings-db";
-import { sendWaText } from "@/lib/whatsapp";
+import { sendWaMedia, sendWaText, waMediaTypeFromMime } from "@/lib/whatsapp";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,30 @@ export async function GET(_req: Request, ctx: Ctx) {
     .where(eq(messages.conversationId, id))
     .orderBy(asc(messages.createdAt))
     .limit(500);
-  return NextResponse.json({ messages: rows });
+
+  const [convo] = await db
+    .select({ leadId: conversations.leadId })
+    .from(conversations)
+    .where(eq(conversations.id, id))
+    .limit(1);
+
+  let lead = null;
+  if (convo?.leadId) {
+    const [row] = await db.select().from(leads).where(eq(leads.id, convo.leadId)).limit(1);
+    lead = row ?? null;
+  }
+
+  return NextResponse.json({ messages: rows, lead });
+}
+
+export async function DELETE(_req: Request, ctx: Ctx) {
+  const auth = await requireUser();
+  if (auth.error) return auth.error;
+  const { id } = await ctx.params;
+  const [removida] = await db.delete(conversations).where(eq(conversations.id, id)).returning();
+  if (!removida)
+    return NextResponse.json({ ok: false, error: "Conversa não encontrada." }, { status: 404 });
+  return NextResponse.json({ ok: true });
 }
 
 export async function PATCH(_req: Request, ctx: Ctx) {
@@ -38,18 +61,28 @@ export async function POST(req: Request, ctx: Ctx) {
   const auth = await requireUser();
   if (auth.error) return auth.error;
   const { id } = await ctx.params;
-  let body: { body?: unknown };
+  let body: { body?: unknown; mediaUrl?: unknown; mimeType?: unknown; filename?: unknown };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
   }
+
+  // Duas formas de mandar: texto puro (body) ou midia ja hospedada no Blob
+  // pelo upload direto do browser (mediaUrl) — a legenda continua em body.
+  const mediaUrl = typeof body.mediaUrl === "string" ? body.mediaUrl.trim() : "";
+  const mimeType = typeof body.mimeType === "string" ? body.mimeType.trim() : "";
+  const filename = typeof body.filename === "string" ? body.filename.trim() : "";
   const text = typeof body.body === "string" ? body.body.trim() : "";
-  if (!text || text.length > 4000)
+  const caption = text.slice(0, 1024);
+
+  if (!mediaUrl && (!text || text.length > 4000))
     return NextResponse.json(
       { ok: false, error: "Mensagem vazia ou muito longa (máx. 4000)." },
       { status: 400 },
     );
+  if (mediaUrl && !mimeType)
+    return NextResponse.json({ ok: false, error: "Tipo do arquivo ausente." }, { status: 400 });
 
   const [convo] = await db
     .select()
@@ -75,12 +108,23 @@ export async function POST(req: Request, ctx: Ctx) {
       { status: 400 },
     );
 
-  const result = await sendWaText({
-    accessToken: conta.accessToken,
-    phoneNumberId: conta.phoneNumberId,
-    to: convo.contactPhone,
-    body: text,
-  });
+  const tipoMidia = mediaUrl ? waMediaTypeFromMime(mimeType) : null;
+  const result = mediaUrl
+    ? await sendWaMedia({
+        accessToken: conta.accessToken,
+        phoneNumberId: conta.phoneNumberId,
+        to: convo.contactPhone,
+        type: tipoMidia!,
+        link: mediaUrl,
+        caption: caption || undefined,
+        filename: filename || undefined,
+      })
+    : await sendWaText({
+        accessToken: conta.accessToken,
+        phoneNumberId: conta.phoneNumberId,
+        to: convo.contactPhone,
+        body: text,
+      });
 
   if (!result.ok) {
     const hint =
@@ -94,14 +138,19 @@ export async function POST(req: Request, ctx: Ctx) {
   }
 
   const now = new Date();
+  const preview = mediaUrl ? caption || `[${tipoMidia}]` : text;
   const [message] = await db
     .insert(messages)
     .values({
       conversationId: id,
       direction: "out",
-      body: text,
+      body: mediaUrl ? caption : text,
       waMessageId: result.waMessageId ?? null,
       status: "sent",
+      type: tipoMidia ?? "text",
+      mediaUrl: mediaUrl || null,
+      mimeType: mediaUrl ? mimeType : null,
+      fileName: mediaUrl ? filename || null : null,
     })
     .returning();
 
@@ -109,7 +158,7 @@ export async function POST(req: Request, ctx: Ctx) {
     .update(conversations)
     .set({
       lastMessageAt: now,
-      lastMessagePreview: text.slice(0, 140),
+      lastMessagePreview: preview.slice(0, 140),
       updatedAt: now,
     })
     .where(eq(conversations.id, id));

@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { conversations, leads, messages } from "@/db/schema";
 import { and, eq, ilike, isNotNull, sql } from "drizzle-orm";
 import { getEffectiveSetting, getWaAccountByPhoneNumberId } from "@/lib/settings-db";
+import { downloadWaMedia, getWaMediaMeta } from "@/lib/whatsapp";
+import { uploadToBlob } from "@/lib/blob";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +40,11 @@ interface WaWebhookPayload {
           id?: string;
           type?: string;
           text?: { body?: string };
+          image?: { id?: string; mime_type?: string; caption?: string };
+          video?: { id?: string; mime_type?: string; caption?: string };
+          audio?: { id?: string; mime_type?: string };
+          sticker?: { id?: string; mime_type?: string };
+          document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
         }[];
         statuses?: { id?: string; status?: string }[];
       };
@@ -52,6 +59,61 @@ function verifySignature(rawBody: string, signature: string | null, secret: stri
   const a = Buffer.from(expected);
   const b = Buffer.from(signature);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+const TIPOS_MIDIA = ["image", "video", "audio", "sticker", "document"] as const;
+type TipoMidia = (typeof TIPOS_MIDIA)[number];
+
+interface MidiaInbound {
+  ok: true;
+  type: TipoMidia;
+  mediaUrl: string;
+  mimeType: string | null;
+  fileName: string | null;
+  caption: string;
+}
+interface MidiaFalha {
+  ok: false;
+  placeholder: string;
+}
+
+/**
+ * Baixa a midia de uma mensagem recebida (URL da Meta expira em minutos) e
+ * sobe uma copia nossa pro Blob, pra ficar acessivel depois. Se qualquer
+ * passo falhar, cai num placeholder de texto em vez de perder a mensagem
+ * inteira — o historico continua, só sem o arquivo.
+ */
+async function resolverMidiaInbound(
+  msg: Record<string, unknown>,
+  tipo: TipoMidia,
+  accessToken: string | undefined,
+): Promise<MidiaInbound | MidiaFalha> {
+  const obj = msg[tipo] as
+    | { id?: string; mime_type?: string; caption?: string; filename?: string }
+    | undefined;
+  const mediaId = obj?.id;
+  if (!accessToken || !mediaId)
+    return { ok: false, placeholder: `[${tipo} recebida]` };
+
+  const meta = await getWaMediaMeta({ accessToken, mediaId });
+  if (!meta.ok || !meta.url) return { ok: false, placeholder: `[${tipo} recebida]` };
+
+  const baixado = await downloadWaMedia({ accessToken, url: meta.url });
+  if (!baixado.ok) return { ok: false, placeholder: `[${tipo} recebida]` };
+
+  const mimeType = meta.mimeType ?? obj?.mime_type ?? "application/octet-stream";
+  const fileName = obj?.filename ?? null;
+  try {
+    const mediaUrl = await uploadToBlob({
+      bytes: baixado.bytes,
+      contentType: mimeType,
+      filename: fileName ?? `${tipo}.${mimeType.split("/")[1] ?? "bin"}`,
+    });
+    return { ok: true, type: tipo, mediaUrl, mimeType, fileName, caption: obj?.caption ?? "" };
+  } catch (err) {
+    console.error("Falha ao subir mídia recebida no Blob:", err);
+    return { ok: false, placeholder: `[${tipo} recebida]` };
+  }
 }
 
 async function findLeadByPhone(phone: string): Promise<string | null> {
@@ -139,10 +201,22 @@ export async function POST(req: Request) {
           if (!msg.from || !msg.id) continue;
           const phone = msg.from.replace(/\D+/g, "");
           const contact = value.contacts?.find((c) => c.wa_id === phone);
+
+          const tipoMidia = TIPOS_MIDIA.find((t) => t === msg.type);
+          const midia = tipoMidia
+            ? await resolverMidiaInbound(
+                msg as unknown as Record<string, unknown>,
+                tipoMidia,
+                waAccount?.accessToken,
+              )
+            : null;
+
           const bodyText =
             msg.type === "text"
               ? (msg.text?.body ?? "")
-              : `[${msg.type ?? "mídia"} recebida]`;
+              : midia?.ok
+                ? midia.caption
+                : (midia as MidiaFalha | null)?.placeholder ?? `[${msg.type ?? "mídia"} recebida]`;
 
           // Dedup by waMessageId (Meta may retry webhooks)
           const existing = await db
@@ -197,6 +271,10 @@ export async function POST(req: Request) {
             body: bodyText,
             waMessageId: msg.id,
             status: "received",
+            type: midia?.ok ? midia.type : "text",
+            mediaUrl: midia?.ok ? midia.mediaUrl : null,
+            mimeType: midia?.ok ? midia.mimeType : null,
+            fileName: midia?.ok ? midia.fileName : null,
           });
         }
       }

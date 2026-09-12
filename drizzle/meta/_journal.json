@@ -36,6 +36,13 @@
       "when": 1789208508294,
       "tag": "0004_lush_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789214365258,
+      "tag": "0005_small_cable",
+      "breakpoints": true
     }
   ]
 }

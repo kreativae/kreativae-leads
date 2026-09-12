@@ -175,6 +175,13 @@ export const messages = pgTable(
     body: text("body").notNull(),
     waMessageId: text("wa_message_id"),
     status: text("status").notNull().default("sent"), // sent | delivered | read | received
+    // "text" (padrao) ou o tipo de midia (image | document | audio | video |
+    // sticker). Midia sempre tem mediaUrl preenchida (copia nossa, hospedada
+    // no Blob) — body guarda a legenda quando existe, ou "" quando nao.
+    type: text("type").notNull().default("text"),
+    mediaUrl: text("media_url"),
+    mimeType: text("mime_type"),
+    fileName: text("file_name"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
