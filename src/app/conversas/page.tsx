@@ -79,6 +79,15 @@ interface ThreadMessage {
   fileName: string | null;
 }
 
+interface LeadPickResult {
+  id: string;
+  companyName: string;
+  phone: string | null;
+  whatsapp: string | null;
+  city: string | null;
+  segment: string;
+}
+
 const LIMITE_ARQUIVO_MB = 64;
 
 function nomeStatusLead(s: string): string {
@@ -125,8 +134,12 @@ export default function ConversasPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [leadQuery, setLeadQuery] = useState("");
+  const [leadResults, setLeadResults] = useState<LeadPickResult[] | null>(null);
+  const [linkingLeadId, setLinkingLeadId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const leadSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadConvos = useCallback(async () => {
     try {
@@ -166,6 +179,8 @@ export default function ConversasPage() {
   useEffect(() => {
     setShowContact(false);
     setConfirmDelete(false);
+    setLeadQuery("");
+    setLeadResults(null);
     if (!activeId) return;
     setLoadingThread(true);
     loadThread(activeId).finally(() => setLoadingThread(false));
@@ -262,6 +277,47 @@ export default function ConversasPage() {
       }
     } finally {
       setDeleting(false);
+    }
+  }
+
+  function buscarLeadsParaVincular(q: string) {
+    setLeadQuery(q);
+    if (leadSearchTimer.current) clearTimeout(leadSearchTimer.current);
+    if (!q.trim()) {
+      setLeadResults(null);
+      return;
+    }
+    leadSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/leads?q=${encodeURIComponent(q.trim())}&limit=5`);
+        const data = (await res.json()) as { leads?: LeadPickResult[] };
+        setLeadResults(data.leads ?? []);
+      } catch {
+        setLeadResults([]);
+      }
+    }, 300);
+  }
+
+  async function vincularLead(leadId: string) {
+    if (!activeId || linkingLeadId) return;
+    setLinkingLeadId(leadId);
+    try {
+      const res = await fetch(`/api/conversations/${activeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId }),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (data.ok) {
+        setLeadQuery("");
+        setLeadResults(null);
+        await loadThread(activeId);
+        loadConvos();
+      } else {
+        setSendError(data.error ?? "Falha ao vincular lead.");
+      }
+    } finally {
+      setLinkingLeadId(null);
     }
   }
 
@@ -464,9 +520,47 @@ export default function ConversasPage() {
                   >
                     <div className="max-h-[40vh] space-y-2.5 overflow-y-auto px-4 py-4">
                       {!lead ? (
-                        <p className="text-[12.5px] text-zinc-500">
-                          Nenhum lead vinculado a este contato ainda.
-                        </p>
+                        <div className="space-y-2">
+                          <p className="text-[12.5px] text-zinc-500">
+                            Nenhum lead vinculado a este contato ainda — o número pode
+                            estar cadastrado de forma diferente. Busque e vincule manualmente:
+                          </p>
+                          <input
+                            value={leadQuery}
+                            onChange={(e) => buscarLeadsParaVincular(e.target.value)}
+                            placeholder="Buscar por empresa, responsável ou telefone…"
+                            className="w-full rounded-lg border border-white/[0.09] bg-ink px-3 py-2 text-[12.5px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50"
+                          />
+                          {leadResults && (
+                            <div className="space-y-1">
+                              {leadResults.length === 0 ? (
+                                <p className="text-[11.5px] text-zinc-600">Nenhum lead encontrado.</p>
+                              ) : (
+                                leadResults.map((r) => (
+                                  <button
+                                    key={r.id}
+                                    type="button"
+                                    onClick={() => vincularLead(r.id)}
+                                    disabled={linkingLeadId === r.id}
+                                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2 text-left text-[12px] transition-colors hover:border-volt/30 hover:bg-volt/[0.05] disabled:opacity-60"
+                                  >
+                                    <span className="truncate text-zinc-200">
+                                      {r.companyName}
+                                      {r.city && <span className="text-zinc-500"> · {r.city}</span>}
+                                    </span>
+                                    {linkingLeadId === r.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-volt" />
+                                    ) : (
+                                      <span className="shrink-0 text-[10.5px] font-semibold text-volt">
+                                        Vincular
+                                      </span>
+                                    )}
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <>
                           <div className="flex items-center justify-between gap-2">
@@ -542,12 +636,21 @@ export default function ConversasPage() {
                               {lead.notes}
                             </p>
                           )}
-                          <Link
-                            href={`/leads?lead=${active.leadId}`}
-                            className="inline-flex items-center gap-1 text-[12px] font-semibold text-volt hover:underline"
-                          >
-                            Ver ficha completa do lead <ExternalLink className="h-3 w-3" />
-                          </Link>
+                          <div className="flex items-center justify-between gap-2">
+                            <Link
+                              href={`/leads?lead=${active.leadId}`}
+                              className="inline-flex items-center gap-1 text-[12px] font-semibold text-volt hover:underline"
+                            >
+                              Ver ficha completa do lead <ExternalLink className="h-3 w-3" />
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => vincularLead("")}
+                              className="text-[11px] font-semibold text-zinc-500 hover:text-rose-300"
+                            >
+                              Desvincular
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>

@@ -46,14 +46,28 @@ export async function DELETE(_req: Request, ctx: Ctx) {
   return NextResponse.json({ ok: true });
 }
 
-export async function PATCH(_req: Request, ctx: Ctx) {
+export async function PATCH(req: Request, ctx: Ctx) {
   const auth = await requireUser();
   if (auth.error) return auth.error;
   const { id } = await ctx.params;
-  await db
-    .update(conversations)
-    .set({ unreadCount: 0 })
-    .where(eq(conversations.id, id));
+
+  // Sem corpo (chamado ao abrir a conversa) = so marca como lida. Com
+  // "leadId" no corpo = vincula/desvincula manualmente um lead — cobre os
+  // casos em que o telefone da mensagem nao bate com nada no radar (numero
+  // diferente do cadastrado, por exemplo).
+  let body: { leadId?: unknown } = {};
+  try {
+    body = await req.json();
+  } catch {
+    /* PATCH sem corpo */
+  }
+
+  if ("leadId" in body) {
+    const leadId = typeof body.leadId === "string" && body.leadId ? body.leadId : null;
+    await db.update(conversations).set({ leadId }).where(eq(conversations.id, id));
+  } else {
+    await db.update(conversations).set({ unreadCount: 0 }).where(eq(conversations.id, id));
+  }
   return NextResponse.json({ ok: true });
 }
 

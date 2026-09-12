@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/db";
 import { conversations, leads, messages } from "@/db/schema";
-import { and, eq, ilike, isNotNull, sql } from "drizzle-orm";
+import { and, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { getEffectiveSetting, getWaAccountByPhoneNumberId } from "@/lib/settings-db";
 import { downloadWaMedia, getWaMediaMeta } from "@/lib/whatsapp";
 import { uploadToBlob } from "@/lib/blob";
@@ -116,19 +116,46 @@ async function resolverMidiaInbound(
   }
 }
 
+/**
+ * Numeros de celular BR tem um 9º digito que nem sempre aparece nos dois
+ * lados: a Meta as vezes manda o wa_id SEM ele (formato antigo), enquanto o
+ * numero capturado no radar tem ele (formato atual) — ou vice-versa. Sem
+ * gerar as duas variantes, "554391301402" (sem o 9) nunca bate com
+ * "5543991301402" (com o 9), mesmo sendo o mesmo numero.
+ */
+function variantesTelefoneBr(phone: string): string[] {
+  if (!phone.startsWith("55")) return [phone];
+  const ddd = phone.slice(0, 4); // "55" + 2 digitos do DDD
+  const resto = phone.slice(4);
+  if (resto.length === 8) return [phone, ddd + "9" + resto];
+  if (resto.length === 9 && resto[0] === "9") return [phone, ddd + resto.slice(1)];
+  return [phone];
+}
+
 async function findLeadByPhone(phone: string): Promise<string | null> {
-  const last9 = phone.slice(-9);
-  if (last9.length < 8) return null;
+  const last9s = [...new Set(variantesTelefoneBr(phone).map((v) => v.slice(-9)))].filter(
+    (l9) => l9.length >= 8,
+  );
+  if (last9s.length === 0) return null;
+
   const byWhats = await db
     .select({ id: leads.id })
     .from(leads)
-    .where(and(isNotNull(leads.whatsapp), ilike(leads.whatsapp, `%${last9}`)))
+    .where(
+      and(
+        isNotNull(leads.whatsapp),
+        or(...last9s.map((l9) => ilike(leads.whatsapp, `%${l9}`))),
+      ),
+    )
     .limit(1);
   if (byWhats[0]) return byWhats[0].id;
+
   const byPhone = await db
     .select({ id: leads.id })
     .from(leads)
-    .where(and(isNotNull(leads.phone), ilike(leads.phone, `%${last9}`)))
+    .where(
+      and(isNotNull(leads.phone), or(...last9s.map((l9) => ilike(leads.phone, `%${l9}`)))),
+    )
     .limit(1);
   return byPhone[0]?.id ?? null;
 }
