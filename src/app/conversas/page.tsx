@@ -324,14 +324,14 @@ export default function ConversasPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] lg:grid-cols-[340px_1fr]">
-        {/* Conversation list */}
+      <div className="grid h-[calc(100vh-17rem)] min-h-[460px] grid-cols-1 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] lg:grid-cols-[340px_1fr]">
+        {/* Conversation list — altura travada, so a lista de conversas rola */}
         <div
-          className={`border-b border-white/[0.06] lg:border-b-0 lg:border-r ${
-            activeId ? "hidden lg:block" : ""
+          className={`flex h-full flex-col overflow-hidden border-b border-white/[0.06] lg:border-b-0 lg:border-r ${
+            activeId ? "hidden lg:flex" : "flex"
           }`}
         >
-          <div className="border-b border-white/[0.06] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <div className="shrink-0 border-b border-white/[0.06] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">
             Caixa de entrada
           </div>
           {convos.length === 0 ? (
@@ -340,7 +340,7 @@ export default function ConversasPage() {
               automaticamente.
             </div>
           ) : (
-            <ul className="max-h-[65vh] divide-y divide-white/[0.05] overflow-y-auto">
+            <ul className="flex-1 divide-y divide-white/[0.05] overflow-y-auto">
               {convos.map((c) => (
                 <li key={c.id}>
                   <button
@@ -389,8 +389,8 @@ export default function ConversasPage() {
           )}
         </div>
 
-        {/* Thread */}
-        <div className={`flex min-h-[65vh] flex-col ${activeId ? "" : "hidden lg:flex"}`}>
+        {/* Thread — altura travada, so o corpo de mensagens rola */}
+        <div className={`flex h-full flex-col overflow-hidden ${activeId ? "" : "hidden lg:flex"}`}>
           {!active ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-20 text-center">
               <MessageSquare className="h-8 w-8 text-zinc-700" />
@@ -401,7 +401,7 @@ export default function ConversasPage() {
           ) : (
             <>
               {/* Thread header */}
-              <div className="flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
+              <div className="flex shrink-0 items-center gap-3 border-b border-white/[0.06] px-4 py-3">
                 <button
                   type="button"
                   onClick={() => setActiveId(null)}
@@ -460,9 +460,9 @@ export default function ConversasPage() {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden border-b border-white/[0.06] bg-ink/40"
+                    className="shrink-0 overflow-hidden border-b border-white/[0.06] bg-ink/40"
                   >
-                    <div className="space-y-2.5 px-4 py-4">
+                    <div className="max-h-[40vh] space-y-2.5 overflow-y-auto px-4 py-4">
                       {!lead ? (
                         <p className="text-[12.5px] text-zinc-500">
                           Nenhum lead vinculado a este contato ainda.
@@ -601,7 +601,7 @@ export default function ConversasPage() {
               </AnimatePresence>
 
               {windowExpired && (
-                <div className="border-b border-amber-300/20 bg-amber-300/[0.06] px-4 py-2.5 text-[12px] leading-relaxed text-amber-200/85">
+                <div className="shrink-0 border-b border-amber-300/20 bg-amber-300/[0.06] px-4 py-2.5 text-[12px] leading-relaxed text-amber-200/85">
                   Janela de 24h expirada: a Meta só permite reabrir esta conversa com uma
                   mensagem de template aprovada. Quando o cliente responder, o envio
                   livre é liberado de novo.
@@ -690,13 +690,13 @@ export default function ConversasPage() {
               </div>
 
               {sendError && (
-                <div className="border-t border-rose-400/20 bg-rose-400/[0.06] px-4 py-2.5 text-[12px] text-rose-300">
+                <div className="shrink-0 border-t border-rose-400/20 bg-rose-400/[0.06] px-4 py-2.5 text-[12px] text-rose-300">
                   {sendError}
                 </div>
               )}
 
               {/* Composer */}
-              <div className="flex items-end gap-2 border-t border-white/[0.06] p-3">
+              <div className="flex shrink-0 items-end gap-2 border-t border-white/[0.06] p-3">
                 <input
                   ref={fileInputRef}
                   type="file"
