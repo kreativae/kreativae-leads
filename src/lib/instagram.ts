@@ -66,7 +66,7 @@ interface GraphResponse {
     followers_count?: number;
     media_count?: number;
   };
-  error?: { message?: string; code?: number; type?: string };
+  error?: { message?: string; code?: number; type?: string; error_subcode?: number };
 }
 
 /**
@@ -102,12 +102,17 @@ export async function lookupIgProfile(opts: {
       return { ok: false, reason: "auth", error: msg };
     if (code === 4 || code === 17 || code === 32 || code === 613)
       return { ok: false, reason: "rate_limit", error: msg };
-    // 110/100 costumam significar handle inexistente ou conta pessoal
+    // 110/100 costumam significar handle inexistente ou conta pessoal — mas
+    // o mesmo code 100 tambem cobre "app sem Advanced Access de Business
+    // Discovery para contas de terceiros", entao mantemos a mensagem real
+    // da Meta anexada pra nao mascarar esse segundo caso.
     if (code === 110 || code === 100)
       return {
         ok: false,
         reason: "not_business",
-        error: "Perfil não encontrado ou não é conta Business/Creator.",
+        error: `Perfil não encontrado ou não é conta Business/Creator. (Meta: ${msg}${
+          data.error.error_subcode ? `, subcode ${data.error.error_subcode}` : ""
+        })`,
       };
     return { ok: false, reason: "unknown", error: msg };
   }
