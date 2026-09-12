@@ -5,6 +5,7 @@ import { asc, eq } from "drizzle-orm";
 import { getWaAccount } from "@/lib/settings-db";
 import { sendWaMedia, sendWaText, waMediaTypeFromMime } from "@/lib/whatsapp";
 import { requireUser } from "@/lib/auth";
+import { logEvent } from "@/lib/system-log";
 
 export const dynamic = "force-dynamic";
 
@@ -145,11 +146,25 @@ export async function POST(req: Request, ctx: Ctx) {
       result.error?.includes("131030") || result.error?.includes("24")
         ? " Possível causa: a janela de 24h da conversa expirou — a Meta exige uma mensagem de template para reabrir o contato."
         : "";
+    await logEvent({
+      source: "wa_send",
+      status: "error",
+      message: `Falha ao enviar para ${convo.contactPhone}`,
+      detail: result.error,
+      leadId: convo.leadId,
+    });
     return NextResponse.json(
       { ok: false, error: (result.error ?? "Falha no envio.") + hint },
       { status: 502 },
     );
   }
+
+  await logEvent({
+    source: "wa_send",
+    status: "ok",
+    message: `Enviado para ${convo.contactPhone}${mediaUrl ? ` [${tipoMidia}]` : ""}`,
+    leadId: convo.leadId,
+  });
 
   const now = new Date();
   const preview = mediaUrl ? caption || `[${tipoMidia}]` : text;

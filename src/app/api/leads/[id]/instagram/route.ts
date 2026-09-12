@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { igHandle, lookupIgProfile } from "@/lib/instagram";
 import { getIgConfig } from "@/lib/settings-db";
 import { requireUser } from "@/lib/auth";
+import { logEvent } from "@/lib/system-log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -52,6 +53,13 @@ export async function POST(_req: Request, ctx: Ctx) {
         .set({ igUsername: handle, igCheckedAt: new Date(), updatedAt: new Date() })
         .where(eq(leads.id, id));
     }
+    await logEvent({
+      source: "instagram_lookup",
+      status: "error",
+      message: `@${handle}: ${result.reason}`,
+      detail: result.error,
+      leadId: id,
+    });
     const status =
       result.reason === "auth" ? 401 : result.reason === "rate_limit" ? 429 : 502;
     return NextResponse.json(
@@ -59,6 +67,13 @@ export async function POST(_req: Request, ctx: Ctx) {
       { status },
     );
   }
+
+  await logEvent({
+    source: "instagram_lookup",
+    status: "ok",
+    message: `@${handle}: ${result.profile.followersCount ?? 0} seguidores`,
+    leadId: id,
+  });
 
   const p = result.profile;
   const [updated] = await db

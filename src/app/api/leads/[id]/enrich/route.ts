@@ -6,6 +6,7 @@ import { enrichFromWebsite } from "@/lib/enrich";
 import { contactScore } from "@/lib/osm";
 import { formatPhone } from "@/lib/phone";
 import { requireUser } from "@/lib/auth";
+import { logEvent } from "@/lib/system-log";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -31,11 +32,18 @@ export async function POST(_req: Request, ctx: Ctx) {
 
   const result = await enrichFromWebsite(lead.website, lead.country);
 
-  if (result.pagesScanned.length === 0)
+  if (result.pagesScanned.length === 0) {
+    await logEvent({
+      source: "enrich_queue",
+      status: "error",
+      message: `Não foi possível acessar ${lead.website}`,
+      leadId: id,
+    });
     return NextResponse.json(
       { ok: false, error: "Não foi possível acessar o site para extrair dados." },
       { status: 502 },
     );
+  }
 
   const newWhatsapp = lead.whatsapp ?? result.whatsapps[0] ?? null;
   // Link wa.me no site do lead e declaracao explicita: vale ate para fixo,
@@ -114,6 +122,13 @@ export async function POST(_req: Request, ctx: Ctx) {
     (result.whatsapps.length ? 1 : 0) +
     (result.ownerName ? 1 : 0) +
     (result.instagram || result.facebook || result.linkedin ? 1 : 0);
+
+  await logEvent({
+    source: "enrich_queue",
+    status: "ok",
+    message: `${lead.website}: ${found} dado(s) encontrado(s) em ${result.pagesScanned.length} página(s)`,
+    leadId: id,
+  });
 
   return NextResponse.json({ ok: true, lead: updated, result, foundCount: found });
 }

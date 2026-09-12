@@ -6,6 +6,7 @@ import { and, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { getEffectiveSetting, getWaAccountByPhoneNumberId } from "@/lib/settings-db";
 import { downloadWaMedia, getWaMediaMeta } from "@/lib/whatsapp";
 import { uploadToBlob } from "@/lib/blob";
+import { logEvent } from "@/lib/system-log";
 
 export const dynamic = "force-dynamic";
 
@@ -96,10 +97,24 @@ async function resolverMidiaInbound(
     return { ok: false, placeholder: `[${tipo} recebida]` };
 
   const meta = await getWaMediaMeta({ accessToken, mediaId });
-  if (!meta.ok || !meta.url) return { ok: false, placeholder: `[${tipo} recebida]` };
+  if (!meta.ok || !meta.url) {
+    await logEvent({
+      source: "whatsapp_webhook",
+      status: "error",
+      message: `Falha ao obter metadata de mídia recebida (${tipo})`,
+    });
+    return { ok: false, placeholder: `[${tipo} recebida]` };
+  }
 
   const baixado = await downloadWaMedia({ accessToken, url: meta.url });
-  if (!baixado.ok) return { ok: false, placeholder: `[${tipo} recebida]` };
+  if (!baixado.ok) {
+    await logEvent({
+      source: "whatsapp_webhook",
+      status: "error",
+      message: `Falha ao baixar mídia recebida (${tipo})`,
+    });
+    return { ok: false, placeholder: `[${tipo} recebida]` };
+  }
 
   const mimeType = meta.mimeType ?? obj?.mime_type ?? "application/octet-stream";
   const fileName = obj?.filename ?? null;
@@ -112,6 +127,12 @@ async function resolverMidiaInbound(
     return { ok: true, type: tipo, mediaUrl, mimeType, fileName, caption: obj?.caption ?? "" };
   } catch (err) {
     console.error("Falha ao subir mídia recebida no Blob:", err);
+    await logEvent({
+      source: "whatsapp_webhook",
+      status: "error",
+      message: `Falha ao subir mídia recebida no Blob (${tipo})`,
+      detail: String(err),
+    });
     return { ok: false, placeholder: `[${tipo} recebida]` };
   }
 }
@@ -260,9 +281,14 @@ export async function POST(req: Request) {
             // Numero nosso desconhecido: nao interrompe (a mensagem ainda e
             // real), so fica sem conta vinculada — e sem ela nao da para
             // responder depois, entao vale investigar se aparecer.
-            console.error(
-              `Webhook WhatsApp: phone_number_id ${value.metadata?.phone_number_id ?? "(ausente)"} nao bate com nenhuma conta cadastrada.`,
-            );
+            const detalhe = `phone_number_id ${value.metadata?.phone_number_id ?? "(ausente)"} nao bate com nenhuma conta cadastrada.`;
+            console.error(`Webhook WhatsApp: ${detalhe}`);
+            await logEvent({
+              source: "whatsapp_webhook",
+              status: "error",
+              message: "Número nosso desconhecido recebeu mensagem",
+              detail: detalhe,
+            });
           }
 
           const [convo] = await db
@@ -303,11 +329,24 @@ export async function POST(req: Request) {
             mimeType: midia?.ok ? midia.mimeType : null,
             fileName: midia?.ok ? midia.fileName : null,
           });
+
+          await logEvent({
+            source: "whatsapp_webhook",
+            status: "ok",
+            message: `Mensagem de ${phone}: ${bodyText.slice(0, 80)}`,
+            leadId,
+          });
         }
       }
     }
   } catch (err) {
     console.error("WhatsApp webhook error:", err);
+    await logEvent({
+      source: "whatsapp_webhook",
+      status: "error",
+      message: "Erro ao processar payload do webhook",
+      detail: String(err),
+    });
   }
 
   return NextResponse.json({ ok: true });

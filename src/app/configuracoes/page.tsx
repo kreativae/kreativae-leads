@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ThemeSelector } from "@/components/theme";
 import { TeamSection } from "@/components/team-section";
+import { SecretDebugTrigger } from "@/components/secret-debug-trigger";
 import { formatDate } from "@/lib/format";
 
 interface MeRole {
@@ -267,6 +268,7 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="space-y-6">
+      <SecretDebugTrigger />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">

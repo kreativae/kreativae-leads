@@ -43,6 +43,13 @@
       "when": 1789214365258,
       "tag": "0005_small_cable",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789246746097,
+      "tag": "0006_bright_smasher",
+      "breakpoints": true
     }
   ]
 }

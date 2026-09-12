@@ -265,6 +265,24 @@ export const auditLogs = pgTable("audit_logs", {
     .defaultNow(),
 });
 
+/**
+ * Historico de execucoes das rotinas de fundo (busca de seguidores no IG,
+ * webhook do WhatsApp, fila de enriquecimento, envio de mensagem) — sucesso
+ * e falha, pra existir um lugar dentro do proprio app pra ver "o que rodou
+ * e o que falhou" sem precisar abrir o dashboard da Vercel.
+ */
+export const systemLogs = pgTable("system_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  source: text("source").notNull(),
+  status: text("status").notNull(), // "ok" | "error"
+  message: text("message").notNull(),
+  detail: text("detail"),
+  leadId: uuid("lead_id"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
