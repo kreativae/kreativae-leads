@@ -589,7 +589,7 @@ export default function ConversasPage() {
                           type="button"
                           onClick={excluirConversa}
                           disabled={deleting}
-                          className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-4 py-2 text-[12.5px] font-bold text-white transition-opacity disabled:opacity-60"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/30 bg-rose-400/[0.1] px-4 py-2 text-[12.5px] font-bold text-rose-300 transition-colors hover:bg-rose-400/20 disabled:opacity-50"
                         >
                           {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                           Excluir
