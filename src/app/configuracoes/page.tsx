@@ -57,6 +57,23 @@ interface CustoPlaces {
   precoPorRequisicao: number;
   custoUsd: number;
 }
+interface CustoWhatsAppConta {
+  accountId: string;
+  label: string;
+  displayPhone: string | null;
+  ok: boolean;
+  erro?: string;
+  conversas: number;
+  custo: number;
+}
+interface CustoWhatsApp {
+  contas: CustoWhatsAppConta[];
+  totalConversas: number;
+  totalCusto: number;
+  periodoDias: number;
+  desde: string;
+  ate: string;
+}
 type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   wa_configured?: boolean;
   ig_configured?: boolean;
@@ -121,7 +138,28 @@ export default function ConfiguracoesPage() {
   const [copied, setCopied] = useState<string | null>(null);
   const [salvandoToken, setSalvandoToken] = useState(false);
   const [origin, setOrigin] = useState("");
+  const [waCusto, setWaCusto] = useState<CustoWhatsApp | null>(null);
+  const [waCustoErro, setWaCustoErro] = useState<string | null>(null);
+  const [waCustoCarregando, setWaCustoCarregando] = useState(true);
   const isOwner = useIsOwner();
+
+  const carregarCustoWhatsApp = useCallback(async () => {
+    setWaCustoCarregando(true);
+    setWaCustoErro(null);
+    try {
+      const res = await fetch("/api/settings/wa-cost");
+      if (!res.ok) throw new Error();
+      setWaCusto((await res.json()) as CustoWhatsApp);
+    } catch {
+      setWaCustoErro("Não foi possível consultar a Meta agora.");
+    } finally {
+      setWaCustoCarregando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarCustoWhatsApp();
+  }, [carregarCustoWhatsApp]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -495,6 +533,21 @@ export default function ConfiguracoesPage() {
           >
             <CustoPlacesBlock custo={meta.places_cost} />
           </Section>
+
+          {/* Custo Meta */}
+          <Section
+            icon={Receipt}
+            title="Custo do WhatsApp (Meta)"
+            desc="Valor real de conversas cobradas pela Meta, direto da API de analytics de cada número."
+            className="xl:col-span-2"
+          >
+            <CustoWhatsAppBlock
+              custo={waCusto}
+              erro={waCustoErro}
+              carregando={waCustoCarregando}
+              onRecarregar={carregarCustoWhatsApp}
+            />
+          </Section>
         </div>
       )}
     </div>
@@ -547,6 +600,122 @@ function CustoPlacesBlock({ custo }: { custo?: CustoPlaces }) {
           .
         </span>{" "}
         Buscas pelo OpenStreetMap não entram aqui: não têm custo.
+      </p>
+    </div>
+  );
+}
+
+function CustoWhatsAppBlock({
+  custo,
+  erro,
+  carregando,
+  onRecarregar,
+}: {
+  custo: CustoWhatsApp | null;
+  erro: string | null;
+  carregando: boolean;
+  onRecarregar: () => void;
+}) {
+  if (carregando && !custo) {
+    return (
+      <p className="flex items-center gap-2 text-[12.5px] text-zinc-500">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Consultando a Meta…
+      </p>
+    );
+  }
+  if (erro && !custo) {
+    return (
+      <div className="space-y-3">
+        <p className="text-[12.5px] text-red-400">{erro}</p>
+        <button
+          type="button"
+          onClick={onRecarregar}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[11.5px] font-semibold text-zinc-300 hover:border-white/20"
+        >
+          <RefreshCw className="h-3 w-3" /> Tentar de novo
+        </button>
+      </div>
+    );
+  }
+  if (!custo) return null;
+
+  const comErro = custo.contas.filter((c) => !c.ok);
+  return (
+    <div className="space-y-3.5">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+        <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+          <div>
+            <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
+              Total últimos {custo.periodoDias} dias
+            </p>
+            <p className="font-display text-[28px] font-bold leading-tight text-white">
+              {custo.totalCusto.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="pb-1 text-[12.5px] text-zinc-400">
+            <span className="font-semibold text-zinc-200 tabular-nums">
+              {custo.totalConversas.toLocaleString("pt-BR")}
+            </span>{" "}
+            conversa{custo.totalConversas === 1 ? "" : "s"} cobrada
+            {custo.totalConversas === 1 ? "" : "s"} · {formatDate(custo.desde)} até{" "}
+            {formatDate(custo.ate)}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRecarregar}
+          disabled={carregando}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[11.5px] font-semibold text-zinc-300 hover:border-white/20 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${carregando ? "animate-spin" : ""}`} /> Atualizar
+        </button>
+      </div>
+
+      {custo.contas.length > 1 && (
+        <div className="space-y-1.5">
+          {custo.contas.map((c) => (
+            <div
+              key={c.accountId}
+              className="flex items-center justify-between rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-2.5 text-[12.5px]"
+            >
+              <span className="text-zinc-300">
+                {c.label}
+                {c.displayPhone && <span className="text-zinc-500"> · {c.displayPhone}</span>}
+              </span>
+              {c.ok ? (
+                <span className="tabular-nums text-zinc-200">
+                  {c.custo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ·{" "}
+                  {c.conversas.toLocaleString("pt-BR")} conversas
+                </span>
+              ) : (
+                <span className="text-red-400/80">{c.erro}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {comErro.length > 0 && custo.contas.length === 1 && (
+        <p className="text-[12px] text-red-400/80">{comErro[0].erro}</p>
+      )}
+
+      <p className="rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3 text-[11.5px] leading-relaxed text-zinc-500">
+        Valor direto do endpoint de analytics de conversas da Meta (não é
+        estimativa local) — a Meta cobra por{" "}
+        <span className="text-zinc-400">conversa</span>, não por chamada de
+        API, e o preço varia por categoria (marketing, utilidade, serviço) e
+        país. A moeda é a configurada na sua Business Manager — confira o
+        valor exato faturado em{" "}
+        <a
+          href="https://business.facebook.com/billing_hub"
+          target="_blank"
+          rel="noreferrer"
+          className="text-volt hover:underline"
+        >
+          Billing Hub
+        </a>
+        . O Instagram Business Discovery (usado no enriquecimento de leads)
+        não tem custo.
       </p>
     </div>
   );
