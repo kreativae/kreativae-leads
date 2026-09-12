@@ -27,6 +27,7 @@ import {
   User2,
 } from "lucide-react";
 import { timeAgo } from "@/lib/format";
+import { LeadDrawer, type ClientLead } from "@/components/lead-drawer";
 
 interface LeadDetail {
   companyName: string;
@@ -137,6 +138,8 @@ export default function ConversasPage() {
   const [leadQuery, setLeadQuery] = useState("");
   const [leadResults, setLeadResults] = useState<LeadPickResult[] | null>(null);
   const [linkingLeadId, setLinkingLeadId] = useState<string | null>(null);
+  const [openLeadId, setOpenLeadId] = useState<string | null>(null);
+  const [openLead, setOpenLead] = useState<ClientLead | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leadSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -318,6 +321,43 @@ export default function ConversasPage() {
       }
     } finally {
       setLinkingLeadId(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!openLeadId) {
+      setOpenLead(null);
+      return;
+    }
+    let vivo = true;
+    fetch(`/api/leads/${openLeadId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { lead?: ClientLead } | null) => {
+        if (vivo && d?.lead) setOpenLead(d.lead);
+      })
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, [openLeadId]);
+
+  async function atualizarLeadAberto(id: string, patch: { status?: string; notes?: string }) {
+    const res = await fetch(`/api/leads/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const json = (await res.json()) as { ok: boolean; lead?: ClientLead };
+    if (json.ok && json.lead) setOpenLead(json.lead);
+  }
+
+  async function excluirLeadAberto(id: string) {
+    if (!window.confirm("Excluir este lead permanentemente?")) return;
+    await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    setOpenLeadId(null);
+    if (activeId) {
+      await loadThread(activeId);
+      loadConvos();
     }
   }
 
@@ -637,12 +677,13 @@ export default function ConversasPage() {
                             </p>
                           )}
                           <div className="flex items-center justify-between gap-2">
-                            <Link
-                              href={`/leads?lead=${active.leadId}`}
+                            <button
+                              type="button"
+                              onClick={() => active.leadId && setOpenLeadId(active.leadId)}
                               className="inline-flex items-center gap-1 text-[12px] font-semibold text-volt hover:underline"
                             >
                               Ver ficha completa do lead <ExternalLink className="h-3 w-3" />
-                            </Link>
+                            </button>
                             <button
                               type="button"
                               onClick={() => vincularLead("")}
@@ -860,6 +901,19 @@ export default function ConversasPage() {
         <User2 className="h-3.5 w-3.5" />
         Números que iniciam conversa são reconciliados com os leads pelo telefone/WhatsApp cadastrado.
       </p>
+
+      <AnimatePresence>
+        {openLead && (
+          <LeadDrawer
+            key={openLead.id}
+            lead={openLead}
+            onClose={() => setOpenLeadId(null)}
+            onUpdate={atualizarLeadAberto}
+            onPatched={setOpenLead}
+            onDelete={excluirLeadAberto}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
