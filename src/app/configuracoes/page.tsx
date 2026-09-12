@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AtSign,
+  Check,
   CheckCircle2,
   ClipboardCopy,
   Database,
@@ -11,12 +12,16 @@ import {
   Loader2,
   MessageSquare,
   Palette,
+  Pencil,
+  Phone,
+  Plus,
   Receipt,
   RefreshCw,
   Save,
   Settings2,
   Trash2,
   Webhook,
+  X,
 } from "lucide-react";
 import { ThemeSelector } from "@/components/theme";
 import { TeamSection } from "@/components/team-section";
@@ -96,28 +101,14 @@ function Toggle({
   );
 }
 
-const SECRET_FIELDS = [
-  "google_places_key",
-  "wa_access_token",
-  "wa_app_secret",
-  "ig_access_token",
-];
-const PLAIN_FIELDS = [
-  "wa_phone_number_id",
-  "wa_waba_id",
-  "wa_verify_token",
-  "data_source",
-  "ig_user_id",
-];
+const SECRET_FIELDS = ["google_places_key", "wa_app_secret", "ig_access_token"];
+const PLAIN_FIELDS = ["wa_verify_token", "data_source", "ig_user_id"];
 
 export default function ConfiguracoesPage() {
   const [meta, setMeta] = useState<SettingsMeta>({});
   const [values, setValues] = useState<Record<string, string>>({
     google_places_key: "",
     data_source: "auto",
-    wa_access_token: "",
-    wa_phone_number_id: "",
-    wa_waba_id: "",
     wa_verify_token: "",
     wa_app_secret: "",
     ig_access_token: "",
@@ -141,8 +132,6 @@ export default function ConfiguracoesPage() {
       setValues((v) => ({
         ...v,
         data_source: data.data_source?.value || "auto",
-        wa_phone_number_id: data.wa_phone_number_id?.value ?? "",
-        wa_waba_id: data.wa_waba_id?.value ?? "",
         wa_verify_token: data.wa_verify_token?.value ?? "",
         ig_user_id: data.ig_user_id?.value ?? "",
         wa_enabled: data.wa_enabled?.value === "no" ? "no" : "yes",
@@ -338,28 +327,7 @@ export default function ConfiguracoesPage() {
                   label="Omnichannel ativo"
                   hint="Desligado, a aba Conversas some do menu e o WhatsApp fica fora do fluxo."
                 />
-                <SecretInput
-                  label="Access Token (Meta)"
-                  hint="Token permanente gerado no app da Meta for Developers."
-                  masked={meta.wa_access_token?.masked}
-                  fromEnv={meta.wa_access_token?.fromEnv}
-                  value={values.wa_access_token}
-                  onChange={(v) => setValues((s) => ({ ...s, wa_access_token: v }))}
-                  onRemove={() => removeSecret("wa_access_token")}
-                />
-                <PlainInput
-                  label="Phone Number ID"
-                  hint="ID numérico do número (WhatsApp → API Setup no painel da Meta)."
-                  value={values.wa_phone_number_id}
-                  onChange={(v) => setValues((s) => ({ ...s, wa_phone_number_id: v }))}
-                  fromEnv={meta.wa_phone_number_id?.fromEnv}
-                />
-                <PlainInput
-                  label="WhatsApp Business Account ID (WABA)"
-                  hint="Opcional, para referência e futuros recursos (templates)."
-                  value={values.wa_waba_id}
-                  onChange={(v) => setValues((s) => ({ ...s, wa_waba_id: v }))}
-                />
+                <WaAccountsManager />
                 <div>
                   <div className="flex items-center justify-between">
                     <label className="text-[12px] font-semibold text-zinc-400">
@@ -398,8 +366,8 @@ export default function ConfiguracoesPage() {
                 </div>
                 <ol className="mt-3 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
                   <li>Crie um app em <span className="text-zinc-200">developers.facebook.com</span> e adicione o produto <span className="text-zinc-200">WhatsApp</span>.</li>
-                  <li>Em <span className="text-zinc-200">API Setup</span>, copie o token permanente e o Phone Number ID para os campos ao lado e salve.</li>
-                  <li>Em <span className="text-zinc-200">Configuration → Webhook</span>, cadastre a URL abaixo com o Verify Token definido aqui:</li>
+                  <li>Em <span className="text-zinc-200">API Setup</span>, copie o token permanente e o Phone Number ID e clique em <span className="text-zinc-200">Adicionar número</span> ao lado.</li>
+                  <li>Em <span className="text-zinc-200">Configuration → Webhook</span>, cadastre a URL abaixo com o Verify Token definido aqui — isso vale para todos os números, é o mesmo app da Meta.</li>
                 </ol>
                 <CopyRow
                   label="URL de callback"
@@ -419,7 +387,8 @@ export default function ConfiguracoesPage() {
                 />
                 <ol start={4} className="mt-2 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
                   <li>Assine o campo <span className="text-zinc-200">messages</span> no webhook.</li>
-                  <li>Pronto: mensagens recebidas aparecem na aba <span className="text-zinc-200">Conversas</span> e são vinculadas aos leads automaticamente.</li>
+                  <li>No Business Settings, dê acesso à conta do WhatsApp (WABA) para o system user do app.</li>
+                  <li>Pronto: mensagens recebidas aparecem na aba <span className="text-zinc-200">Conversas</span> e são vinculadas aos leads automaticamente — a resposta sai pelo número certo, mesmo com mais de um cadastrado.</li>
                 </ol>
                 <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-200/80">
                   Nota da Meta: fora da janela de 24h após a última mensagem do cliente,
@@ -611,6 +580,204 @@ function Section({
       </div>
       {children}
     </section>
+  );
+}
+
+interface WaAccountApi {
+  id: string;
+  label: string;
+  phoneNumberId: string;
+  wabaId: string | null;
+  displayPhone: string | null;
+  accessTokenMasked: string | null;
+}
+
+const FORM_VAZIO = { label: "", phoneNumberId: "", wabaId: "", accessToken: "", displayPhone: "" };
+
+/**
+ * Lista de numeros de WhatsApp da empresa. Cada um tem seu proprio token e
+ * Phone Number ID — o App Secret e o Verify Token continuam nos campos
+ * globais acima, porque sao do WEBHOOK (um so app da Meta), nao de um
+ * numero especifico.
+ */
+function WaAccountsManager() {
+  const [contas, setContas] = useState<WaAccountApi[] | null>(null);
+  const [editando, setEditando] = useState<string | "novo" | null>(null);
+  const [form, setForm] = useState(FORM_VAZIO);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const carregar = useCallback(async () => {
+    const res = await fetch("/api/wa-accounts");
+    const data = (await res.json()) as { accounts: WaAccountApi[] };
+    setContas(data.accounts);
+  }, []);
+
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  function abrirNovo() {
+    setForm(FORM_VAZIO);
+    setErro(null);
+    setEditando("novo");
+  }
+
+  function abrirEdicao(c: WaAccountApi) {
+    setForm({
+      label: c.label,
+      phoneNumberId: c.phoneNumberId,
+      wabaId: c.wabaId ?? "",
+      accessToken: "",
+      displayPhone: c.displayPhone ?? "",
+    });
+    setErro(null);
+    setEditando(c.id);
+  }
+
+  async function salvar() {
+    setSalvando(true);
+    setErro(null);
+    try {
+      const novo = editando === "novo";
+      const res = await fetch(novo ? "/api/wa-accounts" : `/api/wa-accounts/${editando}`, {
+        method: novo ? "POST" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string };
+      if (!data.ok) {
+        setErro(data.error ?? "Não foi possível salvar.");
+        return;
+      }
+      setEditando(null);
+      await carregar();
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function remover(id: string) {
+    if (!window.confirm("Remover este número? Conversas já recebidas continuam salvas, mas não será mais possível responder por ele."))
+      return;
+    await fetch(`/api/wa-accounts/${id}`, { method: "DELETE" });
+    await carregar();
+  }
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <label className="text-[12px] font-semibold text-zinc-400">Números conectados</label>
+        {editando === null && (
+          <button
+            type="button"
+            onClick={abrirNovo}
+            className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-volt hover:underline"
+          >
+            <Plus className="h-3 w-3" />
+            Adicionar número
+          </button>
+        )}
+      </div>
+
+      {contas === null ? (
+        <p className="text-[12px] text-zinc-600">Carregando…</p>
+      ) : contas.length === 0 && editando === null ? (
+        <p className="rounded-xl border border-dashed border-white/[0.12] px-4 py-3 text-[12.5px] text-zinc-500">
+          Nenhum número ainda. Clique em “Adicionar número”.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {contas.map((c) => (
+            <div
+              key={c.id}
+              className="flex items-center gap-3 rounded-xl border border-white/[0.09] bg-ink px-4 py-3"
+            >
+              <Phone className="h-4 w-4 shrink-0 text-volt" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-zinc-100">{c.label}</p>
+                <p className="truncate font-mono text-[11.5px] text-zinc-500">
+                  {c.displayPhone ?? c.phoneNumberId} · Token {c.accessTokenMasked}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => abrirEdicao(c)}
+                title="Editar"
+                className="shrink-0 rounded-lg border border-white/[0.08] p-2 text-zinc-400 transition-colors hover:border-volt/40 hover:text-volt"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => remover(c.id)}
+                title="Remover"
+                className="shrink-0 rounded-lg border border-white/[0.08] p-2 text-zinc-400 transition-colors hover:border-rose-400/40 hover:text-rose-300"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editando !== null && (
+        <div className="space-y-2.5 rounded-xl border border-volt/25 bg-volt/[0.04] p-4">
+          <input
+            value={form.label}
+            onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+            placeholder="Nome (ex.: Brasil, Portugal)"
+            className="w-full rounded-lg border border-white/[0.09] bg-ink px-3.5 py-2.5 text-[12.5px] text-zinc-100 outline-none focus:border-volt/50"
+          />
+          <input
+            value={form.accessToken}
+            onChange={(e) => setForm((f) => ({ ...f, accessToken: e.target.value }))}
+            placeholder={editando === "novo" ? "Access Token (Meta)" : "Access Token — deixe em branco para manter o atual"}
+            className="w-full rounded-lg border border-white/[0.09] bg-ink px-3.5 py-2.5 font-mono text-[12.5px] text-zinc-100 outline-none focus:border-volt/50"
+          />
+          <input
+            value={form.phoneNumberId}
+            onChange={(e) => setForm((f) => ({ ...f, phoneNumberId: e.target.value }))}
+            placeholder="Phone Number ID"
+            className="w-full rounded-lg border border-white/[0.09] bg-ink px-3.5 py-2.5 font-mono text-[12.5px] text-zinc-100 outline-none focus:border-volt/50"
+          />
+          <div className="grid grid-cols-2 gap-2.5">
+            <input
+              value={form.wabaId}
+              onChange={(e) => setForm((f) => ({ ...f, wabaId: e.target.value }))}
+              placeholder="WABA ID (opcional)"
+              className="w-full rounded-lg border border-white/[0.09] bg-ink px-3.5 py-2.5 font-mono text-[12.5px] text-zinc-100 outline-none focus:border-volt/50"
+            />
+            <input
+              value={form.displayPhone}
+              onChange={(e) => setForm((f) => ({ ...f, displayPhone: e.target.value }))}
+              placeholder="+55 11 3042-0065 (opcional)"
+              className="w-full rounded-lg border border-white/[0.09] bg-ink px-3.5 py-2.5 font-mono text-[12.5px] text-zinc-100 outline-none focus:border-volt/50"
+            />
+          </div>
+          {erro && <p className="text-[12px] text-rose-300">{erro}</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={salvar}
+              disabled={salvando}
+              className="inline-flex items-center gap-1.5 rounded-full bg-volt px-3.5 py-2 text-[12px] font-bold text-onvolt disabled:opacity-50"
+            >
+              {salvando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              Salvar
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditando(null)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.09] px-3.5 py-2 text-[12px] font-semibold text-zinc-400 hover:text-zinc-100"
+            >
+              <X className="h-3.5 w-3.5" />
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

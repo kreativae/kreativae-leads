@@ -29,6 +29,13 @@
       "when": 1787712759062,
       "tag": "0003_brave_proteus",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789208508294,
+      "tag": "0004_lush_hercules",
+      "breakpoints": true
     }
   ]
 }

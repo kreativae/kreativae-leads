@@ -105,6 +105,31 @@ export const settings = pgTable("settings", {
     .defaultNow(),
 });
 
+/**
+ * Um numero de WhatsApp da empresa (Phone Number ID + token proprios). O
+ * App Secret e o Verify Token continuam globais em "settings": sao do
+ * WEBHOOK (um so, de um app da Meta), nao de um numero especifico — dois
+ * numeros do mesmo app compartilham a mesma assinatura de webhook.
+ */
+export const waAccounts = pgTable(
+  "wa_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    label: text("label").notNull(), // "Brasil", "Portugal" — soh para a UI
+    phoneNumberId: text("phone_number_id").notNull(),
+    wabaId: text("waba_id"),
+    accessToken: text("access_token").notNull(),
+    displayPhone: text("display_phone"), // "+55 11 3042-0065" — cosmetico
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("wa_accounts_phone_number_id_key").on(t.phoneNumberId)],
+);
+
 export const conversations = pgTable(
   "conversations",
   {
@@ -112,6 +137,12 @@ export const conversations = pgTable(
     contactPhone: text("contact_phone").notNull(), // digits with country code
     contactName: text("contact_name"),
     leadId: uuid("lead_id").references(() => leads.id, {
+      onDelete: "set null",
+    }),
+    // Qual dos NOSSOS numeros recebeu esta conversa. Sem isso nao daria para
+    // saber por qual numero responder, nem separar duas conversas que por
+    // coincidencia usem o mesmo contactPhone em contas diferentes.
+    waAccountId: uuid("wa_account_id").references(() => waAccounts.id, {
       onDelete: "set null",
     }),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
@@ -125,7 +156,12 @@ export const conversations = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex("conversations_contact_phone_key").on(t.contactPhone)],
+  (t) => [
+    uniqueIndex("conversations_contact_phone_account_key").on(
+      t.contactPhone,
+      t.waAccountId,
+    ),
+  ],
 );
 
 export const messages = pgTable(

@@ -1,19 +1,31 @@
 import { db } from "@/db";
-import { settings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { settings, waAccounts } from "@/db/schema";
+import { asc, eq } from "drizzle-orm";
 
 export const SETTING_KEYS = [
   "google_places_key",
   "data_source", // auto | osm | places
-  "wa_access_token",
-  "wa_phone_number_id",
-  "wa_waba_id",
   "wa_verify_token",
   "wa_app_secret",
   "ig_access_token",
   "ig_user_id",
   "wa_enabled",
 ] as const;
+
+/**
+ * Chaves legadas de quando so um numero de WhatsApp era suportado. Fora do
+ * SettingKey e da tela de Configuracoes de proposito: hoje so servem para
+ * o migrador automatico de listWaAccounts() ler uma vez. Fica direto no
+ * banco, sem passar pelo getSetting tipado.
+ */
+async function lerConfigLegadaWa(chave: string): Promise<string | null> {
+  const [row] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, chave))
+    .limit(1);
+  return row?.value ?? null;
+}
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
 
@@ -84,17 +96,86 @@ export async function getIgConfig(): Promise<IgConfig | null> {
   return { accessToken, igUserId };
 }
 
-export interface WaConfig {
-  accessToken: string;
+export interface WaAccount {
+  id: string;
+  label: string;
   phoneNumberId: string;
+  wabaId: string | null;
+  accessToken: string;
+  displayPhone: string | null;
 }
 
-/** Returns WhatsApp Cloud API credentials or null if not configured. */
-export async function getWaConfig(): Promise<WaConfig | null> {
-  const [accessToken, phoneNumberId] = await Promise.all([
-    getEffectiveSetting("wa_access_token", "WA_ACCESS_TOKEN"),
-    getEffectiveSetting("wa_phone_number_id", "WA_PHONE_NUMBER_ID"),
+/**
+ * Lista as contas de WhatsApp cadastradas. Se a tabela estiver vazia mas
+ * existir a configuracao antiga (de quando so um numero era suportado),
+ * migra ela pra primeira conta nesta mesma leitura — nao precisa de um
+ * passo de migracao separado, e roda so uma vez (a proxima leitura ja acha
+ * a tabela com linhas).
+ */
+export async function listWaAccounts(): Promise<WaAccount[]> {
+  const linhas = await db.select().from(waAccounts).orderBy(asc(waAccounts.createdAt));
+  if (linhas.length > 0) return linhas;
+
+  const [phoneNumberId, wabaId, accessToken] = await Promise.all([
+    lerConfigLegadaWa("wa_phone_number_id").then((v) => v ?? (process.env.WA_PHONE_NUMBER_ID?.trim() || null)),
+    lerConfigLegadaWa("wa_waba_id"),
+    lerConfigLegadaWa("wa_access_token").then((v) => v ?? (process.env.WA_ACCESS_TOKEN?.trim() || null)),
   ]);
-  if (!accessToken || !phoneNumberId) return null;
-  return { accessToken, phoneNumberId };
+  if (!phoneNumberId || !accessToken) return [];
+
+  const [migrada] = await db
+    .insert(waAccounts)
+    .values({ label: "Principal", phoneNumberId, wabaId, accessToken })
+    .onConflictDoNothing({ target: waAccounts.phoneNumberId })
+    .returning();
+  return migrada ? [migrada] : await db.select().from(waAccounts).orderBy(asc(waAccounts.createdAt));
+}
+
+export async function getWaAccount(id: string): Promise<WaAccount | null> {
+  const [row] = await db.select().from(waAccounts).where(eq(waAccounts.id, id)).limit(1);
+  return row ?? null;
+}
+
+export async function getWaAccountByPhoneNumberId(
+  phoneNumberId: string,
+): Promise<WaAccount | null> {
+  const [row] = await db
+    .select()
+    .from(waAccounts)
+    .where(eq(waAccounts.phoneNumberId, phoneNumberId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function createWaAccount(input: {
+  label: string;
+  phoneNumberId: string;
+  wabaId: string | null;
+  accessToken: string;
+  displayPhone: string | null;
+}): Promise<WaAccount> {
+  const [row] = await db.insert(waAccounts).values(input).returning();
+  return row;
+}
+
+export async function updateWaAccount(
+  id: string,
+  patch: Partial<{
+    label: string;
+    phoneNumberId: string;
+    wabaId: string | null;
+    accessToken: string;
+    displayPhone: string | null;
+  }>,
+): Promise<WaAccount | null> {
+  const [row] = await db
+    .update(waAccounts)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(waAccounts.id, id))
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteWaAccount(id: string): Promise<void> {
+  await db.delete(waAccounts).where(eq(waAccounts.id, id));
 }

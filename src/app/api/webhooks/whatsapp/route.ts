@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/db";
 import { conversations, leads, messages } from "@/db/schema";
 import { and, eq, ilike, isNotNull, sql } from "drizzle-orm";
-import { getEffectiveSetting } from "@/lib/settings-db";
+import { getEffectiveSetting, getWaAccountByPhoneNumberId } from "@/lib/settings-db";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,9 @@ interface WaWebhookPayload {
   entry?: {
     changes?: {
       value?: {
+        // Qual dos NOSSOS numeros recebeu: e assim que a Meta identifica,
+        // quando o app tem mais de um numero atras do mesmo webhook.
+        metadata?: { phone_number_id?: string };
         contacts?: { wa_id?: string; profile?: { name?: string } }[];
         messages?: {
           from?: string;
@@ -126,6 +129,12 @@ export async function POST(req: Request) {
         }
 
         // Inbound messages
+        // Resolvida uma vez por change: todas as mensagens de um mesmo
+        // "value" chegaram no mesmo numero nosso.
+        const waAccount = value.metadata?.phone_number_id
+          ? await getWaAccountByPhoneNumberId(value.metadata.phone_number_id)
+          : null;
+
         for (const msg of value.messages ?? []) {
           if (!msg.from || !msg.id) continue;
           const phone = msg.from.replace(/\D+/g, "");
@@ -146,12 +155,22 @@ export async function POST(req: Request) {
           const leadId = await findLeadByPhone(phone);
           const now = new Date();
 
+          if (!waAccount) {
+            // Numero nosso desconhecido: nao interrompe (a mensagem ainda e
+            // real), so fica sem conta vinculada — e sem ela nao da para
+            // responder depois, entao vale investigar se aparecer.
+            console.error(
+              `Webhook WhatsApp: phone_number_id ${value.metadata?.phone_number_id ?? "(ausente)"} nao bate com nenhuma conta cadastrada.`,
+            );
+          }
+
           const [convo] = await db
             .insert(conversations)
             .values({
               contactPhone: phone,
               contactName: contact?.profile?.name ?? null,
               leadId,
+              waAccountId: waAccount?.id ?? null,
               lastMessageAt: now,
               lastMessagePreview: bodyText.slice(0, 140),
               lastInboundAt: now,
@@ -159,7 +178,7 @@ export async function POST(req: Request) {
               updatedAt: now,
             })
             .onConflictDoUpdate({
-              target: conversations.contactPhone,
+              target: [conversations.contactPhone, conversations.waAccountId],
               set: {
                 contactName: contact?.profile?.name ?? undefined,
                 leadId: sql`coalesce(${conversations.leadId}, ${leadId})`,

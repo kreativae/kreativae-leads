@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { conversations, messages } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
-import { getWaConfig } from "@/lib/settings-db";
+import { getWaAccount } from "@/lib/settings-db";
 import { sendWaText } from "@/lib/whatsapp";
 import { requireUser } from "@/lib/auth";
 
@@ -62,20 +62,22 @@ export async function POST(req: Request, ctx: Ctx) {
       { status: 404 },
     );
 
-  const config = await getWaConfig();
-  if (!config)
+  // A conversa carrega DE QUAL numero ela e — sem isso a resposta sairia
+  // sempre do mesmo numero, mesmo quando o contato escreveu para o outro.
+  const conta = convo.waAccountId ? await getWaAccount(convo.waAccountId) : null;
+  if (!conta)
     return NextResponse.json(
       {
         ok: false,
         error:
-          "WhatsApp Cloud API não configurada. Preencha token e Phone Number ID em Configurações.",
+          "Esta conversa não tem um número de WhatsApp vinculado. Configure as contas em Configurações.",
       },
       { status: 400 },
     );
 
   const result = await sendWaText({
-    accessToken: config.accessToken,
-    phoneNumberId: config.phoneNumberId,
+    accessToken: conta.accessToken,
+    phoneNumberId: conta.phoneNumberId,
     to: convo.contactPhone,
     body: text,
   });

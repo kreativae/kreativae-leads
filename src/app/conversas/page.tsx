@@ -24,6 +24,9 @@ interface ConversationRow {
   leadId: string | null;
   leadCompany: string | null;
   leadSegment: string | null;
+  // Qual dos numeros da empresa recebeu — so aparece quando ha mais de um
+  // cadastrado (ver waAccounts abaixo).
+  waAccountLabel: string | null;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   lastInboundAt: string | null;
@@ -55,6 +58,10 @@ function displayPhone(digits: string): string {
 export default function ConversasPage() {
   const [waConfigured, setWaConfigured] = useState<boolean | null>(null);
   const [waEnabled, setWaEnabled] = useState(true);
+  const [waAccountsCount, setWaAccountsCount] = useState(0);
+  // So mostra de qual numero veio quando ha mais de um: com um so, o rotulo
+  // e ruido, todo mundo ja sabe qual e.
+  const mostrarContas = waAccountsCount > 1;
   const [convos, setConvos] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadMessage[]>([]);
@@ -71,10 +78,12 @@ export default function ConversasPage() {
         conversations: ConversationRow[];
         wa_configured: boolean;
         wa_enabled?: boolean;
+        waAccounts?: { id: string; label: string }[];
       };
       setConvos(data.conversations);
       setWaConfigured(data.wa_configured);
       if (typeof data.wa_enabled === "boolean") setWaEnabled(data.wa_enabled);
+      setWaAccountsCount(data.waAccounts?.length ?? 0);
     } catch {
       /* retry on interval */
     }
@@ -240,6 +249,11 @@ export default function ConversasPage() {
                             {c.lastMessageAt ? timeAgo(c.lastMessageAt) : ""}
                           </span>
                         </div>
+                        {mostrarContas && c.waAccountLabel && (
+                          <span className="mt-0.5 inline-block rounded border border-white/[0.09] px-1.5 py-px text-[9.5px] font-bold uppercase tracking-wide text-zinc-500">
+                            {c.waAccountLabel}
+                          </span>
+                        )}
                         <div className="mt-0.5 flex items-center justify-between gap-2">
                           <span className="truncate text-[12px] text-zinc-500">
                             {c.lastMessagePreview ?? displayPhone(c.contactPhone)}
@@ -290,6 +304,11 @@ export default function ConversasPage() {
                     {active.leadCompany && (
                       <span className="rounded border border-volt/25 bg-volt/[0.06] px-1.5 py-px text-[10px] font-bold text-volt">
                         LEAD VINCULADO
+                      </span>
+                    )}
+                    {mostrarContas && active.waAccountLabel && (
+                      <span className="rounded border border-white/[0.09] px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+                        {active.waAccountLabel}
                       </span>
                     )}
                   </div>
