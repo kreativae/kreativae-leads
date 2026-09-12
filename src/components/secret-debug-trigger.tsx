@@ -64,3 +64,21 @@ export function SecretDebugTrigger() {
     </button>
   );
 }
+
+/** Botão flutuante (estilo bolha do WhatsApp) — acesso direto aos logs, só para o proprietário. */
+export function DebugFab({ visible }: { visible: boolean }) {
+  const router = useRouter();
+  if (!visible) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => router.push("/configuracoes/logs")}
+      aria-label="Ver logs"
+      title="Logs & segredos"
+      className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-volt text-onvolt shadow-lg shadow-volt/30 transition-transform hover:scale-110"
+    >
+      <Bug className="h-6 w-6" />
+    </button>
+  );
+}
