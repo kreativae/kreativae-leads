@@ -11,6 +11,7 @@ import {
   Loader2,
   MessageSquare,
   Palette,
+  Receipt,
   RefreshCw,
   Save,
   Settings2,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 import { ThemeSelector } from "@/components/theme";
 import { TeamSection } from "@/components/team-section";
+import { formatDate } from "@/lib/format";
 
 interface MeRole {
   role: string;
@@ -44,9 +46,16 @@ interface PlainMeta {
   value?: string;
   fromEnv?: boolean;
 }
+interface CustoPlaces {
+  requisicoes: number;
+  desde: string | null;
+  precoPorRequisicao: number;
+  custoUsd: number;
+}
 type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   wa_configured?: boolean;
   ig_configured?: boolean;
+  places_cost?: CustoPlaces;
 };
 
 /** Interruptor simples. Salva na hora — nao espera o botao Salvar. */
@@ -507,8 +516,69 @@ export default function ConfiguracoesPage() {
               />
             </div>
           </Section>
+
+          {/* Custo */}
+          <Section
+            icon={Receipt}
+            title="Custo das APIs"
+            desc="Estimativa a partir das chamadas de fato feitas ao Google Places."
+            className="xl:col-span-2"
+          >
+            <CustoPlacesBlock custo={meta.places_cost} />
+          </Section>
         </div>
       )}
+    </div>
+  );
+}
+
+function CustoPlacesBlock({ custo }: { custo?: CustoPlaces }) {
+  if (!custo) {
+    return <p className="text-[12.5px] text-zinc-500">Carregando…</p>;
+  }
+  const formatUsd = (v: number) =>
+    v.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  // O preco por requisicao tem 3 casas decimais (US$ 0,035): o formatador de
+  // moeda acima arredonda para 2 e mostraria "$0.04", que nao e o preco real.
+  const formatUsdPreciso = (v: number) => `$${v.toFixed(3)}`;
+  return (
+    <div className="space-y-3.5">
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div>
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">Google Places acumulado</p>
+          <p className="font-display text-[28px] font-bold leading-tight text-white">
+            {formatUsd(custo.custoUsd)}
+          </p>
+        </div>
+        <div className="pb-1 text-[12.5px] text-zinc-400">
+          <span className="font-semibold text-zinc-200 tabular-nums">
+            {custo.requisicoes.toLocaleString("pt-BR")}
+          </span>{" "}
+          requisiç{custo.requisicoes === 1 ? "ão" : "ões"} faturáve
+          {custo.requisicoes === 1 ? "l" : "is"}
+          {custo.desde && <> · contando desde {formatDate(custo.desde)}</>}
+        </div>
+      </div>
+      <p className="rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3 text-[11.5px] leading-relaxed text-zinc-500">
+        Preço de {formatUsdPreciso(custo.precoPorRequisicao)} por requisição — SKU
+        Enterprise do Places API (New), o nível que os campos usados aqui
+        exigem (endereço completo, telefone, horários, avaliações). Cada
+        página de resultado pedida à Google conta como uma requisição.{" "}
+        <span className="text-zinc-400">
+          É uma estimativa interna, contada a partir de quando este painel foi
+          ligado — não é a fatura da Google, que fica na{" "}
+          <a
+            href="https://console.cloud.google.com/billing"
+            target="_blank"
+            rel="noreferrer"
+            className="text-volt hover:underline"
+          >
+            Google Cloud Console
+          </a>
+          .
+        </span>{" "}
+        Buscas pelo OpenStreetMap não entram aqui: não têm custo.
+      </p>
     </div>
   );
 }

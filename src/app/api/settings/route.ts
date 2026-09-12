@@ -8,6 +8,7 @@ import {
   type SettingKey,
 } from "@/lib/settings-db";
 import { getIgConfig } from "@/lib/settings-db";
+import { lerCustoPlaces } from "@/lib/places-cost";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,7 @@ export async function GET() {
   }
   out.wa_configured = !!(await getWaConfig());
   out.ig_configured = !!(await getIgConfig());
+  out.places_cost = await lerCustoPlaces();
   return NextResponse.json(out);
 }
 

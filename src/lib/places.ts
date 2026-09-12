@@ -113,16 +113,23 @@ function toLead(p: PlaceItem, country: string): NormalizedLead | null {
  * Google Places (New) Text Search — up to 3 pages of 20 results.
  * Supports an optional circular restriction (map radius search).
  */
+export interface ResultadoPlaces {
+  leads: NormalizedLead[];
+  /** Paginas de fato pedidas ao Google: e essa a unidade que ela fatura. */
+  requisicoes: number;
+}
+
 export async function searchPlaces(opts: {
   textQuery: string;
   apiKey: string;
   limit: number;
   country: string;
   circle?: { lat: number; lon: number; radiusMeters: number };
-}): Promise<NormalizedLead[]> {
+}): Promise<ResultadoPlaces> {
   const out: NormalizedLead[] = [];
   const seen = new Set<string>();
   let pageToken: string | undefined;
+  let requisicoes = 0;
 
   for (let page = 0; page < 3 && out.length < opts.limit; page++) {
     const body: Record<string, unknown> = {
@@ -153,6 +160,9 @@ export async function searchPlaces(opts: {
       cache: "no-store",
     });
 
+    // Contabiliza assim que a resposta chega, faturavel independente do
+    // conteudo: se a Google respondeu, ela cobra a chamada.
+    requisicoes++;
     const data = (await res.json()) as PlacesResponse;
     if (!res.ok || data.error) {
       throw new Error(
@@ -173,5 +183,5 @@ export async function searchPlaces(opts: {
     await sleep(2_200); // Google requires a short delay before paging
   }
 
-  return out;
+  return { leads: out, requisicoes };
 }

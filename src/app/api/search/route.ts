@@ -14,6 +14,7 @@ import {
 } from "@/lib/osm";
 import { getEffectiveSetting } from "@/lib/settings-db";
 import { searchPlaces } from "@/lib/places";
+import { registrarRequisicoesPlaces } from "@/lib/places-cost";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -141,19 +142,29 @@ export async function POST(req: Request) {
       };
 
       try {
-        let achados = await consultar(round);
+        let requisicoesFaturaveis = 0;
+        let r0 = await consultar(round);
+        let achados = r0.leads;
+        requisicoesFaturaveis += r0.requisicoes;
 
         // Consulta magra costuma significar termo ambiguo: "Engenharia em
         // Lisboa" devolve so o Instituto Superior de Engenharia. Tenta a
         // formulacao seguinte uma vez e junta, em vez de devolver 1 lead.
         if (achados.length < 5) {
-          const extra = await consultar(round + 1);
+          const rExtra = await consultar(round + 1);
+          requisicoesFaturaveis += rExtra.requisicoes;
           const vistos = new Set(achados.map((a) => a.osmId));
-          achados = [...achados, ...extra.filter((e) => !vistos.has(e.osmId))];
+          achados = [...achados, ...rExtra.leads.filter((e) => !vistos.has(e.osmId))];
         }
 
         normalized = achados.slice(0, limit);
         source = "places";
+        // Registra so quando a busca deu certo: se caiu no catch abaixo e
+        // foi para o OSM, as paginas ja pedidas ainda foram cobradas pela
+        // Google, mas contá-las exigiria mexer no searchPlaces para nao
+        // jogar fora a contagem parcial no meio de um erro — por ora fica
+        // de fora desse caso raro.
+        await registrarRequisicoesPlaces(requisicoesFaturaveis);
       } catch (placesErr) {
         if (sourcePref === "places") throw placesErr;
         // auto mode: silently fall back to OpenStreetMap
