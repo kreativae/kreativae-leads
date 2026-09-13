@@ -5,6 +5,7 @@ import { listLogs, type LogSource } from "@/lib/system-log";
 export const dynamic = "force-dynamic";
 
 const SOURCES: LogSource[] = [
+  "search",
   "instagram_lookup",
   "whatsapp_webhook",
   "enrich_queue",

@@ -16,6 +16,7 @@ import { getEffectiveSetting } from "@/lib/settings-db";
 import { searchPlaces } from "@/lib/places";
 import { registrarRequisicoesPlaces } from "@/lib/places-cost";
 import { requireUser } from "@/lib/auth";
+import { logEvent } from "@/lib/system-log";
 
 export const dynamic = "force-dynamic";
 // Pior caso do caminho Places: 3 paginas x 20s + 2 esperas, e o recuo
@@ -293,6 +294,13 @@ export async function POST(req: Request) {
       })
       .where(eq(searches.id, search.id));
 
+    await logEvent({
+      source: "search",
+      status: normalized.length > 0 ? "ok" : "error",
+      message: `${matched.displayLabel} em ${regionLabel}: ${normalized.length} resultado(s) via ${source}`,
+      detail: normalized.length === 0 ? `Fonte usada: ${source}. Ajuste a fonte de dados ou tente outra cidade/segmento.` : null,
+    });
+
     return NextResponse.json({
       ok: true,
       search: {
@@ -320,6 +328,12 @@ export async function POST(req: Request) {
       .update(searches)
       .set({ status: "failed", error: message, durationMs: Date.now() - startedAt })
       .where(eq(searches.id, search.id));
+    await logEvent({
+      source: "search",
+      status: "error",
+      message: `${matched.displayLabel} em ${regionLabel}: falhou`,
+      detail: message,
+    });
     return NextResponse.json(
       { ok: false, error: message, searchId: search.id },
       { status: 502 },

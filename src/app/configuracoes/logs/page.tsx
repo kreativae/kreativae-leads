@@ -11,6 +11,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { formatDate } from "@/lib/format";
+import { consumeLogsUnlocked, LogsLockGate } from "@/components/secret-debug-trigger";
 
 interface LogRow {
   id: string;
@@ -23,6 +24,7 @@ interface LogRow {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
+  search: "Busca de leads",
   instagram_lookup: "Instagram",
   whatsapp_webhook: "WhatsApp (webhook)",
   enrich_queue: "Enriquecimento",
@@ -91,10 +93,18 @@ function RevealRow({ label, kind, id }: { label: string; kind: "setting" | "wa_a
 }
 
 export default function LogsSecretosPage() {
+  const [unlocked, setUnlocked] = useState(false);
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<"" | "ok" | "error">("error");
+  const [statusFilter, setStatusFilter] = useState<"" | "ok" | "error">("");
   const [waAccounts, setWaAccounts] = useState<{ id: string; label: string }[]>([]);
+
+  // Entrar pelo FAB ou pela sequência secreta em Configurações já deixa a
+  // "chave" marcada — quem cai aqui de qualquer outro jeito (URL direta,
+  // favorito, aba antiga) precisa refazer a sequência nesta própria tela.
+  useEffect(() => {
+    if (consumeLogsUnlocked()) setUnlocked(true);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -107,17 +117,18 @@ export default function LogsSecretosPage() {
   }, [statusFilter]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (unlocked) load();
+  }, [unlocked, load]);
 
   useEffect(() => {
+    if (!unlocked) return;
     fetch("/api/wa-accounts")
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { accounts: { id: string; label: string }[] } | null) =>
         setWaAccounts(d?.accounts ?? []),
       )
       .catch(() => undefined);
-  }, []);
+  }, [unlocked]);
 
   return (
     <div className="space-y-6">
@@ -135,6 +146,10 @@ export default function LogsSecretosPage() {
         </p>
       </div>
 
+      {!unlocked ? (
+        <LogsLockGate onUnlock={() => setUnlocked(true)} />
+      ) : (
+        <>
       <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
         <h2 className="mb-4 font-display text-[15px] font-bold text-white">Segredos</h2>
         <div className="space-y-2.5">
@@ -228,6 +243,8 @@ export default function LogsSecretosPage() {
           </div>
         )}
       </section>
+        </>
+      )}
     </div>
   );
 }

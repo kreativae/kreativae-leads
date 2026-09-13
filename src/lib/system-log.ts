@@ -3,6 +3,7 @@ import { systemLogs } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 
 export type LogSource =
+  | "search"
   | "instagram_lookup"
   | "whatsapp_webhook"
   | "enrich_queue"
