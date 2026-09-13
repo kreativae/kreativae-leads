@@ -9,6 +9,7 @@ import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/brow
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import {
   Activity,
+  Bug,
   CheckCircle2,
   ClipboardCopy,
   Fingerprint,
@@ -83,6 +84,8 @@ const EVENT_LABELS: Record<string, string> = {
   login_success_webauthn: "Login com Face ID / Windows Hello",
   webauthn_registered: "Chave de acesso cadastrada",
   webauthn_removed: "Chave de acesso removida",
+  debug_easter_egg_enabled: "Easter egg do painel de debug ativado",
+  debug_easter_egg_disabled: "Easter egg do painel de debug desativado",
 };
 
 function ContaInner() {
@@ -112,6 +115,9 @@ function ContaInner() {
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeySupported, setPasskeySupported] = useState(false);
 
+  const [debugEnabled, setDebugEnabled] = useState<boolean | null>(null);
+  const [debugBusy, setDebugBusy] = useState(false);
+
   const loadMe = useCallback(async () => {
     const res = await fetch("/api/auth/me");
     if (res.status === 401) {
@@ -137,13 +143,40 @@ function ContaInner() {
     if (res.ok) setPasskeys(((await res.json()) as { credentials: PasskeyRow[] }).credentials);
   }, []);
 
+  const loadDebugToggle = useCallback(async () => {
+    const res = await fetch("/api/settings/debug-toggle");
+    if (res.ok) setDebugEnabled(((await res.json()) as { enabled: boolean }).enabled);
+  }, []);
+
   useEffect(() => {
     loadMe();
     loadSessions();
     loadActivity();
     loadPasskeys();
+    loadDebugToggle();
     setPasskeySupported(browserSupportsWebAuthn());
-  }, [loadMe, loadSessions, loadActivity, loadPasskeys]);
+  }, [loadMe, loadSessions, loadActivity, loadPasskeys, loadDebugToggle]);
+
+  async function toggleDebugEasterEgg() {
+    if (debugEnabled === null) return;
+    const next = !debugEnabled;
+    setDebugBusy(true);
+    try {
+      const res = await fetch("/api/settings/debug-toggle", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      const data = (await res.json()) as { ok: boolean; enabled?: boolean; error?: string };
+      if (!data.ok) throw new Error(data.error ?? "Falha ao salvar.");
+      setDebugEnabled(data.enabled ?? next);
+      loadActivity();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro.");
+    } finally {
+      setDebugBusy(false);
+    }
+  }
 
   async function addPasskey() {
     setPasskeyBusy(true);
@@ -505,6 +538,51 @@ function ContaInner() {
             </div>
           )}
         </Card>
+
+        {/* Easter egg do painel de debug — só o proprietário decide */}
+        {me.role === "owner" && (
+          <Card
+            icon={Bug}
+            title="Easter egg do painel de debug"
+            desc="Ícone de bug + sequência secreta em Configurações, que abre Logs & segredos."
+          >
+            {debugEnabled === null ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-volt" />
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold text-zinc-100">
+                    {debugEnabled ? "Ativado" : "Desativado"}
+                  </div>
+                  <div className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-500">
+                    {debugEnabled
+                      ? "O ícone de bug e a sequência secreta estão visíveis em Configurações."
+                      : "O ícone de bug some de Configurações e a sequência para de funcionar."}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={debugEnabled}
+                  aria-label="Easter egg do painel de debug"
+                  onClick={toggleDebugEasterEgg}
+                  disabled={debugBusy}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
+                    debugEnabled ? "bg-volt" : "bg-white/[0.12]"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                      debugEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
+          </Card>
+        )}
       </div>
 
       {/* Recovery codes modal-ish */}

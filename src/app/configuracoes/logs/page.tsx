@@ -312,6 +312,14 @@ export default function LogsSecretosPage() {
   const [statusFilter, setStatusFilter] = useState<"" | "ok" | "error">("");
   const [waAccounts, setWaAccounts] = useState<{ id: string; label: string }[]>([]);
   const [limpando, setLimpando] = useState(false);
+  const [debugEnabled, setDebugEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/debug-toggle")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { enabled?: boolean } | null) => setDebugEnabled(d?.enabled ?? true))
+      .catch(() => setDebugEnabled(true));
+  }, []);
 
   // Entrar pelo FAB ou pela sequência secreta em Configurações já deixa a
   // "chave" marcada — quem cai aqui de qualquer outro jeito (URL direta,
@@ -401,7 +409,17 @@ export default function LogsSecretosPage() {
         )}
       </div>
 
-      {!unlocked ? (
+      {debugEnabled === false ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] py-24 text-center">
+          <Bug className="h-8 w-8 text-zinc-700" />
+          <div>
+            <p className="text-[14px] font-semibold text-zinc-300">Recurso desativado</p>
+            <p className="mt-1 text-[12.5px] text-zinc-500">
+              O proprietário desligou o easter egg do painel de debug em Conta.
+            </p>
+          </div>
+        </div>
+      ) : !unlocked ? (
         <LogsLockGate onUnlock={() => setUnlocked(true)} />
       ) : (
         <>

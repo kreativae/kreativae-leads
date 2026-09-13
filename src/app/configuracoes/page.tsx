@@ -43,6 +43,18 @@ function useIsOwner(): boolean {
   return owner;
 }
 
+/** Controlado em Conta → só o proprietário liga/desliga; padrão ligado. */
+function useDebugEasterEggEnabled(): boolean {
+  const [enabled, setEnabled] = useState(true);
+  useEffect(() => {
+    fetch("/api/settings/debug-toggle")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { enabled?: boolean } | null) => setEnabled(d?.enabled ?? true))
+      .catch(() => undefined);
+  }, []);
+  return enabled;
+}
+
 interface SecretMeta {
   set?: boolean;
   masked?: string | null;
@@ -143,6 +155,7 @@ export default function ConfiguracoesPage() {
   const [waCustoErro, setWaCustoErro] = useState<string | null>(null);
   const [waCustoCarregando, setWaCustoCarregando] = useState(true);
   const isOwner = useIsOwner();
+  const debugEnabled = useDebugEasterEggEnabled();
 
   const carregarCustoWhatsApp = useCallback(async () => {
     setWaCustoCarregando(true);
@@ -268,8 +281,8 @@ export default function ConfiguracoesPage() {
 
   return (
     <div className="space-y-6">
-      <SecretDebugTrigger />
-      <DebugFab visible={isOwner} />
+      {debugEnabled && <SecretDebugTrigger />}
+      <DebugFab visible={isOwner && debugEnabled} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">

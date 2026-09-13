@@ -137,7 +137,10 @@ export function LogsLockGate({ onUnlock }: { onUnlock: () => void }) {
       <div>
         <p className="text-[14px] font-semibold text-zinc-200">Acesso restrito</p>
         <p className="mt-1 text-[12.5px] text-zinc-500">
-          Repita a sequência secreta pra destravar: clique no bug 3x, depois → → A.
+          Repita a sequência secreta pra destravar:{" "}
+          <span className="cursor-default select-none blur-[5px] transition-[filter] duration-200 hover:blur-none">
+            clique no bug 3x, depois → → A.
+          </span>
         </p>
       </div>
       <button

@@ -10,6 +10,7 @@ export const SETTING_KEYS = [
   "ig_access_token",
   "ig_user_id",
   "wa_enabled",
+  "debug_easter_egg_enabled",
 ] as const;
 
 /**
@@ -78,6 +79,16 @@ export function maskSecret(v: string | null): string | null {
  */
 export async function isWaEnabled(): Promise<boolean> {
   const v = await getSetting("wa_enabled");
+  return v !== "no";
+}
+
+/**
+ * Interruptor do easter egg do painel de debug (ícone de bug + sequência
+ * secreta). Ausente = ligado, já que a funcionalidade já estava no ar
+ * quando este toggle foi criado.
+ */
+export async function isDebugEasterEggEnabled(): Promise<boolean> {
+  const v = await getSetting("debug_easter_egg_enabled");
   return v !== "no";
 }
 
