@@ -14,6 +14,8 @@ export const SETTING_KEYS = [
   "debug_easter_egg_enabled",
   "resend_api_key",
   "resend_from_email",
+  "n8n_webhook_url",
+  "n8n_callback_secret",
 ] as const;
 
 /**
@@ -120,6 +122,21 @@ export async function getIgConfig(): Promise<IgConfig | null> {
   ]);
   if (!accessToken || !igUserId) return null;
   return { accessToken, igUserId };
+}
+
+export interface N8nConfig {
+  webhookUrl: string;
+  callbackSecret: string;
+}
+
+/** Credenciais da automação via n8n, ou null se não configurado. */
+export async function getN8nConfig(): Promise<N8nConfig | null> {
+  const [webhookUrl, callbackSecret] = await Promise.all([
+    getEffectiveSetting("n8n_webhook_url", "N8N_WEBHOOK_URL"),
+    getEffectiveSetting("n8n_callback_secret", "N8N_CALLBACK_SECRET"),
+  ]);
+  if (!webhookUrl || !callbackSecret) return null;
+  return { webhookUrl, callbackSecret };
 }
 
 export interface ResendConfig {

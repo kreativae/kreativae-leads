@@ -22,6 +22,7 @@ import {
   Settings2,
   Trash2,
   Webhook,
+  Zap,
   X,
 } from "lucide-react";
 import { ThemeSelector } from "@/components/theme";
@@ -95,6 +96,7 @@ type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   wa_configured?: boolean;
   ig_configured?: boolean;
   resend_configured?: boolean;
+  n8n_configured?: boolean;
   places_cost?: CustoPlaces;
 };
 
@@ -136,7 +138,14 @@ function Toggle({
   );
 }
 
-const SECRET_FIELDS = ["google_places_key", "wa_app_secret", "ig_access_token", "resend_api_key"];
+const SECRET_FIELDS = [
+  "google_places_key",
+  "wa_app_secret",
+  "ig_access_token",
+  "resend_api_key",
+  "n8n_webhook_url",
+  "n8n_callback_secret",
+];
 const PLAIN_FIELDS = ["wa_verify_token", "data_source", "ig_user_id", "resend_from_email"];
 
 export default function ConfiguracoesPage() {
@@ -151,6 +160,8 @@ export default function ConfiguracoesPage() {
     wa_enabled: "yes",
     resend_api_key: "",
     resend_from_email: "",
+    n8n_webhook_url: "",
+    n8n_callback_secret: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -286,6 +297,7 @@ export default function ConfiguracoesPage() {
   }
 
   const webhookUrl = origin ? `${origin}/api/webhooks/whatsapp` : "/api/webhooks/whatsapp";
+  const n8nCallbackUrl = origin ? `${origin}/api/webhooks/n8n` : "/api/webhooks/n8n";
 
   return (
     <div className="space-y-6">
@@ -545,6 +557,59 @@ export default function ConfiguracoesPage() {
             </div>
           </Section>
 
+          {/* Automação via n8n */}
+          <Section
+            icon={Zap}
+            title="Automação (n8n)"
+            desc="Botão “Automatizar” no lead dispara esse webhook; o n8n decide e devolve a mensagem pra gente enviar."
+            className="xl:col-span-2"
+          >
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="space-y-4">
+                <SecretInput
+                  label="Webhook do n8n (URL de disparo)"
+                  hint="Cole a URL do nó Webhook (trigger) do seu fluxo no n8n."
+                  masked={meta.n8n_webhook_url?.masked}
+                  fromEnv={meta.n8n_webhook_url?.fromEnv}
+                  value={values.n8n_webhook_url}
+                  onChange={(v) => setValues((s) => ({ ...s, n8n_webhook_url: v }))}
+                  onRemove={() => removeSecret("n8n_webhook_url")}
+                />
+                <SecretInput
+                  label="Segredo do callback"
+                  hint="Gere uma string aleatória — o n8n manda ela de volta pra provar que é ele."
+                  masked={meta.n8n_callback_secret?.masked}
+                  fromEnv={meta.n8n_callback_secret?.fromEnv}
+                  value={values.n8n_callback_secret}
+                  onChange={(v) => setValues((s) => ({ ...s, n8n_callback_secret: v }))}
+                  onRemove={() => removeSecret("n8n_callback_secret")}
+                />
+              </div>
+              <div className="rounded-xl border border-white/[0.07] bg-ink/60 p-5">
+                <div className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
+                  <Zap className="h-4 w-4 text-volt" />
+                  Como conectar
+                </div>
+                <ol className="mt-3 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
+                  <li>No n8n, crie um fluxo com um nó <span className="text-zinc-200">Webhook</span> — cole a URL dele no campo ao lado.</li>
+                  <li>No fim do fluxo, adicione um nó <span className="text-zinc-200">HTTP Request</span> chamando a URL de callback abaixo, com o segredo no header <span className="text-zinc-200">x-automation-secret</span>.</li>
+                  <li>O corpo do callback: <span className="text-zinc-200">{`{ leadId, channel: "whatsapp"|"email", message, subject, html }`}</span>.</li>
+                </ol>
+                <CopyRow
+                  label="URL de callback"
+                  value={n8nCallbackUrl}
+                  copied={copied === "n8n"}
+                  onCopy={() => copy(n8nCallbackUrl, "n8n")}
+                />
+                <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-200/80">
+                  WhatsApp só envia texto livre dentro de uma conversa já aberta — primeiro
+                  contato exige template aprovado pela Meta, que ainda não existe aqui. E-mail
+                  não tem essa limitação.
+                </p>
+              </div>
+            </div>
+          </Section>
+
           {/* Equipe (owner only) */}
           {isOwner && (
             <Section
@@ -589,6 +654,11 @@ export default function ConfiguracoesPage() {
                 label="E-mail (Resend)"
                 active={!!meta.resend_configured}
                 detail={meta.resend_configured ? "Chave + remetente ok" : "Não configurado"}
+              />
+              <StatusChip
+                label="Automação (n8n)"
+                active={!!meta.n8n_configured}
+                detail={meta.n8n_configured ? "Webhook + segredo ok" : "Não configurado"}
               />
             </div>
           </Section>

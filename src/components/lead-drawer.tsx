@@ -40,6 +40,7 @@ import {
   Wand2,
   X,
   XCircle,
+  Zap,
 } from "lucide-react";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { copiarRico } from "@/lib/clipboard";
@@ -120,6 +121,9 @@ export interface ClientLead {
   extra: Record<string, unknown> | null;
   contactScore: number;
   enrichedAt: string | null;
+  automationStatus: string | null;
+  automationChannel: string | null;
+  automationAt: string | null;
 }
 
 
@@ -187,6 +191,8 @@ export function LeadDrawer({
   const [analyzing, setAnalyzing] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [enrichMsg, setEnrichMsg] = useState<string | null>(null);
+  const [automating, setAutomating] = useState(false);
+  const [automateMsg, setAutomateMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [horariosAbertos, setHorariosAbertos] = useState(false);
@@ -585,6 +591,23 @@ export function LeadDrawer({
       }
     } finally {
       setEnriching(false);
+    }
+  }
+
+  async function automate() {
+    setAutomating(true);
+    setAutomateMsg(null);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/automate`, { method: "POST" });
+      const json = (await res.json()) as { ok: boolean; lead?: ClientLead; error?: string };
+      if (json.ok && json.lead) {
+        onPatched(json.lead);
+        setAutomateMsg("Disparado — o resultado aparece aqui quando o n8n responder.");
+      } else {
+        setAutomateMsg(json.error ?? "Falha ao disparar automação.");
+      }
+    } finally {
+      setAutomating(false);
     }
   }
 
@@ -1035,6 +1058,49 @@ export function LeadDrawer({
                 )}
               </div>
             </div>
+
+            {/* Automação via n8n */}
+            <div className="mt-3.5 rounded-xl border border-white/[0.07] bg-ink/50 p-3.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="flex items-center gap-2 text-[12.5px] font-bold text-zinc-100">
+                    <Zap className="h-3.5 w-3.5 text-volt" />
+                    Automação (n8n)
+                  </div>
+                  <p className="mt-0.5 text-[11.5px] text-zinc-500">
+                    {lead.automationStatus === "pending"
+                      ? "Disparado, esperando o n8n responder…"
+                      : lead.automationStatus === "done"
+                        ? `Concluída por ${lead.automationChannel === "email" ? "e-mail" : "WhatsApp"}${
+                            lead.automationAt ? ` · ${timeAgo(lead.automationAt)}` : ""
+                          }.`
+                        : lead.automationStatus === "failed"
+                          ? `Falhou${lead.automationAt ? ` · ${timeAgo(lead.automationAt)}` : ""} — veja o motivo nos logs.`
+                          : "Manda os dados do lead pro fluxo do n8n, que decide e devolve a mensagem pra gente enviar."}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={automate}
+                  disabled={automating || (!lead.whatsapp && !lead.email)}
+                  title={lead.whatsapp || lead.email ? "" : "Lead sem WhatsApp nem e-mail"}
+                  className="inline-flex items-center gap-2 rounded-full border border-volt/30 bg-volt/[0.08] px-4 py-2 text-[12px] font-bold text-volt transition-colors hover:bg-volt/[0.16] disabled:opacity-40"
+                >
+                  {automating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Zap className="h-3.5 w-3.5" />
+                  )}
+                  Automatizar
+                </button>
+              </div>
+              {automateMsg && (
+                <p className="mt-2.5 rounded-lg border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-[11.5px] text-zinc-300">
+                  {automateMsg}
+                </p>
+              )}
+            </div>
+
             <div className="mt-3.5 flex flex-wrap gap-2">
               {waChatLink && (
                 <a

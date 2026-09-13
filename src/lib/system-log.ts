@@ -7,7 +7,8 @@ export type LogSource =
   | "instagram_lookup"
   | "whatsapp_webhook"
   | "enrich_queue"
-  | "wa_send";
+  | "wa_send"
+  | "automation";
 
 const RETENCAO_PADRAO_DIAS = 90;
 

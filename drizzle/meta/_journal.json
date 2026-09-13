@@ -57,6 +57,13 @@
       "when": 1789264988320,
       "tag": "0007_round_sally_floyd",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789297118323,
+      "tag": "0008_white_mantis",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ const SOURCES: LogSource[] = [
   "whatsapp_webhook",
   "enrich_queue",
   "wa_send",
+  "automation",
 ];
 
 export async function GET(req: Request) {

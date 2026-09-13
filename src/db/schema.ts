@@ -87,6 +87,13 @@ export const leads = pgTable(
     opportunity: text("opportunity").notNull().default("unreviewed"), // no_website | outdated | modern | unreviewed
     status: text("status").notNull().default("new"), // new | contacted | negotiating | won | lost
     notes: text("notes"),
+    // Automacao via n8n: disparada manualmente, o n8n decide o conteudo e
+    // devolve pra gente enviar (assim a mensagem entra em Conversas
+    // normalmente) — estes 3 campos so registram o resultado mais recente
+    // pra exibir no proprio lead; o historico completo fica no system_logs.
+    automationStatus: text("automation_status"), // pending | done | failed
+    automationChannel: text("automation_channel"), // whatsapp | email
+    automationAt: timestamp("automation_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
