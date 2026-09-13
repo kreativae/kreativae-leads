@@ -12,6 +12,8 @@ export const SETTING_KEYS = [
   "wa_enabled",
   "debug_panel_enabled",
   "debug_easter_egg_enabled",
+  "resend_api_key",
+  "resend_from_email",
 ] as const;
 
 /**
@@ -118,6 +120,21 @@ export async function getIgConfig(): Promise<IgConfig | null> {
   ]);
   if (!accessToken || !igUserId) return null;
   return { accessToken, igUserId };
+}
+
+export interface ResendConfig {
+  apiKey: string;
+  from: string;
+}
+
+/** Credenciais do Resend (envio de e-mail), ou null se não configurado. */
+export async function getResendConfig(): Promise<ResendConfig | null> {
+  const [apiKey, from] = await Promise.all([
+    getEffectiveSetting("resend_api_key", "RESEND_API_KEY"),
+    getEffectiveSetting("resend_from_email", "RESEND_FROM_EMAIL"),
+  ]);
+  if (!apiKey || !from) return null;
+  return { apiKey, from };
 }
 
 export interface WaAccount {

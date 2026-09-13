@@ -10,6 +10,7 @@ import {
   Globe2,
   KeyRound,
   Loader2,
+  Mail,
   MessageSquare,
   Palette,
   Pencil,
@@ -93,6 +94,7 @@ interface CustoWhatsApp {
 type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   wa_configured?: boolean;
   ig_configured?: boolean;
+  resend_configured?: boolean;
   places_cost?: CustoPlaces;
 };
 
@@ -134,8 +136,8 @@ function Toggle({
   );
 }
 
-const SECRET_FIELDS = ["google_places_key", "wa_app_secret", "ig_access_token"];
-const PLAIN_FIELDS = ["wa_verify_token", "data_source", "ig_user_id"];
+const SECRET_FIELDS = ["google_places_key", "wa_app_secret", "ig_access_token", "resend_api_key"];
+const PLAIN_FIELDS = ["wa_verify_token", "data_source", "ig_user_id", "resend_from_email"];
 
 export default function ConfiguracoesPage() {
   const [meta, setMeta] = useState<SettingsMeta>({});
@@ -147,6 +149,8 @@ export default function ConfiguracoesPage() {
     ig_access_token: "",
     ig_user_id: "",
     wa_enabled: "yes",
+    resend_api_key: "",
+    resend_from_email: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -189,6 +193,7 @@ export default function ConfiguracoesPage() {
         data_source: data.data_source?.value || "auto",
         wa_verify_token: data.wa_verify_token?.value ?? "",
         ig_user_id: data.ig_user_id?.value ?? "",
+        resend_from_email: data.resend_from_email?.value ?? "",
         wa_enabled: data.wa_enabled?.value === "no" ? "no" : "yes",
       }));
     } finally {
@@ -500,6 +505,46 @@ export default function ConfiguracoesPage() {
             </div>
           </Section>
 
+          {/* E-mail transacional (Resend) */}
+          <Section
+            icon={Mail}
+            title="E-mail (Resend)"
+            desc="Envio de e-mails automatizados — usado por automações e futuras notificações."
+            className="xl:col-span-2"
+          >
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="space-y-4">
+                <SecretInput
+                  label="API Key"
+                  hint="Gerada em resend.com/api-keys."
+                  masked={meta.resend_api_key?.masked}
+                  fromEnv={meta.resend_api_key?.fromEnv}
+                  value={values.resend_api_key}
+                  onChange={(v) => setValues((s) => ({ ...s, resend_api_key: v }))}
+                  onRemove={() => removeSecret("resend_api_key")}
+                />
+                <PlainInput
+                  label="Endereço de envio (From)"
+                  hint="Precisa ser de um domínio verificado no Resend — ex.: leads@kreativ.ae."
+                  value={values.resend_from_email}
+                  onChange={(v) => setValues((s) => ({ ...s, resend_from_email: v }))}
+                  fromEnv={meta.resend_from_email?.fromEnv}
+                />
+              </div>
+              <div className="rounded-xl border border-white/[0.07] bg-ink/60 p-5">
+                <div className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
+                  <Mail className="h-4 w-4 text-volt" />
+                  Estado
+                </div>
+                <p className="mt-3 text-[12.5px] leading-relaxed text-zinc-400">
+                  {meta.resend_configured
+                    ? "Configurado. Automações e envios manuais já podem usar esse remetente."
+                    : "Ainda sem chave ou remetente — nenhum e-mail é enviado até os dois campos estarem preenchidos."}
+                </p>
+              </div>
+            </div>
+          </Section>
+
           {/* Equipe (owner only) */}
           {isOwner && (
             <Section
@@ -539,6 +584,11 @@ export default function ConfiguracoesPage() {
                 label="Webhook assinado"
                 active={!!meta.wa_app_secret?.set}
                 detail={meta.wa_app_secret?.set ? "Assinatura validada" : "App Secret ausente (opcional)"}
+              />
+              <StatusChip
+                label="E-mail (Resend)"
+                active={!!meta.resend_configured}
+                detail={meta.resend_configured ? "Chave + remetente ok" : "Não configurado"}
               />
             </div>
           </Section>

@@ -7,7 +7,7 @@ import {
   listWaAccounts,
   type SettingKey,
 } from "@/lib/settings-db";
-import { getIgConfig } from "@/lib/settings-db";
+import { getIgConfig, getResendConfig } from "@/lib/settings-db";
 import { lerCustoPlaces } from "@/lib/places-cost";
 import { requireUser } from "@/lib/auth";
 
@@ -17,6 +17,7 @@ const SECRET_KEYS: SettingKey[] = [
   "google_places_key",
   "wa_app_secret",
   "ig_access_token",
+  "resend_api_key",
 ];
 
 const ENV_HINT: Partial<Record<SettingKey, string>> = {
@@ -24,6 +25,8 @@ const ENV_HINT: Partial<Record<SettingKey, string>> = {
   wa_verify_token: "WA_VERIFY_TOKEN",
   ig_access_token: "IG_ACCESS_TOKEN",
   ig_user_id: "IG_USER_ID",
+  resend_api_key: "RESEND_API_KEY",
+  resend_from_email: "RESEND_FROM_EMAIL",
 };
 
 export async function GET() {
@@ -41,6 +44,7 @@ export async function GET() {
   }
   out.wa_configured = (await listWaAccounts()).length > 0;
   out.ig_configured = !!(await getIgConfig());
+  out.resend_configured = !!(await getResendConfig());
   out.places_cost = await lerCustoPlaces();
   return NextResponse.json(out);
 }

@@ -59,12 +59,14 @@ const SECRET_LABEL: Record<string, string> = {
   google_places_key: "Google Places — chave da API",
   wa_app_secret: "WhatsApp — App Secret",
   ig_access_token: "Instagram — Access Token",
+  resend_api_key: "Resend — API Key",
 };
 
-/** google_places_key e ig_access_token têm teste; wa_app_secret não é usado em chamada de saída. */
+/** wa_app_secret não é usado em chamada de saída, então não tem teste. */
 const TEST_KIND: Record<string, string> = {
   google_places_key: "google_places_key",
   ig_access_token: "ig_access_token",
+  resend_api_key: "resend_api_key",
 };
 
 function DeployInfoCard() {

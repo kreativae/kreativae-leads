@@ -5,6 +5,7 @@ import { testPlacesKey } from "@/lib/places";
 import { registrarRequisicoesPlaces } from "@/lib/places-cost";
 import { checkIgToken } from "@/lib/instagram";
 import { checkWaAccount } from "@/lib/whatsapp";
+import { testResendKey } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,20 @@ export async function POST(req: Request) {
     const r = await checkIgToken(config);
     return NextResponse.json(
       r.ok ? { ok: true, detail: `Token válido (conta: @${r.username ?? "?"}).` } : r,
+    );
+  }
+
+  if (body.kind === "resend_api_key") {
+    const key = await getEffectiveSetting("resend_api_key", "RESEND_API_KEY");
+    if (!key) return NextResponse.json({ ok: false, error: "Chave não configurada." });
+    const r = await testResendKey(key);
+    return NextResponse.json(
+      r.ok
+        ? {
+            ok: true,
+            detail: r.domains.length > 0 ? `Domínios: ${r.domains.join(", ")}` : "Chave autenticou, sem domínios verificados ainda.",
+          }
+        : r,
     );
   }
 
