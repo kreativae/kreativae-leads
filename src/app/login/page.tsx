@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   startAuthentication,
@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 
 function LoginForm() {
-  const router = useRouter();
   const sp = useSearchParams();
   const next = sp.get("next") ?? "/";
 
@@ -41,8 +40,11 @@ function LoginForm() {
   async function finishLogin(res: Response) {
     const data = (await res.json()) as { ok: boolean; error?: string };
     if (!data.ok) throw new Error(data.error ?? "Falha na verificação.");
-    router.push(next);
-    router.refresh();
+    // Reload completo, não navegação client-side: digitar a senha no campo
+    // mobile (14px, de propósito) faz o Safari dar zoom automático ao
+    // focar; sem um reload aqui, esse zoom persiste visualmente na tela
+    // seguinte.
+    window.location.href = next;
   }
 
   async function useWebauthn() {
@@ -94,8 +96,7 @@ function LoginForm() {
         return;
       }
       if (!data.ok) throw new Error(data.error ?? "Falha no login.");
-      router.push(next);
-      router.refresh();
+      window.location.href = next;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado.");
     } finally {
@@ -115,8 +116,7 @@ function LoginForm() {
       });
       const data = (await res.json()) as { ok: boolean; error?: string };
       if (!data.ok) throw new Error(data.error ?? "Código inválido.");
-      router.push(next);
-      router.refresh();
+      window.location.href = next;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado.");
     } finally {
