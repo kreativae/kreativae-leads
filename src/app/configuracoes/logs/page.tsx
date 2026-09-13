@@ -35,6 +35,17 @@ interface DeployInfo {
   bootedAt: string;
 }
 
+interface DbInfo {
+  ok: boolean;
+  error?: string;
+  latencyMs: number;
+  serverTime?: string;
+  sizeMb?: number;
+  connections?: number;
+  version?: string;
+  lastRecords?: { source: string; at: string | null }[];
+}
+
 const SOURCE_LABEL: Record<string, string> = {
   search: "Busca de leads",
   instagram_lookup: "Instagram",
@@ -83,6 +94,92 @@ function DeployInfoCard() {
         <span>desde {formatDate(info.bootedAt)}</span>
       </div>
       {info.message && <p className="mt-1.5 truncate text-[12px] text-zinc-500">{info.message}</p>}
+    </section>
+  );
+}
+
+function DbInfoCard() {
+  const [info, setInfo] = useState<DbInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    fetch("/api/db-info")
+      .then((r) => r.json())
+      .then(setInfo)
+      .catch(() => setInfo({ ok: false, latencyMs: 0, error: "Erro de conexão." }))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return (
+    <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-display text-[15px] font-bold text-white">Banco de dados (Neon)</h2>
+        <button
+          type="button"
+          onClick={load}
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11.5px] font-semibold text-zinc-400 hover:bg-white/[0.07] disabled:opacity-60"
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          Testar conexão
+        </button>
+      </div>
+
+      {!info ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-volt" />
+        </div>
+      ) : !info.ok ? (
+        <div className="flex items-center gap-2 rounded-xl border border-rose-400/20 bg-rose-400/[0.04] px-4 py-3 text-[12.5px] text-rose-300">
+          <XCircle className="h-4 w-4 shrink-0" />
+          {info.error ?? "Não foi possível conectar."}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11.5px] font-bold text-emerald-300">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Conectado
+            </span>
+            <span className="text-[12px] text-zinc-500">{info.latencyMs} ms de latência</span>
+            {info.sizeMb != null && <span className="text-[12px] text-zinc-500">· {info.sizeMb} MB</span>}
+            {info.connections != null && (
+              <span className="text-[12px] text-zinc-500">· {info.connections} conexão(ões) ativa(s)</span>
+            )}
+          </div>
+          {info.serverTime && (
+            <p className="text-[11.5px] text-zinc-600">
+              Horário do servidor: {formatDate(info.serverTime)}
+              {info.version ? ` · ${info.version}` : ""}
+            </p>
+          )}
+          {info.lastRecords && info.lastRecords.length > 0 && (
+            <div>
+              <p className="mb-2 text-[11.5px] font-semibold uppercase tracking-wide text-zinc-500">
+                Último registro por origem
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {info.lastRecords.map((r) => (
+                  <div
+                    key={r.source}
+                    className="rounded-lg border border-white/[0.07] bg-ink/60 px-3 py-2"
+                  >
+                    <div className="text-[11px] text-zinc-500">{r.source}</div>
+                    <div className="text-[12px] font-semibold text-zinc-200">
+                      {r.at ? formatDate(r.at) : "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -296,6 +393,8 @@ export default function LogsSecretosPage() {
       ) : (
         <>
           <DeployInfoCard />
+
+          <DbInfoCard />
 
           <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
             <h2 className="mb-4 font-display text-[15px] font-bold text-white">Segredos</h2>
