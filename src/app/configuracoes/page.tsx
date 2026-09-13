@@ -593,7 +593,8 @@ export default function ConfiguracoesPage() {
                 <ol className="mt-3 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
                   <li>No n8n, crie um fluxo com um nó <span className="text-zinc-200">Webhook</span> — cole a URL dele no campo ao lado.</li>
                   <li>No fim do fluxo, adicione um nó <span className="text-zinc-200">HTTP Request</span> chamando a URL de callback abaixo, com o segredo no header <span className="text-zinc-200">x-automation-secret</span>.</li>
-                  <li>O corpo do callback: <span className="text-zinc-200">{`{ leadId, channel: "whatsapp"|"email", message, subject, html }`}</span>.</li>
+                  <li>Para WhatsApp: <span className="text-zinc-200">{`{ leadId, channel: "whatsapp", message }`}</span> manda tudo em bloco, ou <span className="text-zinc-200">{`messages: ["parte 1", "parte 2", ...]`}</span> manda uma bolha por vez, com pausa entre elas.</li>
+                  <li>Para e-mail: <span className="text-zinc-200">{`{ leadId, channel: "email", subject, html }`}</span>.</li>
                 </ol>
                 <CopyRow
                   label="URL de callback"
