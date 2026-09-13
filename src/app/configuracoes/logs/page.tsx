@@ -66,7 +66,7 @@ function RevealRow({ label, kind, id }: { label: string; kind: "setting" | "wa_a
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-semibold text-zinc-100">{label}</div>
         {value && (
-          <div className="mt-1 truncate rounded-lg bg-black/40 px-2 py-1 font-mono text-[11.5px] text-volt">
+          <div className="mt-1 truncate rounded-lg border border-white/[0.09] bg-ink px-2 py-1 font-mono text-[11.5px] text-zinc-100">
             {value}
           </div>
         )}
@@ -196,13 +196,13 @@ export default function LogsSecretosPage() {
                 key={log.id}
                 className={`rounded-xl border px-4 py-3 ${
                   log.status === "error"
-                    ? "border-red-500/20 bg-red-500/[0.04]"
+                    ? "border-rose-400/20 bg-rose-400/[0.04]"
                     : "border-white/[0.07] bg-ink/60"
                 }`}
               >
                 <div className="flex items-start gap-2.5">
                   {log.status === "error" ? (
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" />
                   ) : (
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
                   )}
