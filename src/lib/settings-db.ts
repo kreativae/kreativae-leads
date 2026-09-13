@@ -10,6 +10,7 @@ export const SETTING_KEYS = [
   "ig_access_token",
   "ig_user_id",
   "wa_enabled",
+  "debug_panel_enabled",
   "debug_easter_egg_enabled",
 ] as const;
 
@@ -83,9 +84,21 @@ export async function isWaEnabled(): Promise<boolean> {
 }
 
 /**
- * Interruptor do easter egg do painel de debug (ícone de bug + sequência
- * secreta). Ausente = ligado, já que a funcionalidade já estava no ar
- * quando este toggle foi criado.
+ * Interruptor mestre do painel de debug (/configuracoes/logs) — FAB e
+ * ícone escondido incluídos. Desligado, nada disso funciona, não importa
+ * o toggle do easter egg abaixo. Ausente = ligado, já que a funcionalidade
+ * já estava no ar quando este toggle foi criado.
+ */
+export async function isDebugPanelEnabled(): Promise<boolean> {
+  const v = await getSetting("debug_panel_enabled");
+  return v !== "no";
+}
+
+/**
+ * Interruptor só do easter egg (ícone de bug quase invisível + sequência
+ * secreta em Configurações). Independente do painel em si: com o painel
+ * ligado e isto desligado, o único jeito de entrar continua sendo o FAB
+ * visível — a "brincadeira" some, o recurso não.
  */
 export async function isDebugEasterEggEnabled(): Promise<boolean> {
   const v = await getSetting("debug_easter_egg_enabled");

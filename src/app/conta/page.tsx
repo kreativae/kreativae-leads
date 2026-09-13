@@ -84,6 +84,8 @@ const EVENT_LABELS: Record<string, string> = {
   login_success_webauthn: "Login com Face ID / Windows Hello",
   webauthn_registered: "Chave de acesso cadastrada",
   webauthn_removed: "Chave de acesso removida",
+  debug_panel_enabled: "Painel de debug ativado",
+  debug_panel_disabled: "Painel de debug desativado",
   debug_easter_egg_enabled: "Easter egg do painel de debug ativado",
   debug_easter_egg_disabled: "Easter egg do painel de debug desativado",
 };
@@ -115,8 +117,9 @@ function ContaInner() {
   const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [passkeySupported, setPasskeySupported] = useState(false);
 
-  const [debugEnabled, setDebugEnabled] = useState<boolean | null>(null);
-  const [debugBusy, setDebugBusy] = useState(false);
+  const [panelEnabled, setPanelEnabled] = useState<boolean | null>(null);
+  const [easterEggEnabled, setEasterEggEnabled] = useState<boolean | null>(null);
+  const [debugBusy, setDebugBusy] = useState<"panel" | "easter_egg" | null>(null);
 
   const loadMe = useCallback(async () => {
     const res = await fetch("/api/auth/me");
@@ -143,9 +146,13 @@ function ContaInner() {
     if (res.ok) setPasskeys(((await res.json()) as { credentials: PasskeyRow[] }).credentials);
   }, []);
 
-  const loadDebugToggle = useCallback(async () => {
+  const loadDebugToggles = useCallback(async () => {
     const res = await fetch("/api/settings/debug-toggle");
-    if (res.ok) setDebugEnabled(((await res.json()) as { enabled: boolean }).enabled);
+    if (res.ok) {
+      const data = (await res.json()) as { panelEnabled: boolean; easterEggEnabled: boolean };
+      setPanelEnabled(data.panelEnabled);
+      setEasterEggEnabled(data.easterEggEnabled);
+    }
   }, []);
 
   useEffect(() => {
@@ -153,28 +160,30 @@ function ContaInner() {
     loadSessions();
     loadActivity();
     loadPasskeys();
-    loadDebugToggle();
+    loadDebugToggles();
     setPasskeySupported(browserSupportsWebAuthn());
-  }, [loadMe, loadSessions, loadActivity, loadPasskeys, loadDebugToggle]);
+  }, [loadMe, loadSessions, loadActivity, loadPasskeys, loadDebugToggles]);
 
-  async function toggleDebugEasterEgg() {
-    if (debugEnabled === null) return;
-    const next = !debugEnabled;
-    setDebugBusy(true);
+  async function toggleDebug(which: "panel" | "easter_egg") {
+    const current = which === "panel" ? panelEnabled : easterEggEnabled;
+    if (current === null) return;
+    const next = !current;
+    setDebugBusy(which);
     try {
       const res = await fetch("/api/settings/debug-toggle", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: next }),
+        body: JSON.stringify({ which, enabled: next }),
       });
       const data = (await res.json()) as { ok: boolean; enabled?: boolean; error?: string };
       if (!data.ok) throw new Error(data.error ?? "Falha ao salvar.");
-      setDebugEnabled(data.enabled ?? next);
+      if (which === "panel") setPanelEnabled(data.enabled ?? next);
+      else setEasterEggEnabled(data.enabled ?? next);
       loadActivity();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erro.");
     } finally {
-      setDebugBusy(false);
+      setDebugBusy(null);
     }
   }
 
@@ -539,49 +548,37 @@ function ContaInner() {
           )}
         </Card>
 
-        {/* Easter egg do painel de debug — só o proprietário decide */}
+        {/* Painel de debug e easter egg — dois interruptores independentes, só o proprietário decide */}
         {me.role === "owner" && (
-          <Card
-            icon={Bug}
-            title="Easter egg do painel de debug"
-            desc="Ícone de bug + sequência secreta em Configurações, que abre Logs & segredos."
-          >
-            {debugEnabled === null ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin text-volt" />
-              </div>
-            ) : (
-              <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3">
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold text-zinc-100">
-                    {debugEnabled ? "Ativado" : "Desativado"}
-                  </div>
-                  <div className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-500">
-                    {debugEnabled
-                      ? "O ícone de bug e a sequência secreta estão visíveis em Configurações."
-                      : "O ícone de bug some de Configurações e a sequência para de funcionar."}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={debugEnabled}
-                  aria-label="Easter egg do painel de debug"
-                  onClick={toggleDebugEasterEgg}
-                  disabled={debugBusy}
-                  className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
-                    debugEnabled ? "bg-volt" : "bg-white/[0.12]"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                      debugEnabled ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-            )}
-          </Card>
+          <>
+            <Card
+              icon={Bug}
+              title="Painel de debug"
+              desc="Botão flutuante em Configurações que abre Logs & segredos."
+            >
+              <DebugSwitch
+                enabled={panelEnabled}
+                busy={debugBusy === "panel"}
+                onToggle={() => toggleDebug("panel")}
+                onLabel="O botão flutuante em Configurações abre Logs & segredos normalmente."
+                offLabel="O botão flutuante some e /configuracoes/logs fica inacessível, mesmo por URL direta."
+              />
+            </Card>
+
+            <Card
+              icon={Fingerprint}
+              title="Easter egg (ícone escondido)"
+              desc="Ícone de bug quase invisível + sequência secreta em Configurações."
+            >
+              <DebugSwitch
+                enabled={easterEggEnabled}
+                busy={debugBusy === "easter_egg"}
+                onToggle={() => toggleDebug("easter_egg")}
+                onLabel="O ícone escondido e a sequência (3 cliques + → → A) funcionam em Configurações."
+                offLabel="O ícone escondido some — o painel de debug, se ativado acima, só abre pelo botão flutuante."
+              />
+            </Card>
+          </>
         )}
       </div>
 
@@ -712,6 +709,55 @@ function ContaInner() {
           </ul>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function DebugSwitch({
+  enabled,
+  busy,
+  onToggle,
+  onLabel,
+  offLabel,
+}: {
+  enabled: boolean | null;
+  busy: boolean;
+  onToggle: () => void;
+  onLabel: string;
+  offLabel: string;
+}) {
+  if (enabled === null)
+    return (
+      <div className="flex justify-center py-4">
+        <Loader2 className="h-4 w-4 animate-spin text-volt" />
+      </div>
+    );
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3">
+      <div className="min-w-0">
+        <div className="text-[13px] font-semibold text-zinc-100">
+          {enabled ? "Ativado" : "Desativado"}
+        </div>
+        <div className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-500">
+          {enabled ? onLabel : offLabel}
+        </div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={onToggle}
+        disabled={busy}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
+          enabled ? "bg-volt" : "bg-white/[0.12]"
+        }`}
+      >
+        <span
+          className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+            enabled ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
     </div>
   );
 }
