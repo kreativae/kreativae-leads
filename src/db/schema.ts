@@ -237,10 +237,41 @@ export const totpChallenges = pgTable("totp_challenges", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  // Guarda o challenge da cerimonia WebAuthn quando o segundo fator dessa
+  // tentativa de login e feito por Face ID/Windows Hello em vez de TOTP —
+  // e o mesmo desafio "2FA pendente", so com outro jeito de completar.
+  webauthnChallenge: text("webauthn_challenge"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
+
+/**
+ * Uma chave de acesso (passkey) por dispositivo — Face ID, Windows Hello,
+ * Touch ID etc. via WebAuthn. A chave privada nunca sai do dispositivo do
+ * usuario; aqui so fica a chave publica e o contador anti-replay.
+ */
+export const webauthnCredentials = pgTable(
+  "webauthn_credentials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    credentialId: text("credential_id").notNull(),
+    publicKey: text("public_key").notNull(),
+    counter: integer("counter").notNull().default(0),
+    deviceType: text("device_type"), // singleDevice | multiDevice
+    backedUp: text("backed_up").notNull().default("no"),
+    transports: text("transports"),
+    label: text("label").notNull().default("Chave de acesso"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("webauthn_credentials_credential_id_key").on(t.credentialId)],
+);
 
 export const recoveryCodes = pgTable("recovery_codes", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -5,10 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { AnimatePresence, motion } from "framer-motion";
+import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser";
+import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import {
   Activity,
   CheckCircle2,
   ClipboardCopy,
+  Fingerprint,
   Loader2,
   LockKeyhole,
   LogOut,
@@ -16,6 +19,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Smartphone,
+  Trash2,
   UserRound,
   XCircle,
 } from "lucide-react";
@@ -48,6 +52,14 @@ interface ActivityRow {
   createdAt: string;
 }
 
+interface PasskeyRow {
+  id: string;
+  label: string;
+  deviceType: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
 const EVENT_LABELS: Record<string, string> = {
   login_success: "Login realizado",
   login_success_totp: "Login com 2FA",
@@ -68,6 +80,9 @@ const EVENT_LABELS: Record<string, string> = {
   user_deleted: "Removeu um usuário",
   user_password_reset: "Redefiniu senha de usuário",
   login_failed_unknown: "Login de conta inexistente",
+  login_success_webauthn: "Login com Face ID / Windows Hello",
+  webauthn_registered: "Chave de acesso cadastrada",
+  webauthn_removed: "Chave de acesso removida",
 };
 
 function ContaInner() {
@@ -93,6 +108,10 @@ function ContaInner() {
   const [sessionRows, setSessionRows] = useState<SessionRow[]>([]);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
 
+  const [passkeys, setPasskeys] = useState<PasskeyRow[]>([]);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(false);
+
   const loadMe = useCallback(async () => {
     const res = await fetch("/api/auth/me");
     if (res.status === 401) {
@@ -113,11 +132,56 @@ function ContaInner() {
     if (res.ok) setActivity(((await res.json()) as { activity: ActivityRow[] }).activity);
   }, []);
 
+  const loadPasskeys = useCallback(async () => {
+    const res = await fetch("/api/auth/webauthn/credentials");
+    if (res.ok) setPasskeys(((await res.json()) as { credentials: PasskeyRow[] }).credentials);
+  }, []);
+
   useEffect(() => {
     loadMe();
     loadSessions();
     loadActivity();
-  }, [loadMe, loadSessions, loadActivity]);
+    loadPasskeys();
+    setPasskeySupported(browserSupportsWebAuthn());
+  }, [loadMe, loadSessions, loadActivity, loadPasskeys]);
+
+  async function addPasskey() {
+    setPasskeyBusy(true);
+    try {
+      const optsRes = await fetch("/api/auth/webauthn/register-options", { method: "POST" });
+      const optsData = (await optsRes.json()) as {
+        ok: boolean;
+        error?: string;
+        options?: PublicKeyCredentialCreationOptionsJSON;
+      };
+      if (!optsData.ok || !optsData.options) throw new Error(optsData.error ?? "Falha ao iniciar.");
+
+      const attestation = await startRegistration({ optionsJSON: optsData.options });
+
+      const label = window.prompt(
+        "Dê um nome pra essa chave (ex.: MacBook do Fabio)",
+        "Este dispositivo",
+      );
+      const verifyRes = await fetch("/api/auth/webauthn/register-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response: attestation, label: label || "Chave de acesso" }),
+      });
+      const verifyData = (await verifyRes.json()) as { ok: boolean; error?: string };
+      if (!verifyData.ok) throw new Error(verifyData.error ?? "Falha ao cadastrar.");
+      loadPasskeys();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível cadastrar a chave.");
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }
+
+  async function removePasskey(id: string) {
+    if (!confirm("Remover esta chave de acesso?")) return;
+    await fetch(`/api/auth/webauthn/credentials?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    loadPasskeys();
+  }
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -383,6 +447,60 @@ function ContaInner() {
               >
                 {totpBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Smartphone className="h-3.5 w-3.5" />}
                 Configurar agora
+              </button>
+            </div>
+          )}
+        </Card>
+
+        {/* Passkeys / biometria do dispositivo */}
+        <Card
+          icon={Fingerprint}
+          title="Chave de acesso (Face ID / Windows Hello)"
+          desc="2º fator sem digitar código — usa a biometria do próprio aparelho."
+        >
+          {!passkeySupported ? (
+            <p className="text-[12.5px] text-zinc-500">
+              Este navegador não suporta chaves de acesso (WebAuthn).
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {passkeys.length > 0 && (
+                <ul className="space-y-2">
+                  {passkeys.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-ink/50 px-3.5 py-3"
+                    >
+                      <Fingerprint className="h-4 w-4 shrink-0 text-zinc-500" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[12.5px] font-semibold text-zinc-200">
+                          {p.label}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-zinc-500">
+                          cadastrada {timeAgo(p.createdAt)}
+                          {p.lastUsedAt ? ` · usada ${timeAgo(p.lastUsedAt)}` : " · nunca usada"}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removePasskey(p.id)}
+                        title="Remover chave"
+                        className="rounded-lg border border-rose-400/20 p-1.5 text-rose-300 transition-colors hover:bg-rose-400/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={addPasskey}
+                disabled={passkeyBusy}
+                className="inline-flex items-center gap-2 rounded-full border border-volt/40 bg-volt/[0.08] px-5 py-2.5 text-[13px] font-bold text-volt transition-colors hover:bg-volt/[0.15] disabled:opacity-50"
+              >
+                {passkeyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Fingerprint className="h-3.5 w-3.5" />}
+                Adicionar chave de acesso
               </button>
             </div>
           )}

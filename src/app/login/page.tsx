@@ -1,11 +1,17 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  startAuthentication,
+  browserSupportsWebAuthn,
+  type PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/browser";
 import { LogoKreativ } from "@/components/logo";
 import {
+  Fingerprint,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -25,6 +31,47 @@ function LoginForm() {
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [webauthnBusy, setWebauthnBusy] = useState(false);
+  const [webauthnSupported, setWebauthnSupported] = useState(false);
+
+  useEffect(() => {
+    setWebauthnSupported(browserSupportsWebAuthn());
+  }, []);
+
+  async function finishLogin(res: Response) {
+    const data = (await res.json()) as { ok: boolean; error?: string };
+    if (!data.ok) throw new Error(data.error ?? "Falha na verificação.");
+    router.push(next);
+    router.refresh();
+  }
+
+  async function useWebauthn() {
+    if (!challengeId) return;
+    setWebauthnBusy(true);
+    setError(null);
+    try {
+      const optsRes = await fetch("/api/auth/webauthn/login-options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId }),
+      });
+      const optsData = (await optsRes.json()) as { ok: boolean; error?: string; options?: PublicKeyCredentialRequestOptionsJSON };
+      if (!optsData.ok || !optsData.options) throw new Error(optsData.error ?? "Não foi possível iniciar.");
+
+      const assertion = await startAuthentication({ optionsJSON: optsData.options });
+
+      const verifyRes = await fetch("/api/auth/webauthn/login-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId, response: assertion }),
+      });
+      await finishLogin(verifyRes);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível usar a chave de acesso.");
+    } finally {
+      setWebauthnBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -182,6 +229,30 @@ function LoginForm() {
                   ou use um código de recuperação.
                 </p>
               </div>
+
+              {webauthnSupported && (
+                <>
+                  <button
+                    type="button"
+                    onClick={useWebauthn}
+                    disabled={webauthnBusy}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-volt/40 bg-volt/[0.08] py-3.5 font-display text-[14px] font-bold text-volt transition-colors hover:bg-volt/[0.15] disabled:opacity-60"
+                  >
+                    {webauthnBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Fingerprint className="h-4 w-4" />
+                    )}
+                    Usar Face ID / Windows Hello
+                  </button>
+                  <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-zinc-600">
+                    <span className="h-px flex-1 bg-white/10" />
+                    ou digite o código
+                    <span className="h-px flex-1 bg-white/10" />
+                  </div>
+                </>
+              )}
+
               <div>
                 <label className="text-[12px] font-semibold text-zinc-400">
                   Código de verificação

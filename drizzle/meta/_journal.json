@@ -50,6 +50,13 @@
       "when": 1789246746097,
       "tag": "0006_bright_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789264988320,
+      "tag": "0007_round_sally_floyd",
+      "breakpoints": true
     }
   ]
 }
