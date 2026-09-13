@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   AlertTriangle,
   Bug,
@@ -93,6 +94,8 @@ function RevealRow({ label, kind, id }: { label: string; kind: "setting" | "wa_a
 }
 
 export default function LogsSecretosPage() {
+  const pathname = usePathname();
+  const lastPathname = useRef(pathname);
   const [unlocked, setUnlocked] = useState(false);
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +108,18 @@ export default function LogsSecretosPage() {
   useEffect(() => {
     if (consumeLogsUnlocked()) setUnlocked(true);
   }, []);
+
+  // O App Router pode manter esta página viva na navegação (voltar/trocar
+  // de tela e retornar não remonta o componente), então sem isto o
+  // useState acima nunca reseta e a página fica destravada pro resto da
+  // sessão. usePathname() força um re-render mesmo nesse caso — sempre que
+  // ele muda, sabemos que saímos e (talvez) voltamos, e travamos de novo a
+  // menos que a volta tenha vindo com uma chave nova (FAB/sequência).
+  useEffect(() => {
+    if (lastPathname.current === pathname) return;
+    lastPathname.current = pathname;
+    setUnlocked(pathname === "/configuracoes/logs" && consumeLogsUnlocked());
+  }, [pathname]);
 
   const load = useCallback(async () => {
     setLoading(true);
