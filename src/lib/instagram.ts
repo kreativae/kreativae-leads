@@ -57,6 +57,29 @@ export function igHandle(raw: string | null | undefined): string | null {
   return handle;
 }
 
+/** Confere token + ID da conta com uma leitura própria (Standard Access, sem custo nem Advanced Access). */
+export async function checkIgToken(opts: {
+  accessToken: string;
+  igUserId: string;
+}): Promise<{ ok: true; username: string | null } | { ok: false; error: string }> {
+  const url =
+    `https://graph.facebook.com/${GRAPH_VERSION}/${opts.igUserId}` +
+    `?fields=username&access_token=${encodeURIComponent(opts.accessToken)}`;
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(10_000), cache: "no-store" });
+  } catch {
+    return { ok: false, error: "Sem conexão com o servidor da Meta." };
+  }
+  const data = (await res.json().catch(() => ({}))) as {
+    username?: string;
+    error?: { message?: string };
+  };
+  if (!res.ok || data.error)
+    return { ok: false, error: data.error?.message ?? `Meta respondeu HTTP ${res.status}.` };
+  return { ok: true, username: data.username ?? null };
+}
+
 interface GraphResponse {
   business_discovery?: {
     username?: string;

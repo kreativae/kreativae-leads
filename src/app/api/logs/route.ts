@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
-import { listLogs, type LogSource } from "@/lib/system-log";
+import { deleteOldLogs, listLogs, type LogSource } from "@/lib/system-log";
 
 export const dynamic = "force-dynamic";
 
@@ -24,4 +24,14 @@ export async function GET(req: Request) {
 
   const rows = await listLogs({ source, status, limit: 300 });
   return NextResponse.json({ ok: true, logs: rows });
+}
+
+export async function DELETE(req: Request) {
+  const auth = await requireOwner();
+  if (auth.error) return auth.error;
+
+  const sp = new URL(req.url).searchParams;
+  const dias = Math.max(1, Math.min(365, parseInt(sp.get("olderThanDays") ?? "30", 10) || 30));
+  const removidos = await deleteOldLogs(dias);
+  return NextResponse.json({ ok: true, removidos });
 }

@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { systemLogs } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 
 export type LogSource =
   | "search"
@@ -8,6 +8,8 @@ export type LogSource =
   | "whatsapp_webhook"
   | "enrich_queue"
   | "wa_send";
+
+const RETENCAO_PADRAO_DIAS = 90;
 
 /**
  * Grava uma linha no historico de execucoes. Nunca lanca — uma falha ao
@@ -31,6 +33,21 @@ export async function logEvent(entry: {
       leadId: entry.leadId ?? null,
     })
     .catch(() => undefined);
+
+  // Sem cron neste projeto — em vez disso, toda gravacao tem uma chance
+  // pequena de tambem podar o que passou da retencao padrao, o suficiente
+  // pra tabela nao crescer pra sempre sem precisar de infra nova.
+  if (Math.random() < 0.02) await deleteOldLogs(RETENCAO_PADRAO_DIAS).catch(() => undefined);
+}
+
+/** Apaga logs mais antigos que N dias. Retorna quantos foram removidos. */
+export async function deleteOldLogs(olderThanDays: number): Promise<number> {
+  const limite = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+  const removidos = await db
+    .delete(systemLogs)
+    .where(lt(systemLogs.createdAt, limite))
+    .returning({ id: systemLogs.id });
+  return removidos.length;
 }
 
 export async function listLogs(filters: {

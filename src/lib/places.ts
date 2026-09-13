@@ -185,3 +185,29 @@ export async function searchPlaces(opts: {
 
   return { leads: out, requisicoes };
 }
+
+/**
+ * Confere se a chave autentica, com o menor custo possível: so pede
+ * "places.id" (fica no tier basico de preço) em vez do FIELD_MASK completo
+ * usado nas buscas de verdade. Ainda assim conta como 1 requisição faturável.
+ */
+export async function testPlacesKey(
+  apiKey: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(PLACES_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id",
+    },
+    body: JSON.stringify({ textQuery: "empresa em São Paulo", maxResultCount: 1 }),
+    signal: AbortSignal.timeout(10_000),
+    cache: "no-store",
+  }).catch(() => null);
+  if (!res) return { ok: false, error: "Sem conexão com o servidor do Google." };
+  const data = (await res.json().catch(() => ({}))) as PlacesResponse;
+  if (!res.ok || data.error)
+    return { ok: false, error: data.error?.message ?? `Google respondeu HTTP ${res.status}.` };
+  return { ok: true };
+}

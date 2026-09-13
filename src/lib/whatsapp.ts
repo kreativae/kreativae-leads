@@ -50,6 +50,31 @@ export async function sendWaText(opts: {
   return { ok: true, waMessageId: data.messages?.[0]?.id };
 }
 
+/** Confere token + Phone Number ID sem enviar nada — so uma leitura, sem custo. */
+export async function checkWaAccount(opts: {
+  accessToken: string;
+  phoneNumberId: string;
+}): Promise<{ ok: true; displayPhone: string | null } | { ok: false; error: string }> {
+  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${opts.phoneNumberId}?fields=display_phone_number`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Authorization: `Bearer ${opts.accessToken}` },
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, error: "Sem conexão com o servidor da Meta." };
+  }
+  const data = (await res.json().catch(() => ({}))) as {
+    display_phone_number?: string;
+    error?: { message?: string };
+  };
+  if (!res.ok || data.error)
+    return { ok: false, error: data.error?.message ?? `Meta respondeu HTTP ${res.status}.` };
+  return { ok: true, displayPhone: data.display_phone_number ?? null };
+}
+
 /** Tipos de midia que o Cloud API aceita enviar/receber via mensagem. */
 export type WaMediaType = "image" | "document" | "audio" | "video" | "sticker";
 
