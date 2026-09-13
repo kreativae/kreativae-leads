@@ -9,6 +9,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  Lock,
   Plug,
   RefreshCw,
   Trash2,
@@ -374,18 +375,30 @@ export default function LogsSecretosPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-volt/25 bg-volt/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-volt">
-          <Bug className="h-3.5 w-3.5" />
-          Painel de debug
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-volt/25 bg-volt/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-volt">
+            <Bug className="h-3.5 w-3.5" />
+            Painel de debug
+          </div>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-white md:text-4xl">
+            Logs &amp; segredos
+          </h1>
+          <p className="mt-2 max-w-2xl text-[14.5px] text-zinc-400">
+            Tela escondida — só chega aqui quem acerta a sequência no ícone de bug de
+            Configurações. Toda revelação de segredo fica registrada no histórico de atividade.
+          </p>
         </div>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-white md:text-4xl">
-          Logs &amp; segredos
-        </h1>
-        <p className="mt-2 max-w-2xl text-[14.5px] text-zinc-400">
-          Tela escondida — só chega aqui quem acerta a sequência no ícone de bug de
-          Configurações. Toda revelação de segredo fica registrada no histórico de atividade.
-        </p>
+        {unlocked && (
+          <button
+            type="button"
+            onClick={() => setUnlocked(false)}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-[12.5px] font-semibold text-zinc-400 transition-colors hover:border-rose-400/40 hover:text-rose-300"
+          >
+            <Lock className="h-3.5 w-3.5" />
+            Sair do modo debug
+          </button>
+        )}
       </div>
 
       {!unlocked ? (
