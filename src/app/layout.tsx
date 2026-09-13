@@ -24,8 +24,16 @@ export const metadata: Metadata = {
     "Sistema interno de captação de leads: encontre empresas sem site ou com sites desatualizados e aborde pelo WhatsApp.",
 };
 
-/* Sem viewport-fit=cover o env(safe-area-inset-top) sempre devolve 0. */
+/*
+ * Exportar "viewport" faz o Next gerar a tag <meta viewport> só com os
+ * campos daqui dentro — sem width/initialScale, o Safari mobile assume uma
+ * viewport de desktop (~980px) e dá zoom pra encaixar, cortando as bordas
+ * no primeiro acesso. viewport-fit=cover continua necessário pro
+ * env(safe-area-inset-top) não devolver 0.
+ */
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   viewportFit: "cover",
 };
 
