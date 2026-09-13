@@ -3,9 +3,14 @@ import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
-import { getN8nConfig } from "@/lib/settings-db";
+import { getAutomationMode, getN8nConfig, getResendConfig } from "@/lib/settings-db";
 import { logEvent } from "@/lib/system-log";
-import { buildWhatsappMessage, emailSubject, textoParaHtmlEmail } from "@/lib/messages";
+import {
+  buildAutomationContent,
+  finalizeAutomation,
+  sendViaEmail,
+  sendViaWhatsapp,
+} from "@/lib/automation";
 import type { SiteCheck } from "@/lib/site-analyzer";
 
 export const dynamic = "force-dynamic";
@@ -16,23 +21,14 @@ type Ctx = { params: Promise<{ id: string }> };
 /**
  * A mensagem sai daqui pronta — mesma "Abordagem pronta" que existe no
  * drawer, usando o que a coleta ja sabe sobre o lead (tem site ou nao,
- * diagnostico do site). O n8n so decide o canal e devolve o resultado em
- * /api/webhooks/n8n; ele nao inventa texto.
+ * diagnostico do site). Modo "n8n": so dispara o gatilho, quem manda de
+ * fato e o callback em /api/webhooks/n8n. Modo "interno": manda direto,
+ * sem depender do n8n estar configurado ou no ar.
  */
 export async function POST(req: Request, ctx: Ctx) {
   const auth = await requireUser();
   if (auth.error) return auth.error;
   const { id } = await ctx.params;
-
-  const config = await getN8nConfig();
-  if (!config)
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Automação não configurada. Preencha o webhook do n8n em Configurações.",
-      },
-      { status: 400 },
-    );
 
   const [lead] = await db.select().from(leads).where(eq(leads.id, id)).limit(1);
   if (!lead)
@@ -56,17 +52,66 @@ export async function POST(req: Request, ctx: Ctx) {
     websiteGrade: lead.websiteGrade,
     websiteChecks,
   };
-  const useAnalysis = (websiteChecks?.length ?? 0) > 0;
+  const { message, subject, html } = buildAutomationContent(leadParaMensagem, auth.user.name);
 
-  // WhatsApp nao leva assinatura (nao faz sentido no formato); o e-mail leva.
-  const message = buildWhatsappMessage(leadParaMensagem, { useAnalysis });
-  const subject = emailSubject(leadParaMensagem);
-  const corpoEmail = buildWhatsappMessage(leadParaMensagem, {
-    useAnalysis,
-    includeSignature: true,
-    senderName: auth.user.name,
-  });
-  const html = textoParaHtmlEmail(corpoEmail);
+  const mode = await getAutomationMode();
+
+  if (mode === "interno") {
+    let ok = false;
+    let detail = "";
+    let canalUsado: "whatsapp" | "email" = lead.whatsapp ? "whatsapp" : "email";
+    let caiuParaEmail = false;
+
+    if (lead.whatsapp) {
+      const r = await sendViaWhatsapp(lead, [message]);
+      ok = r.ok;
+      detail = r.detail;
+      if (!ok && r.semConversa && lead.email) {
+        const resendConfig = await getResendConfig();
+        const fallback = await sendViaEmail(lead, resendConfig, subject, html);
+        if (fallback.ok) {
+          ok = true;
+          canalUsado = "email";
+          caiuParaEmail = true;
+          detail = "";
+        } else {
+          detail = `${r.detail} E-mail também falhou: ${fallback.detail}`;
+        }
+      }
+    } else {
+      const resendConfig = await getResendConfig();
+      const r = await sendViaEmail(lead, resendConfig, subject, html);
+      ok = r.ok;
+      detail = r.detail;
+    }
+
+    const updated = await finalizeAutomation({
+      leadId: lead.id,
+      companyName: lead.companyName,
+      ok,
+      canalUsado,
+      detail,
+      caiuParaEmail,
+    });
+
+    return NextResponse.json({
+      ok,
+      lead: updated,
+      mode,
+      channel: canalUsado,
+      error: ok ? undefined : detail,
+    });
+  }
+
+  const config = await getN8nConfig();
+  if (!config)
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Automação não configurada. Preencha o webhook do n8n em Configurações.",
+      },
+      { status: 400 },
+    );
 
   const origin = new URL(req.url).origin;
   let res: Response;
@@ -134,5 +179,5 @@ export async function POST(req: Request, ctx: Ctx) {
     leadId: lead.id,
   });
 
-  return NextResponse.json({ ok: true, lead: updated });
+  return NextResponse.json({ ok: true, lead: updated, mode });
 }

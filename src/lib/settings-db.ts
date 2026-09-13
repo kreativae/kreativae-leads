@@ -16,6 +16,7 @@ export const SETTING_KEYS = [
   "resend_from_email",
   "n8n_webhook_url",
   "n8n_callback_secret",
+  "automation_mode", // n8n | interno
 ] as const;
 
 /**
@@ -142,6 +143,19 @@ export async function getN8nConfig(): Promise<N8nConfig | null> {
 export interface ResendConfig {
   apiKey: string;
   from: string;
+}
+
+export type AutomationMode = "n8n" | "interno";
+
+/**
+ * Como o botão "Automatizar" dispara: via n8n (webhook externo, decide o
+ * canal e o texto) ou "interno" — o próprio sistema manda direto, com a
+ * Abordagem pronta real. Ausente = "n8n", pra não mudar o comportamento de
+ * quem já tinha isso configurado antes deste modo existir.
+ */
+export async function getAutomationMode(): Promise<AutomationMode> {
+  const v = await getSetting("automation_mode");
+  return v === "interno" ? "interno" : "n8n";
 }
 
 /** Credenciais do Resend (envio de e-mail), ou null se não configurado. */

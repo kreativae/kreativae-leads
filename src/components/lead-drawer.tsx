@@ -599,9 +599,21 @@ export function LeadDrawer({
     setAutomateMsg(null);
     try {
       const res = await fetch(`/api/leads/${lead.id}/automate`, { method: "POST" });
-      const json = (await res.json()) as { ok: boolean; lead?: ClientLead; error?: string };
-      if (json.ok && json.lead) {
-        onPatched(json.lead);
+      const json = (await res.json()) as {
+        ok: boolean;
+        lead?: ClientLead;
+        error?: string;
+        mode?: "n8n" | "interno";
+        channel?: "whatsapp" | "email";
+      };
+      if (json.lead) onPatched(json.lead);
+      if (json.mode === "interno") {
+        setAutomateMsg(
+          json.ok
+            ? `Mensagem enviada por ${json.channel === "email" ? "e-mail" : "WhatsApp"}.`
+            : json.error ?? "Falha ao enviar.",
+        );
+      } else if (json.ok) {
         setAutomateMsg("Disparado — o resultado aparece aqui quando o n8n responder.");
       } else {
         setAutomateMsg(json.error ?? "Falha ao disparar automação.");
@@ -1065,7 +1077,7 @@ export function LeadDrawer({
                 <div>
                   <div className="flex items-center gap-2 text-[12.5px] font-bold text-zinc-100">
                     <Zap className="h-3.5 w-3.5 text-volt" />
-                    Automação (n8n)
+                    Automação
                   </div>
                   <p className="mt-0.5 text-[11.5px] text-zinc-500">
                     {lead.automationStatus === "pending"
@@ -1076,7 +1088,7 @@ export function LeadDrawer({
                           }.`
                         : lead.automationStatus === "failed"
                           ? `Falhou${lead.automationAt ? ` · ${timeAgo(lead.automationAt)}` : ""} — veja o motivo nos logs.`
-                          : "Manda os dados do lead pro fluxo do n8n, que decide e devolve a mensagem pra gente enviar."}
+                          : "Manda a Abordagem pronta pro lead, por WhatsApp (se já tiver conversa aberta) ou e-mail."}
                   </p>
                 </div>
                 <button

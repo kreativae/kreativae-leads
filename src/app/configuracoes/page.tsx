@@ -162,6 +162,7 @@ export default function ConfiguracoesPage() {
     resend_from_email: "",
     n8n_webhook_url: "",
     n8n_callback_secret: "",
+    automation_mode: "n8n",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -206,6 +207,7 @@ export default function ConfiguracoesPage() {
         ig_user_id: data.ig_user_id?.value ?? "",
         resend_from_email: data.resend_from_email?.value ?? "",
         wa_enabled: data.wa_enabled?.value === "no" ? "no" : "yes",
+        automation_mode: data.automation_mode?.value === "interno" ? "interno" : "n8n",
       }));
     } finally {
       setLoading(false);
@@ -254,6 +256,16 @@ export default function ConfiguracoesPage() {
     // O menu lateral so recarrega o estado a cada 15s; recarregar a pagina
     // faz a aba Conversas aparecer/sumir na hora.
     window.location.reload();
+  }
+
+  async function setAutomationMode(mode: "n8n" | "interno") {
+    setValues((s) => ({ ...s, automation_mode: mode }));
+    await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ automation_mode: mode }),
+    });
+    await load();
   }
 
   async function removeSecret(key: string) {
@@ -557,14 +569,24 @@ export default function ConfiguracoesPage() {
             </div>
           </Section>
 
-          {/* Automação via n8n */}
+          {/* Automação */}
           <Section
             icon={Zap}
-            title="Automação (n8n)"
-            desc="Botão “Automatizar” no lead dispara esse webhook; o n8n decide e devolve a mensagem pra gente enviar."
+            title="Automação"
+            desc="Botão “Automatizar” no lead: manda a Abordagem pronta por WhatsApp ou e-mail, direto pelo sistema ou passando por um fluxo no n8n."
             className="xl:col-span-2"
           >
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Toggle
+              on={values.automation_mode === "interno"}
+              onChange={(on) => setAutomationMode(on ? "interno" : "n8n")}
+              label="Enviar direto pelo sistema (sem n8n)"
+              hint={
+                values.automation_mode === "interno"
+                  ? "Ligado: o botão “Automatizar” manda direto, sem passar pelo n8n. O webhook abaixo continua salvo — desligue aqui pra voltar a usá-lo."
+                  : "Desligado: o botão “Automatizar” dispara o webhook do n8n abaixo. Ligue pra mandar direto pelo sistema, sem depender do n8n."
+              }
+            />
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-4">
                 <SecretInput
                   label="Webhook do n8n (URL de disparo)"
@@ -657,9 +679,15 @@ export default function ConfiguracoesPage() {
                 detail={meta.resend_configured ? "Chave + remetente ok" : "Não configurado"}
               />
               <StatusChip
-                label="Automação (n8n)"
-                active={!!meta.n8n_configured}
-                detail={meta.n8n_configured ? "Webhook + segredo ok" : "Não configurado"}
+                label="Automação"
+                active={values.automation_mode === "interno" || !!meta.n8n_configured}
+                detail={
+                  values.automation_mode === "interno"
+                    ? "Envio direto pelo sistema"
+                    : meta.n8n_configured
+                      ? "n8n: webhook + segredo ok"
+                      : "n8n: não configurado"
+                }
               />
             </div>
           </Section>
