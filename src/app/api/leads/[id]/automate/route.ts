@@ -5,6 +5,8 @@ import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { getN8nConfig } from "@/lib/settings-db";
 import { logEvent } from "@/lib/system-log";
+import { buildWhatsappMessage, emailSubject, textoParaHtmlEmail } from "@/lib/messages";
+import type { SiteCheck } from "@/lib/site-analyzer";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -12,9 +14,10 @@ export const maxDuration = 30;
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * So dispara o gatilho — quem decide o que mandar e o proprio fluxo do
- * n8n, que devolve o resultado em /api/webhooks/n8n. Aqui so registramos
- * "pending" e seguimos.
+ * A mensagem sai daqui pronta — mesma "Abordagem pronta" que existe no
+ * drawer, usando o que a coleta ja sabe sobre o lead (tem site ou nao,
+ * diagnostico do site). O n8n so decide o canal e devolve o resultado em
+ * /api/webhooks/n8n; ele nao inventa texto.
  */
 export async function POST(req: Request, ctx: Ctx) {
   const auth = await requireUser();
@@ -40,6 +43,31 @@ export async function POST(req: Request, ctx: Ctx) {
       { status: 400 },
     );
 
+  const websiteChecks = Array.isArray(lead.websiteChecks)
+    ? (lead.websiteChecks as SiteCheck[])
+    : null;
+  const leadParaMensagem = {
+    id: lead.id,
+    companyName: lead.companyName,
+    ownerName: lead.ownerName,
+    city: lead.city,
+    country: lead.country,
+    website: lead.website,
+    websiteGrade: lead.websiteGrade,
+    websiteChecks,
+  };
+  const useAnalysis = (websiteChecks?.length ?? 0) > 0;
+
+  // WhatsApp nao leva assinatura (nao faz sentido no formato); o e-mail leva.
+  const message = buildWhatsappMessage(leadParaMensagem, { useAnalysis });
+  const subject = emailSubject(leadParaMensagem);
+  const corpoEmail = buildWhatsappMessage(leadParaMensagem, {
+    useAnalysis,
+    includeSignature: true,
+    senderName: auth.user.name,
+  });
+  const html = textoParaHtmlEmail(corpoEmail);
+
   const origin = new URL(req.url).origin;
   let res: Response;
   try {
@@ -59,6 +87,9 @@ export async function POST(req: Request, ctx: Ctx) {
         website: lead.website,
         instagram: lead.igUsername,
         callbackUrl: `${origin}/api/webhooks/n8n`,
+        message,
+        subject,
+        html,
       }),
       signal: AbortSignal.timeout(15_000),
       cache: "no-store",
