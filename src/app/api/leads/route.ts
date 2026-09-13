@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { and, count, desc, eq, ilike, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { LEAD_STATUSES } from "@/lib/constants";
 import { requireUser } from "@/lib/auth";
+import { toWhatsappDigits } from "@/lib/phone";
+import { contactScore, normalizeWebsite } from "@/lib/osm";
 
 export const dynamic = "force-dynamic";
 
@@ -98,4 +101,112 @@ export async function GET(req: Request) {
     segments: segmentFacets.map((r) => r.value).filter(Boolean).sort(),
     cities: cityFacets.map((r) => r.value).filter(Boolean).sort(),
   });
+}
+
+function texto(v: unknown, max: number): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t ? t.slice(0, max) : null;
+}
+
+/** Cadastro manual — mesma tabela dos leads que vem de busca, só sem osmId real. */
+export async function POST(req: Request) {
+  const auth = await requireUser();
+  if (auth.error) return auth.error;
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
+  }
+
+  const companyName = texto(body.companyName, 200);
+  const segment = texto(body.segment, 80);
+  if (!companyName || !segment)
+    return NextResponse.json(
+      { ok: false, error: "Nome da empresa e segmento são obrigatórios." },
+      { status: 400 },
+    );
+
+  const country = body.country === "PT" ? "PT" : "BR";
+  const city = texto(body.city, 120);
+  const state = texto(body.state, 80);
+  const address = texto(body.address, 200);
+  const ownerName = texto(body.ownerName, 120);
+  const phone = texto(body.phone, 40);
+  const notes = texto(body.notes, 4000);
+
+  const email = texto(body.email, 160);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))
+    return NextResponse.json({ ok: false, error: "E-mail inválido." }, { status: 400 });
+
+  const websiteRaw = texto(body.website, 300);
+  const website = websiteRaw ? normalizeWebsite(websiteRaw) : null;
+  if (websiteRaw && !website)
+    return NextResponse.json({ ok: false, error: "Site inválido." }, { status: 400 });
+
+  const whatsRaw = texto(body.whatsapp, 40);
+  const whatsapp = whatsRaw ? toWhatsappDigits(whatsRaw, country) : null;
+  if (whatsRaw && !whatsapp)
+    return NextResponse.json(
+      { ok: false, error: "Número de WhatsApp inválido." },
+      { status: 400 },
+    );
+
+  // Nunca existiu no OSM/Places — precisa de um id unico proprio pra
+  // satisfazer a mesma constraint que os leads de busca usam.
+  const osmId = `manual:${randomUUID()}`;
+
+  const score = contactScore({
+    osmId,
+    companyName,
+    ownerName,
+    phone,
+    phoneAlt: null,
+    whatsapp,
+    whatsappSource: whatsapp ? "manual" : null,
+    email,
+    website,
+    address,
+    city,
+    neighborhood: null,
+    postcode: null,
+    lat: null,
+    lon: null,
+    instagram: null,
+    facebook: null,
+    linkedin: null,
+    openingHours: null,
+    categoryRaw: null,
+    rating: null,
+    reviewsCount: null,
+    priceLevel: null,
+    googleMapsUri: null,
+    extra: null,
+  });
+
+  const [created] = await db
+    .insert(leads)
+    .values({
+      osmId,
+      companyName,
+      ownerName,
+      segment,
+      city,
+      state,
+      country,
+      address,
+      phone,
+      whatsapp,
+      whatsappSource: whatsapp ? "manual" : null,
+      email,
+      website,
+      contactScore: score,
+      opportunity: website ? "unreviewed" : "no_website",
+      notes,
+    })
+    .returning();
+
+  return NextResponse.json({ ok: true, lead: created });
 }

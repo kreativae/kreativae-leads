@@ -29,6 +29,7 @@ import {
   MapPin,
   MessageCircle,
   Phone,
+  Plus,
   QrCode,
   RefreshCw,
   Search,
@@ -38,7 +39,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { LEAD_STATUSES } from "@/lib/constants";
+import { LEAD_STATUSES, SEGMENT_PRESETS } from "@/lib/constants";
 import {
   buildWhatsappMessage,
   MESSAGE_STYLES,
@@ -110,6 +111,7 @@ function LeadsApp() {
   const cancelBatch = useRef(false);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [excluindoLote, setExcluindoLote] = useState(false);
+  const [novoLeadAberto, setNovoLeadAberto] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q), 350);
@@ -304,6 +306,21 @@ function LeadsApp() {
     fetchLeads();
   }
 
+  /** Cadastro manual — abre o lead recém-criado direto no drawer pra completar os dados. */
+  async function criarLead(dados: Record<string, string>): Promise<string | null> {
+    const res = await fetch("/api/leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+    const json = (await res.json()) as { ok: boolean; lead?: ClientLead; error?: string };
+    if (!json.ok || !json.lead) return json.error ?? "Não foi possível criar o lead.";
+    setNovoLeadAberto(false);
+    setSelectedId(json.lead.id);
+    fetchLeads();
+    return null;
+  }
+
   function alternarSelecao(id: string) {
     setSelecionados((atual) => {
       const novo = new Set(atual);
@@ -370,6 +387,14 @@ function LeadsApp() {
             )}
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setNovoLeadAberto(true)}
+          className="inline-flex items-center gap-2 rounded-full bg-volt px-4 py-2.5 text-[12.5px] font-bold text-onvolt transition-transform hover:scale-[1.03]"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Criar lead
+        </button>
         <button
           type="button"
           onClick={fetchLeads}
@@ -692,6 +717,208 @@ function LeadsApp() {
           />
         )}
       </AnimatePresence>
+
+      {/* Criar lead */}
+      <AnimatePresence>
+        {novoLeadAberto && (
+          <NewLeadModal onClose={() => setNovoLeadAberto(false)} onCreate={criarLead} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function NewLeadModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (dados: Record<string, string>) => Promise<string | null>;
+}) {
+  const [form, setForm] = useState({
+    companyName: "",
+    segment: "",
+    country: "BR",
+    city: "",
+    state: "",
+    ownerName: "",
+    phone: "",
+    whatsapp: "",
+    email: "",
+    website: "",
+    notes: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  function campo(k: keyof typeof form, v: string) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function salvar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.companyName.trim() || !form.segment.trim()) {
+      setErro("Preencha ao menos o nome da empresa e o segmento.");
+      return;
+    }
+    setSaving(true);
+    setErro(null);
+    const falha = await onCreate(form);
+    if (falha) setErro(falha);
+    setSaving(false);
+  }
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-50 bg-black/60"
+      />
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.98 }}
+        transition={{ duration: 0.18 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      >
+        <form
+          onSubmit={salvar}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/[0.08] bg-ink p-6"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-[18px] font-bold text-white">Criar lead</h2>
+              <p className="mt-0.5 text-[12.5px] text-zinc-500">
+                Cadastro manual — o resto dos dados dá pra completar depois, no próprio lead.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Nome da empresa *" value={form.companyName} onChange={(v) => campo("companyName", v)} placeholder="Ex.: Studio Arquitetura" />
+              <div>
+                <label className="text-[11.5px] font-medium text-zinc-500">Segmento *</label>
+                <input
+                  list="segmentos-sugeridos"
+                  value={form.segment}
+                  onChange={(e) => campo("segment", e.target.value)}
+                  placeholder="Ex.: Arquitetos"
+                  className="mt-1 w-full rounded-xl border border-white/[0.09] bg-ink px-3.5 py-2.5 text-[13px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-volt/50"
+                />
+                <datalist id="segmentos-sugeridos">
+                  {SEGMENT_PRESETS.map((s) => (
+                    <option key={s.key} value={s.label} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Field label="Cidade" value={form.city} onChange={(v) => campo("city", v)} placeholder="Londrina" />
+              <Field label="Estado" value={form.state} onChange={(v) => campo("state", v)} placeholder="PR" />
+              <div>
+                <label className="text-[11.5px] font-medium text-zinc-500">País</label>
+                <select
+                  value={form.country}
+                  onChange={(e) => campo("country", e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/[0.09] bg-ink px-3.5 py-2.5 text-[13px] text-zinc-100 outline-none transition-colors focus:border-volt/50"
+                >
+                  <option value="BR">Brasil</option>
+                  <option value="PT">Portugal</option>
+                </select>
+              </div>
+            </div>
+
+            <Field label="Responsável" value={form.ownerName} onChange={(v) => campo("ownerName", v)} placeholder="Nome de quem atende" />
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Telefone" value={form.phone} onChange={(v) => campo("phone", v)} placeholder="+55 43 3322-1234" />
+              <Field
+                label="WhatsApp"
+                value={form.whatsapp}
+                onChange={(v) => campo("whatsapp", v)}
+                placeholder={form.country === "PT" ? "+351 912 345 678" : "+55 43 99999-9999"}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="E-mail" value={form.email} onChange={(v) => campo("email", v)} placeholder="contato@empresa.com" />
+              <Field label="Site" value={form.website} onChange={(v) => campo("website", v)} placeholder="empresa.com" />
+            </div>
+
+            <div>
+              <label className="text-[11.5px] font-medium text-zinc-500">Notas</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => campo("notes", e.target.value)}
+                rows={2}
+                placeholder="Qualquer observação sobre esse lead"
+                className="mt-1 w-full resize-none rounded-xl border border-white/[0.09] bg-ink px-3.5 py-2.5 text-[13px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-volt/50"
+              />
+            </div>
+          </div>
+
+          {erro && (
+            <div className="mt-4 rounded-xl border border-rose-400/25 bg-rose-400/[0.08] px-4 py-3 text-[12.5px] text-rose-300">
+              {erro}
+            </div>
+          )}
+
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-white/15 px-5 py-2.5 text-[13px] font-semibold text-zinc-400 hover:text-zinc-200"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-full bg-volt px-5 py-2.5 text-[13px] font-bold text-onvolt disabled:opacity-60"
+            >
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Criar lead
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="text-[11.5px] font-medium text-zinc-500">{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="mt-1 w-full rounded-xl border border-white/[0.09] bg-ink px-3.5 py-2.5 text-[13px] text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-volt/50"
+      />
     </div>
   );
 }
