@@ -679,15 +679,18 @@ export default function ConfiguracoesPage() {
                 detail={meta.resend_configured ? "Chave + remetente ok" : "Não configurado"}
               />
               <StatusChip
-                label="Automação"
-                active={values.automation_mode === "interno" || !!meta.n8n_configured}
+                label="Automação interna"
+                active={values.automation_mode === "interno"}
                 detail={
                   values.automation_mode === "interno"
-                    ? "Envio direto pelo sistema"
-                    : meta.n8n_configured
-                      ? "n8n: webhook + segredo ok"
-                      : "n8n: não configurado"
+                    ? "Ativa — envio direto pelo sistema"
+                    : "Inativa — modo atual é n8n"
                 }
+              />
+              <StatusChip
+                label="Automação (n8n)"
+                active={!!meta.n8n_configured}
+                detail={meta.n8n_configured ? "Webhook + segredo ok" : "Não configurado"}
               />
             </div>
           </Section>
