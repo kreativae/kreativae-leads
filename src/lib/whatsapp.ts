@@ -121,16 +121,53 @@ export async function sendWaText(opts: {
 
   const data = (await res.json().catch(() => ({}))) as {
     messages?: { id?: string }[];
-    error?: { message?: string };
+    error?: {
+      message?: string;
+      error_subcode?: number;
+      error_user_title?: string;
+      error_user_msg?: string;
+      error_data?: { details?: string };
+      fbtrace_id?: string;
+    };
   };
 
   if (!res.ok || data.error) {
     return {
       ok: false,
-      error: data.error?.message ?? `Meta respondeu HTTP ${res.status}.`,
+      error: erroDetalhado(data.error, res.status),
     };
   }
   return { ok: true, waMessageId: data.messages?.[0]?.id };
+}
+
+/**
+ * "(#100) Invalid parameter" sozinho nao diz nada — o motivo real quase
+ * sempre esta em error_data.details ou error_user_msg. Junta tudo que a
+ * Meta mandar, pra nao precisar reproduzir o erro so pra ver o detalhe.
+ */
+function erroDetalhado(
+  error:
+    | {
+        message?: string;
+        error_subcode?: number;
+        error_user_title?: string;
+        error_user_msg?: string;
+        error_data?: { details?: string };
+        fbtrace_id?: string;
+      }
+    | undefined,
+  httpStatus: number,
+): string {
+  if (!error) return `Meta respondeu HTTP ${httpStatus}.`;
+  const partes = [
+    error.message,
+    error.error_data?.details,
+    error.error_user_title,
+    error.error_user_msg,
+    error.error_subcode ? `subcode ${error.error_subcode}` : null,
+    error.fbtrace_id ? `trace ${error.fbtrace_id}` : null,
+  ].filter((p): p is string => !!p && p.trim().length > 0);
+  return partes.length > 0 ? partes.join(" — ") : `Meta respondeu HTTP ${httpStatus}.`;
 }
 
 /** Confere token + Phone Number ID sem enviar nada — so uma leitura, sem custo. */
