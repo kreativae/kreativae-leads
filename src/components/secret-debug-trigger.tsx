@@ -41,16 +41,35 @@ export function consumeLogsUnlocked(): boolean {
 
 function useSecretSequence(onComplete: () => void) {
   const [stage, setStage] = useState(0); // 0-3 = cliques; 3 = ouvindo teclado; 4/5 = setas ok
+  const [erro, setErro] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const erroTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const arm = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setStage(0), RESET_MS);
   }, []);
 
-  useEffect(() => () => {
+  // Tecla errada: mantem os passos ja certos visiveis (em vermelho) por um
+  // instante antes de zerar, em vez de sumir na hora — da pra "ver" onde
+  // errou.
+  const falhar = useCallback(() => {
+    setErro(true);
     if (timer.current) clearTimeout(timer.current);
+    if (erroTimer.current) clearTimeout(erroTimer.current);
+    erroTimer.current = setTimeout(() => {
+      setErro(false);
+      setStage(0);
+    }, 500);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (erroTimer.current) clearTimeout(erroTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (stage < 3) return;
@@ -62,29 +81,45 @@ function useSecretSequence(onComplete: () => void) {
         setStage(5);
         arm();
       } else if (stage === 5 && e.key.toLowerCase() === "a") {
-        setStage(0);
+        setStage(6);
         if (timer.current) clearTimeout(timer.current);
         onComplete();
       } else if (e.key === "ArrowRight" || e.key.toLowerCase() === "a") {
-        setStage(0);
+        falhar();
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [stage, arm, onComplete]);
+  }, [stage, arm, onComplete, falhar]);
 
   const onClick = useCallback(() => {
     setStage((s) => (s < 3 ? s + 1 : s));
     arm();
   }, [arm]);
 
-  return onClick;
+  return { onClick, stage, erro };
+}
+
+/** Seis passos da sequencia (3 cliques + 2 setas + "a") — verde a cada acerto, vermelho se errar. */
+function SequenceDots({ stage, erro }: { stage: number; erro: boolean }) {
+  return (
+    <div className="flex items-center gap-1.5" aria-hidden>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <span
+          key={i}
+          className={`h-2 w-2 rounded-full transition-colors ${
+            i >= stage ? "bg-white/10" : erro ? "bg-rose-400" : "bg-emerald-400"
+          }`}
+        />
+      ))}
+    </div>
+  );
 }
 
 /** Ícone quase invisível no canto de Configurações — a sequência secreta de verdade. */
 export function SecretDebugTrigger() {
   const router = useRouter();
-  const onClick = useSecretSequence(() => {
+  const { onClick } = useSecretSequence(() => {
     markLogsUnlocked();
     router.push("/configuracoes/logs");
   });
@@ -129,7 +164,7 @@ export function DebugFab({ visible }: { visible: boolean }) {
  * a mesma sequência aqui pra ver o conteúdo.
  */
 export function LogsLockGate({ onUnlock }: { onUnlock: () => void }) {
-  const onClick = useSecretSequence(onUnlock);
+  const { onClick, stage, erro } = useSecretSequence(onUnlock);
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] py-24 text-center">
@@ -146,6 +181,7 @@ export function LogsLockGate({ onUnlock }: { onUnlock: () => void }) {
       >
         <Bug className="h-5 w-5" />
       </button>
+      <SequenceDots stage={stage} erro={erro} />
     </div>
   );
 }
