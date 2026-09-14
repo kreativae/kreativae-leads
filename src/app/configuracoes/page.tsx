@@ -8,6 +8,7 @@ import {
   ClipboardCopy,
   Database,
   Globe2,
+  Info,
   KeyRound,
   Loader2,
   Mail,
@@ -134,6 +135,32 @@ function Toggle({
           }`}
         />
       </button>
+    </div>
+  );
+}
+
+/**
+ * Nota/limitação que so aparece quando clicada — os avisos amarelos fixos
+ * (Meta, Instagram, WhatsApp) pareciam alertas de algo errado por estarem
+ * sempre abertos, quando so sao informativos.
+ */
+function NotaInfo({ children }: { children: React.ReactNode }) {
+  const [aberta, setAberta] = useState(false);
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={() => setAberta((v) => !v)}
+        className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-zinc-500 transition-colors hover:text-zinc-300"
+      >
+        <Info className="h-3.5 w-3.5" />
+        Nota
+      </button>
+      {aberta && (
+        <p className="mt-2 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-200/80">
+          {children}
+        </p>
+      )}
     </div>
   );
 }
@@ -476,10 +503,10 @@ export default function ConfiguracoesPage() {
                   <li>No Business Settings, dê acesso à conta do WhatsApp (WABA) para o system user do app.</li>
                   <li>Pronto: mensagens recebidas aparecem na aba <span className="text-zinc-200">Conversas</span> e são vinculadas aos leads automaticamente — a resposta sai pelo número certo, mesmo com mais de um cadastrado.</li>
                 </ol>
-                <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-200/80">
+                <NotaInfo>
                   Nota da Meta: fora da janela de 24h após a última mensagem do cliente,
                   a API exige mensagens de template pré-aprovadas.
-                </p>
+                </NotaInfo>
               </div>
             </div>
           </Section>
@@ -520,11 +547,11 @@ export default function ConfiguracoesPage() {
                   <li>Com as credenciais acima, o botão <span className="text-zinc-200">Buscar seguidores</span> consulta a API da Meta.</li>
                   <li>Leads com muitos seguidores <span className="text-zinc-200">e sem site</span> viram prioridade de abordagem.</li>
                 </ol>
-                <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-200/80">
+                <NotaInfo>
                   Limitação da Meta: só retorna dados de contas <span className="font-semibold">Business ou Creator</span>.
                   Perfis pessoais ficam sem seguidores — e não existe busca por cidade ou
                   segmento, apenas consulta por @perfil já conhecido.
-                </p>
+                </NotaInfo>
               </div>
             </div>
           </Section>
@@ -624,11 +651,11 @@ export default function ConfiguracoesPage() {
                   copied={copied === "n8n"}
                   onCopy={() => copy(n8nCallbackUrl, "n8n")}
                 />
-                <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3.5 py-2.5 text-[12px] leading-relaxed text-amber-200/80">
-                  WhatsApp só envia texto livre dentro de uma conversa já aberta — primeiro
-                  contato exige template aprovado pela Meta, que ainda não existe aqui. E-mail
-                  não tem essa limitação.
-                </p>
+                <NotaInfo>
+                  WhatsApp só envia texto livre dentro de uma conversa já aberta — sem
+                  conversa, o sistema tenta abrir uma com o template aprovado pela Meta
+                  (Configurações → contas de WhatsApp) e só cai pra e-mail se isso falhar.
+                </NotaInfo>
               </div>
             </div>
           </Section>
