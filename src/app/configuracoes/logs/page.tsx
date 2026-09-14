@@ -315,6 +315,8 @@ export default function LogsSecretosPage() {
   const [statusFilter, setStatusFilter] = useState<"" | "ok" | "error">("");
   const [waAccounts, setWaAccounts] = useState<{ id: string; label: string }[]>([]);
   const [limpando, setLimpando] = useState(false);
+  const [page, setPage] = useState(1);
+  const LOGS_POR_PAGINA = 10;
   const [panelEnabled, setPanelEnabled] = useState<boolean | null>(null);
   const [easterEggEnabled, setEasterEggEnabled] = useState(true);
 
@@ -354,6 +356,7 @@ export default function LogsSecretosPage() {
     const res = await fetch(`/api/logs?${sp.toString()}`).catch(() => null);
     const data = await res?.json().catch(() => null);
     setLogs(res?.ok && data?.ok ? data.logs : []);
+    setPage(1);
     setLoading(false);
   }, [statusFilter]);
 
@@ -378,11 +381,17 @@ export default function LogsSecretosPage() {
       const res = await fetch("/api/logs?olderThanDays=30", { method: "DELETE" });
       const data = await res.json().catch(() => null);
       if (res.ok && data?.ok) {
-        alert(`${data.removidos} registro(s) removido(s).`);
+        alert(
+          data.removidos > 0
+            ? `${data.removidos} registro(s) removido(s).`
+            : "Nenhum log com mais de 30 dias — nada pra remover.",
+        );
         load();
       } else {
-        alert("Não foi possível limpar os logs.");
+        alert(`Não foi possível limpar os logs: ${data?.error ?? `HTTP ${res.status}`}.`);
       }
+    } catch (err) {
+      alert(`Não foi possível limpar os logs: ${err instanceof Error ? err.message : "erro de rede"}.`);
     } finally {
       setLimpando(false);
     }
@@ -516,7 +525,7 @@ export default function LogsSecretosPage() {
               <p className="py-10 text-center text-[13px] text-zinc-500">Nenhum registro por aqui.</p>
             ) : (
               <div className="space-y-2">
-                {logs.map((log) => (
+                {logs.slice((page - 1) * LOGS_POR_PAGINA, page * LOGS_POR_PAGINA).map((log) => (
                   <div
                     key={log.id}
                     className={`rounded-xl border px-4 py-3 ${
@@ -550,6 +559,35 @@ export default function LogsSecretosPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {logs.length > LOGS_POR_PAGINA && (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <span className="text-[11.5px] text-zinc-500">
+                  Página {page} de {Math.ceil(logs.length / LOGS_POR_PAGINA)} ·{" "}
+                  {logs.length} registro(s)
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11.5px] font-semibold text-zinc-400 transition-colors hover:bg-white/[0.07] disabled:opacity-40"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPage((p) => Math.min(Math.ceil(logs.length / LOGS_POR_PAGINA), p + 1))
+                    }
+                    disabled={page >= Math.ceil(logs.length / LOGS_POR_PAGINA)}
+                    className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11.5px] font-semibold text-zinc-400 transition-colors hover:bg-white/[0.07] disabled:opacity-40"
+                  >
+                    Próxima
+                  </button>
+                </div>
               </div>
             )}
           </section>
