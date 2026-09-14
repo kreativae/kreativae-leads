@@ -191,8 +191,9 @@ export function LeadDrawer({
   const [analyzing, setAnalyzing] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [enrichMsg, setEnrichMsg] = useState<string | null>(null);
-  const [automating, setAutomating] = useState(false);
+  const [automating, setAutomating] = useState<"whatsapp" | "email" | null>(null);
   const [automateMsg, setAutomateMsg] = useState<string | null>(null);
+  const [automateOk, setAutomateOk] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [horariosAbertos, setHorariosAbertos] = useState(false);
@@ -594,11 +595,16 @@ export function LeadDrawer({
     }
   }
 
-  async function automate() {
-    setAutomating(true);
+  async function automate(channel: "whatsapp" | "email") {
+    setAutomating(channel);
     setAutomateMsg(null);
+    setAutomateOk(null);
     try {
-      const res = await fetch(`/api/leads/${lead.id}/automate`, { method: "POST" });
+      const res = await fetch(`/api/leads/${lead.id}/automate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel }),
+      });
       const json = (await res.json()) as {
         ok: boolean;
         lead?: ClientLead;
@@ -608,18 +614,24 @@ export function LeadDrawer({
       };
       if (json.lead) onPatched(json.lead);
       if (json.mode === "interno") {
+        setAutomateOk(json.ok);
         setAutomateMsg(
           json.ok
             ? `Mensagem enviada por ${json.channel === "email" ? "e-mail" : "WhatsApp"}.`
             : json.error ?? "Falha ao enviar.",
         );
       } else if (json.ok) {
+        setAutomateOk(null);
         setAutomateMsg("Disparado — o resultado aparece aqui quando o n8n responder.");
       } else {
+        setAutomateOk(false);
         setAutomateMsg(json.error ?? "Falha ao disparar automação.");
       }
+    } catch {
+      setAutomateOk(false);
+      setAutomateMsg("Erro de rede ao disparar a automação.");
     } finally {
-      setAutomating(false);
+      setAutomating(null);
     }
   }
 
@@ -1088,26 +1100,48 @@ export function LeadDrawer({
                           }.`
                         : lead.automationStatus === "failed"
                           ? `Falhou${lead.automationAt ? ` · ${timeAgo(lead.automationAt)}` : ""} — veja o motivo nos logs.`
-                          : "Manda a Abordagem pronta pro lead, por WhatsApp (se já tiver conversa aberta) ou e-mail."}
+                          : "Manda a Abordagem pronta pro lead, escolhendo o canal."}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={automate}
-                  disabled={automating || (!lead.whatsapp && !lead.email)}
-                  title={lead.whatsapp || lead.email ? "" : "Lead sem WhatsApp nem e-mail"}
-                  className="inline-flex items-center gap-2 rounded-full border border-volt/30 bg-volt/[0.08] px-4 py-2 text-[12px] font-bold text-volt transition-colors hover:bg-volt/[0.16] disabled:opacity-40"
-                >
-                  {automating ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Zap className="h-3.5 w-3.5" />
-                  )}
-                  Automatizar
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => automate("whatsapp")}
+                    disabled={automating !== null || !lead.whatsapp}
+                    title={lead.whatsapp ? "Automatizar por WhatsApp" : "Lead sem WhatsApp"}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-400/[0.08] text-emerald-300 transition-colors hover:bg-emerald-400/[0.16] disabled:opacity-40"
+                  >
+                    {automating === "whatsapp" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <MessageCircle className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => automate("email")}
+                    disabled={automating !== null || !lead.email}
+                    title={lead.email ? "Automatizar por e-mail" : "Lead sem e-mail"}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-sky-400/30 bg-sky-400/[0.08] text-sky-300 transition-colors hover:bg-sky-400/[0.16] disabled:opacity-40"
+                  >
+                    {automating === "email" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Mail className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
               {automateMsg && (
-                <p className="mt-2.5 rounded-lg border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-[11.5px] text-zinc-300">
+                <p
+                  className={`mt-2.5 rounded-lg border px-3 py-2 text-[11.5px] ${
+                    automateOk === true
+                      ? "border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-300"
+                      : automateOk === false
+                        ? "border-rose-400/25 bg-rose-400/[0.06] text-rose-300"
+                        : "border-white/[0.07] bg-white/[0.03] text-zinc-300"
+                  }`}
+                >
                   {automateMsg}
                 </p>
               )}

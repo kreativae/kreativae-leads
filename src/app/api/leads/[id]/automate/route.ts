@@ -30,6 +30,16 @@ export async function POST(req: Request, ctx: Ctx) {
   if (auth.error) return auth.error;
   const { id } = await ctx.params;
 
+  let canalPedido: "whatsapp" | "email" | undefined;
+  try {
+    const body = (await req.json()) as { channel?: unknown };
+    canalPedido =
+      body?.channel === "whatsapp" || body?.channel === "email" ? body.channel : undefined;
+  } catch {
+    // Corpo vazio (chamada antiga, sem canal escolhido) — segue com o
+    // comportamento automatico de sempre.
+  }
+
   const [lead] = await db.select().from(leads).where(eq(leads.id, id)).limit(1);
   if (!lead)
     return NextResponse.json({ ok: false, error: "Lead não encontrado." }, { status: 404 });
@@ -38,6 +48,13 @@ export async function POST(req: Request, ctx: Ctx) {
       { ok: false, error: "Lead sem WhatsApp nem e-mail cadastrado." },
       { status: 400 },
     );
+  if (canalPedido === "whatsapp" && !lead.whatsapp)
+    return NextResponse.json(
+      { ok: false, error: "Lead sem WhatsApp cadastrado." },
+      { status: 400 },
+    );
+  if (canalPedido === "email" && !lead.email)
+    return NextResponse.json({ ok: false, error: "Lead sem e-mail cadastrado." }, { status: 400 });
 
   const websiteChecks = Array.isArray(lead.websiteChecks)
     ? (lead.websiteChecks as SiteCheck[])
@@ -59,10 +76,23 @@ export async function POST(req: Request, ctx: Ctx) {
   if (mode === "interno") {
     let ok = false;
     let detail = "";
-    let canalUsado: "whatsapp" | "email" = lead.whatsapp ? "whatsapp" : "email";
+    let canalUsado: "whatsapp" | "email" = canalPedido ?? (lead.whatsapp ? "whatsapp" : "email");
     let caiuParaEmail = false;
 
-    if (lead.whatsapp) {
+    // Canal escolhido na hora (botao de WhatsApp ou de e-mail no drawer): so
+    // tenta esse, sem cair pro outro sozinho — quem decidiu foi quem clicou.
+    if (canalPedido === "email") {
+      const resendConfig = await getResendConfig();
+      const r = await sendViaEmail(lead, resendConfig, subject, html);
+      ok = r.ok;
+      detail = r.detail;
+    } else if (canalPedido === "whatsapp") {
+      const r = await sendViaWhatsapp(lead, [message]);
+      ok = r.ok;
+      detail = r.detail;
+    } else if (lead.whatsapp) {
+      // Sem escolha explicita (chamada antiga): mantem o automatico de
+      // sempre, com fallback pra e-mail quando faltar conversa aberta.
       const r = await sendViaWhatsapp(lead, [message]);
       ok = r.ok;
       detail = r.detail;
