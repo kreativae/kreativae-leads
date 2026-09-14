@@ -80,8 +80,21 @@ export default function CrmPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   // "" = todas. O valor e a chave da pesquisa devolvida pelo servidor.
   const [escopo, setEscopo] = useState("");
-  const [incluirNovos, setIncluirNovos] = useState(() => lerNovosFixado() ?? false);
-  const [novosFixado, setNovosFixado] = useState(() => lerNovosFixado() !== null);
+  // Comeca igual nos dois lados (server/client) de proposito: ler
+  // localStorage no useState inicial quebra a hidratacao (o servidor nunca
+  // tem acesso a ele) e o React, ao se recuperar, recria a pagina inteira —
+  // incluindo a classe de tema aplicada por fora do React antes dele entrar
+  // em acao. A leitura de verdade fica no efeito abaixo, so depois de montar.
+  const [incluirNovos, setIncluirNovos] = useState(false);
+  const [novosFixado, setNovosFixado] = useState(false);
+
+  useEffect(() => {
+    const fixado = lerNovosFixado();
+    if (fixado !== null) {
+      setIncluirNovos(fixado);
+      setNovosFixado(true);
+    }
+  }, []);
   // "termo" e o que esta sendo digitado; "busca" e o que ja foi ao servidor.
   const [termo, setTermo] = useState("");
   const [busca, setBusca] = useState("");
