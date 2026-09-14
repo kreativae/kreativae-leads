@@ -208,6 +208,17 @@ export async function getWaAccount(id: string): Promise<WaAccount | null> {
   return row ?? null;
 }
 
+/**
+ * Conta certa pra abrir um contato frio num idioma — casa pelo `label`
+ * ("Brasil"/"Portugal"), já que são só duas contas e é assim que o usuário
+ * as nomeou. Sem coluna dedicada de região: renomear a conta quebra isso.
+ */
+export async function getWaAccountForLocale(locale: "BR" | "PT"): Promise<WaAccount | null> {
+  const contas = await listWaAccounts();
+  const alvo = locale === "PT" ? "portugal" : "brasil";
+  return contas.find((c) => c.label.toLowerCase().includes(alvo)) ?? null;
+}
+
 export async function getWaAccountByPhoneNumberId(
   phoneNumberId: string,
 ): Promise<WaAccount | null> {

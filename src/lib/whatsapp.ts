@@ -6,6 +6,89 @@ export interface WaSendResult {
 
 const GRAPH_VERSION = "v21.0";
 
+/**
+ * Templates aprovados pela Meta, um por idioma — criados no WhatsApp Manager
+ * em 13/09/2026 (contas separadas: Brasil e Portugal). Nome e idioma têm que
+ * bater exatamente com o que a Meta salvou, ou o envio é rejeitado. Cabeçalho
+ * e corpo dos dois usam {{1}} = nome da empresa.
+ */
+export const WA_TEMPLATES: Record<
+  "BR" | "PT",
+  { name: string; language: string; bodyTemplate: string }
+> = {
+  BR: {
+    name: "modelo_br",
+    language: "pt_BR",
+    bodyTemplate:
+      "Olá! Sou da Kreativ.ae, estúdio de criação de sites. Vi a {{empresa}} e percebi que dá pra melhorar bastante a forma como o negócio aparece online. Topa ver algumas ideias rápidas, sem compromisso?",
+  },
+  PT: {
+    name: "modelo_pt",
+    language: "pt_PT",
+    bodyTemplate:
+      "Olá! Sou da Kreativ.ae, estúdio especializado na criação de sites profissionais. Reparei que há espaço para melhorar a forma como a {{empresa}} aparece online. Topa ver algumas ideias rápidas, sem qualquer compromisso?",
+  },
+};
+
+/** Texto real que o template manda, pra registrar em Conversas — nao a Abordagem pronta, que e outra redacao. */
+export function renderWaTemplateBody(locale: "BR" | "PT", companyName: string): string {
+  return WA_TEMPLATES[locale].bodyTemplate.replace("{{empresa}}", companyName);
+}
+
+/** Sends an approved Meta message template — the only way to start a WhatsApp conversation cold. */
+export async function sendWaTemplate(opts: {
+  accessToken: string;
+  phoneNumberId: string;
+  to: string; // digits with country code
+  templateName: string;
+  languageCode: string;
+  headerParam: string;
+  bodyParam: string;
+}): Promise<WaSendResult> {
+  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${opts.phoneNumberId}/messages`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${opts.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: opts.to,
+        type: "template",
+        template: {
+          name: opts.templateName,
+          language: { code: opts.languageCode },
+          components: [
+            { type: "header", parameters: [{ type: "text", text: opts.headerParam }] },
+            { type: "body", parameters: [{ type: "text", text: opts.bodyParam }] },
+          ],
+        },
+      }),
+      signal: AbortSignal.timeout(20_000),
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, error: "Sem conexão com o servidor da Meta." };
+  }
+
+  const data = (await res.json().catch(() => ({}))) as {
+    messages?: { id?: string }[];
+    error?: { message?: string };
+  };
+
+  if (!res.ok || data.error) {
+    return {
+      ok: false,
+      error: data.error?.message ?? `Meta respondeu HTTP ${res.status}.`,
+    };
+  }
+  return { ok: true, waMessageId: data.messages?.[0]?.id };
+}
+
 /** Sends a free-form text message via WhatsApp Business Cloud API. */
 export async function sendWaText(opts: {
   accessToken: string;

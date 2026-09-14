@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { conversations, leads, messages } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
-import { getWaAccount, type ResendConfig } from "@/lib/settings-db";
-import { sendWaText } from "@/lib/whatsapp";
+import { and, desc, eq } from "drizzle-orm";
+import { getWaAccount, getWaAccountForLocale, type ResendConfig } from "@/lib/settings-db";
+import { renderWaTemplateBody, sendWaText, sendWaTemplate, WA_TEMPLATES } from "@/lib/whatsapp";
 import { sendEmail } from "@/lib/email";
 import { logEvent } from "@/lib/system-log";
 import {
@@ -24,6 +24,7 @@ export interface AutomationLead {
   companyName: string;
   whatsapp: string | null;
   email: string | null;
+  country: string;
 }
 
 /**
@@ -53,10 +54,11 @@ export interface EnvioResult {
 }
 
 /**
- * So conseguimos mandar texto livre dentro de uma conversa ja aberta —
- * primeiro contato via WhatsApp exige template aprovado pela Meta, que este
- * sistema ainda nao implementa. `semConversa` sinaliza esse caso a parte pra
- * quem chamou decidir se cai pra e-mail.
+ * Texto livre so funciona dentro de uma conversa ja aberta. Sem conversa,
+ * tenta abrir uma cold com o template aprovado da Meta pro idioma do lead
+ * (WA_TEMPLATES); so se isso tambem nao der (sem conta/template pro idioma,
+ * ou a Meta rejeitar o envio) e que devolve `semConversa: true`, pra quem
+ * chamou decidir se cai pra e-mail.
  */
 export async function sendViaWhatsapp(
   lead: AutomationLead,
@@ -81,13 +83,15 @@ export async function sendViaWhatsapp(
     .orderBy(desc(conversations.lastMessageAt))
     .limit(1);
   const conta = convo?.waAccountId ? await getWaAccount(convo.waAccountId) : null;
-  if (!convo || !conta)
+  if (!convo || !conta) {
+    const abriu = await abrirConversaComTemplate(lead);
+    if (abriu.ok) return { ok: true, semConversa: false, detail: "" };
     return {
       ok: false,
       semConversa: true,
-      detail:
-        "Sem conversa aberta com esse lead — primeiro contato por WhatsApp exige template aprovado pela Meta.",
+      detail: abriu.detail,
     };
+  }
 
   let enviadas = 0;
   let ultimoErro: string | null = null;
@@ -135,6 +139,86 @@ export async function sendViaWhatsapp(
         ? `${enviadas}/${partes.length} parte(s) enviada(s) — parou em: ${ultimoErro}`
         : ultimoErro ?? "Falha no envio.",
   };
+}
+
+/**
+ * Primeiro contato via WhatsApp: manda o template aprovado pra Meta (unica
+ * forma de comecar uma conversa do zero) e, se aceito, ja registra a
+ * conversa e a mensagem por aqui, como se fosse um envio normal.
+ */
+async function abrirConversaComTemplate(
+  lead: AutomationLead,
+): Promise<{ ok: boolean; detail: string }> {
+  if (!lead.whatsapp)
+    return { ok: false, detail: "WhatsApp do lead ausente." };
+
+  const locale: "BR" | "PT" = lead.country === "PT" ? "PT" : "BR";
+  const template = WA_TEMPLATES[locale];
+  const textoParaRegistro = renderWaTemplateBody(locale, lead.companyName);
+  const conta = await getWaAccountForLocale(locale);
+  if (!conta)
+    return {
+      ok: false,
+      detail: `Sem conversa aberta com esse lead — e não há conta de WhatsApp configurada pra ${locale === "PT" ? "Portugal" : "Brasil"} pra abrir uma nova via template.`,
+    };
+
+  const resultado = await sendWaTemplate({
+    accessToken: conta.accessToken,
+    phoneNumberId: conta.phoneNumberId,
+    to: lead.whatsapp,
+    templateName: template.name,
+    languageCode: template.language,
+    headerParam: lead.companyName,
+    bodyParam: lead.companyName,
+  });
+  if (!resultado.ok)
+    return {
+      ok: false,
+      detail: `Sem conversa aberta com esse lead — o template do WhatsApp falhou: ${resultado.error ?? "erro desconhecido"}.`,
+    };
+
+  const now = new Date();
+  const preview = textoParaRegistro.slice(0, 140);
+  let [convo] = await db
+    .insert(conversations)
+    .values({
+      leadId: lead.id,
+      contactName: lead.companyName,
+      waAccountId: conta.id,
+      contactPhone: lead.whatsapp,
+      lastMessageAt: now,
+      lastMessagePreview: preview,
+    })
+    .onConflictDoNothing({
+      target: [conversations.contactPhone, conversations.waAccountId],
+    })
+    .returning();
+  if (!convo) {
+    // Corrida rara: uma conversa surgiu (ex.: inbound) entre a checagem e
+    // este insert. A mensagem ja foi enviada de verdade, entao so precisa
+    // achar a linha que ganhou a corrida pra anexar o registro nela.
+    [convo] = await db
+      .select()
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.contactPhone, lead.whatsapp),
+          eq(conversations.waAccountId, conta.id),
+        ),
+      )
+      .limit(1);
+  }
+  if (convo) {
+    await db.insert(messages).values({
+      conversationId: convo.id,
+      direction: "out",
+      body: textoParaRegistro,
+      waMessageId: resultado.waMessageId ?? null,
+      status: "sent",
+      type: "text",
+    });
+  }
+  return { ok: true, detail: "" };
 }
 
 export async function sendViaEmail(
