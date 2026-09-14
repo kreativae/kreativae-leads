@@ -129,7 +129,7 @@ function Toggle({
         }`}
       >
         <span
-          className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+          className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-[#fff] shadow transition-transform ${
             on ? "translate-x-5" : "translate-x-0"
           }`}
         />
