@@ -125,7 +125,7 @@ function Toggle({
         aria-label={label}
         onClick={() => onChange(!on)}
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-          on ? "bg-volt" : "bg-white/[0.12]"
+          on ? "bg-volt" : "bg-white/25"
         }`}
       >
         <span

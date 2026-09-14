@@ -749,7 +749,7 @@ function DebugSwitch({
         onClick={onToggle}
         disabled={busy}
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
-          enabled ? "bg-volt" : "bg-white/[0.12]"
+          enabled ? "bg-volt" : "bg-white/25"
         }`}
       >
         <span
