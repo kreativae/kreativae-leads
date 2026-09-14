@@ -13,6 +13,7 @@ import {
   Loader2,
   MessageCircle,
   Phone,
+  Pin,
   RefreshCw,
   Search,
   SquareKanban,
@@ -61,13 +62,26 @@ function rotulo(status: string): string {
   return LEAD_STATUSES.find((s) => s.key === status)?.label ?? status;
 }
 
+/** Preferencia de "ocultar/mostrar novos" fixada por este navegador — so quando o usuario pina. */
+const NOVOS_PIN_KEY = "crm_incluir_novos_fixado";
+
+function lerNovosFixado(): boolean | null {
+  try {
+    const v = localStorage.getItem(NOVOS_PIN_KEY);
+    return v === null ? null : v === "1";
+  } catch {
+    return null;
+  }
+}
+
 export default function CrmPage() {
   const [columns, setColumns] = useState<Column[] | null>(null);
   const [newTotal, setNewTotal] = useState(0);
   const [groups, setGroups] = useState<Group[]>([]);
   // "" = todas. O valor e a chave da pesquisa devolvida pelo servidor.
   const [escopo, setEscopo] = useState("");
-  const [incluirNovos, setIncluirNovos] = useState(false);
+  const [incluirNovos, setIncluirNovos] = useState(() => lerNovosFixado() ?? false);
+  const [novosFixado, setNovosFixado] = useState(() => lerNovosFixado() !== null);
   // "termo" e o que esta sendo digitado; "busca" e o que ja foi ao servidor.
   const [termo, setTermo] = useState("");
   const [busca, setBusca] = useState("");
@@ -101,6 +115,28 @@ export default function CrmPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  function definirIncluirNovos(v: boolean) {
+    setIncluirNovos(v);
+    if (novosFixado) {
+      try {
+        localStorage.setItem(NOVOS_PIN_KEY, v ? "1" : "0");
+      } catch {
+        /* localStorage indisponivel — so nao persiste, sem quebrar nada */
+      }
+    }
+  }
+
+  function alternarFixarNovos() {
+    const fixar = !novosFixado;
+    setNovosFixado(fixar);
+    try {
+      if (fixar) localStorage.setItem(NOVOS_PIN_KEY, incluirNovos ? "1" : "0");
+      else localStorage.removeItem(NOVOS_PIN_KEY);
+    } catch {
+      /* localStorage indisponivel — so nao persiste, sem quebrar nada */
+    }
+  }
 
   // Espera a digitacao parar: uma consulta por tecla castigaria o banco.
   // Menos de 2 letras casaria com quase tudo, entao vale como "sem busca".
@@ -270,7 +306,7 @@ export default function CrmPage() {
           </div>
           <button
             type="button"
-            onClick={() => setIncluirNovos((v) => !v)}
+            onClick={() => definirIncluirNovos(!incluirNovos)}
             disabled={!!busca}
             className={`inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-[12.5px] font-semibold transition-colors disabled:opacity-40 ${
               incluirNovos
@@ -280,6 +316,23 @@ export default function CrmPage() {
           >
             {incluirNovos ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             {incluirNovos ? "Ocultar novos" : `Mostrar novos (${newTotal})`}
+          </button>
+          <button
+            type="button"
+            onClick={alternarFixarNovos}
+            title={
+              novosFixado
+                ? "Fixado — essa escolha volta a aparecer sempre que abrir o CRM"
+                : "Fixar essa escolha pras próximas vezes"
+            }
+            aria-pressed={novosFixado}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border transition-colors ${
+              novosFixado
+                ? "border-volt/50 bg-volt/10 text-volt"
+                : "border-white/[0.09] text-zinc-500 hover:text-zinc-200"
+            }`}
+          >
+            <Pin className="h-3.5 w-3.5" fill={novosFixado ? "currentColor" : "none"} />
           </button>
           <button
             type="button"
