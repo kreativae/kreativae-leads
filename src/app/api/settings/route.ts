@@ -7,7 +7,7 @@ import {
   listWaAccounts,
   type SettingKey,
 } from "@/lib/settings-db";
-import { getIgConfig, getN8nConfig, getResendConfig } from "@/lib/settings-db";
+import { getIgConfig, getResendConfig } from "@/lib/settings-db";
 import { lerCustoPlaces } from "@/lib/places-cost";
 import { requireUser } from "@/lib/auth";
 
@@ -18,8 +18,6 @@ const SECRET_KEYS: SettingKey[] = [
   "wa_app_secret",
   "ig_access_token",
   "resend_api_key",
-  "n8n_webhook_url",
-  "n8n_callback_secret",
 ];
 
 const ENV_HINT: Partial<Record<SettingKey, string>> = {
@@ -29,8 +27,6 @@ const ENV_HINT: Partial<Record<SettingKey, string>> = {
   ig_user_id: "IG_USER_ID",
   resend_api_key: "RESEND_API_KEY",
   resend_from_email: "RESEND_FROM_EMAIL",
-  n8n_webhook_url: "N8N_WEBHOOK_URL",
-  n8n_callback_secret: "N8N_CALLBACK_SECRET",
 };
 
 export async function GET() {
@@ -49,7 +45,6 @@ export async function GET() {
   out.wa_configured = (await listWaAccounts()).length > 0;
   out.ig_configured = !!(await getIgConfig());
   out.resend_configured = !!(await getResendConfig());
-  out.n8n_configured = !!(await getN8nConfig());
   out.places_cost = await lerCustoPlaces();
   return NextResponse.json(out);
 }

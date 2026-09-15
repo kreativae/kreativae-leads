@@ -609,24 +609,15 @@ export function LeadDrawer({
         ok: boolean;
         lead?: ClientLead;
         error?: string;
-        mode?: "n8n" | "interno";
         channel?: "whatsapp" | "email";
       };
       if (json.lead) onPatched(json.lead);
-      if (json.mode === "interno") {
-        setAutomateOk(json.ok);
-        setAutomateMsg(
-          json.ok
-            ? `Mensagem enviada por ${json.channel === "email" ? "e-mail" : "WhatsApp"}.`
-            : json.error ?? "Falha ao enviar.",
-        );
-      } else if (json.ok) {
-        setAutomateOk(null);
-        setAutomateMsg("Disparado — o resultado aparece aqui quando o n8n responder.");
-      } else {
-        setAutomateOk(false);
-        setAutomateMsg(json.error ?? "Falha ao disparar automação.");
-      }
+      setAutomateOk(json.ok);
+      setAutomateMsg(
+        json.ok
+          ? `Mensagem enviada por ${json.channel === "email" ? "e-mail" : "WhatsApp"}.`
+          : json.error ?? "Falha ao enviar.",
+      );
     } catch {
       setAutomateOk(false);
       setAutomateMsg("Erro de rede ao disparar a automação.");
@@ -1083,7 +1074,7 @@ export function LeadDrawer({
               </div>
             </div>
 
-            {/* Automação via n8n */}
+            {/* Automação */}
             <div className="mt-3.5 rounded-xl border border-white/[0.07] bg-ink/50 p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -1093,7 +1084,7 @@ export function LeadDrawer({
                   </div>
                   <p className="mt-0.5 text-[11.5px] text-zinc-500">
                     {lead.automationStatus === "pending"
-                      ? "Disparado, esperando o n8n responder…"
+                      ? "Disparado, aguardando o resultado…"
                       : lead.automationStatus === "done"
                         ? `Concluída por ${lead.automationChannel === "email" ? "e-mail" : "WhatsApp"}${
                             lead.automationAt ? ` · ${timeAgo(lead.automationAt)}` : ""

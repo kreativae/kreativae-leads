@@ -242,7 +242,7 @@ export async function sendViaEmail(
   return { ok: result.ok, detail: result.ok ? "" : result.error ?? "Falha no envio." };
 }
 
-/** Grava o resultado no lead e no log — mesmo formato usado pelo n8n e pelo envio interno. */
+/** Grava o resultado da automação no lead e no log. */
 export async function finalizeAutomation(opts: {
   leadId: string;
   companyName: string;

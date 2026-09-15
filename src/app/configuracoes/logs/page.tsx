@@ -53,7 +53,7 @@ const SOURCE_LABEL: Record<string, string> = {
   whatsapp_webhook: "WhatsApp (webhook)",
   enrich_queue: "Enriquecimento",
   wa_send: "WhatsApp (envio)",
-  automation: "Automação (n8n)",
+  automation: "Automação",
 };
 
 const SECRET_LABEL: Record<string, string> = {
