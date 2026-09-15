@@ -7,32 +7,13 @@ export interface WaSendResult {
 const GRAPH_VERSION = "v21.0";
 
 /**
- * Templates aprovados pela Meta, um por idioma — criados no WhatsApp Manager
- * em 13/09/2026 (contas separadas: Brasil e Portugal). Nome e idioma têm que
- * bater exatamente com o que a Meta salvou, ou o envio é rejeitado. Cabeçalho
- * e corpo dos dois usam {{1}} = nome da empresa.
+ * Templates aprovados pela Meta ficam em Configurações → Automação (nome,
+ * idioma e corpo editáveis por lá — settings-db.ts::getAutomationSettings),
+ * nao aqui. Nome e idioma têm que bater exatamente com o que a Meta salvou,
+ * ou o envio é rejeitado.
  */
-export const WA_TEMPLATES: Record<
-  "BR" | "PT",
-  { name: string; language: string; bodyTemplate: string }
-> = {
-  BR: {
-    name: "modelo_br",
-    language: "pt_BR",
-    bodyTemplate:
-      "Olá! Sou da Kreativ.ae, estúdio de criação de sites. Vi a {{empresa}} e percebi que dá pra melhorar bastante a forma como o negócio aparece online. Topa ver algumas ideias rápidas, sem compromisso?",
-  },
-  PT: {
-    name: "modelo_pt",
-    language: "pt_PT",
-    bodyTemplate:
-      "Olá! Sou da Kreativ.ae, estúdio especializado na criação de sites profissionais. Reparei que há espaço para melhorar a forma como a {{empresa}} aparece online. Topa ver algumas ideias rápidas, sem qualquer compromisso?",
-  },
-};
-
-/** Texto real que o template manda, pra registrar em Conversas — nao a Abordagem pronta, que e outra redacao. */
-export function renderWaTemplateBody(locale: "BR" | "PT", companyName: string): string {
-  return WA_TEMPLATES[locale].bodyTemplate.replace("{{empresa}}", companyName);
+export function renderWaTemplateBody(bodyTemplate: string, companyName: string): string {
+  return bodyTemplate.replace("{{empresa}}", companyName);
 }
 
 /** Sends an approved Meta message template — the only way to start a WhatsApp conversation cold. */

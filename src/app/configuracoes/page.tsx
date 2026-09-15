@@ -30,6 +30,7 @@ import { ThemeSelector } from "@/components/theme";
 import { TeamSection } from "@/components/team-section";
 import { SecretDebugTrigger, DebugFab } from "@/components/secret-debug-trigger";
 import { formatDate } from "@/lib/format";
+import { MESSAGE_STYLES } from "@/lib/messages";
 
 interface MeRole {
   role: string;
@@ -93,11 +94,19 @@ interface CustoWhatsApp {
   desde: string;
   ate: string;
 }
+interface AutomationDefaults {
+  style: string | null;
+  includeAbout: boolean;
+  waPauseMs: number;
+  templates: Record<"BR" | "PT", { name: string; language: string; bodyTemplate: string }>;
+}
+
 type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   wa_configured?: boolean;
   ig_configured?: boolean;
   resend_configured?: boolean;
   places_cost?: CustoPlaces;
+  automation_defaults?: AutomationDefaults;
 };
 
 /** Interruptor simples. Salva na hora — nao espera o botao Salvar. */
@@ -164,13 +173,95 @@ function NotaInfo({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Template do WhatsApp por idioma: nome/idioma/corpo aprovados na Meta + qual conta usar. */
+function WaTemplateEditor({
+  titulo,
+  nome,
+  idioma,
+  corpo,
+  contaId,
+  contas,
+  onNome,
+  onIdioma,
+  onCorpo,
+  onConta,
+}: {
+  titulo: string;
+  nome: string;
+  idioma: string;
+  corpo: string;
+  contaId: string;
+  contas: { id: string; label: string }[];
+  onNome: (v: string) => void;
+  onIdioma: (v: string) => void;
+  onCorpo: (v: string) => void;
+  onConta: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-3.5 rounded-xl border border-white/[0.07] bg-ink/60 p-5">
+      <p className="text-[13px] font-bold text-zinc-100">{titulo}</p>
+      <PlainInput label="Nome do template" hint="Como foi salvo no WhatsApp Manager." value={nome} onChange={onNome} />
+      <PlainInput
+        label="Idioma"
+        hint="Código do idioma aprovado (ex.: pt_BR)."
+        value={idioma}
+        onChange={onIdioma}
+      />
+      <div>
+        <label className="text-[12px] font-semibold text-zinc-400">Corpo do template</label>
+        <textarea
+          value={corpo}
+          onChange={(e) => onCorpo(e.target.value)}
+          rows={4}
+          className="mt-1.5 w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[12.5px] leading-relaxed text-zinc-100 outline-none focus:border-volt/50"
+        />
+        <p className="mt-1 text-[11.5px] text-zinc-600">
+          Use {"{{empresa}}"} onde entra o nome da empresa — precisa bater com o corpo aprovado
+          na Meta.
+        </p>
+      </div>
+      <div>
+        <label className="text-[12px] font-semibold text-zinc-400">Conta de WhatsApp</label>
+        <select
+          value={contaId}
+          onChange={(e) => onConta(e.target.value)}
+          className="mt-1.5 w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none focus:border-volt/50"
+        >
+          <option value="">Detectar automaticamente</option>
+          {contas.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 const SECRET_FIELDS = [
   "google_places_key",
   "wa_app_secret",
   "ig_access_token",
   "resend_api_key",
 ];
-const PLAIN_FIELDS = ["wa_verify_token", "data_source", "ig_user_id", "resend_from_email"];
+const PLAIN_FIELDS = [
+  "wa_verify_token",
+  "data_source",
+  "ig_user_id",
+  "resend_from_email",
+  "automation_style",
+  "automation_include_about",
+  "automation_wa_pause_ms",
+  "automation_wa_template_br_name",
+  "automation_wa_template_br_lang",
+  "automation_wa_template_br_body",
+  "automation_wa_template_pt_name",
+  "automation_wa_template_pt_lang",
+  "automation_wa_template_pt_body",
+  "automation_wa_account_br",
+  "automation_wa_account_pt",
+];
 
 export default function ConfiguracoesPage() {
   const [meta, setMeta] = useState<SettingsMeta>({});
@@ -184,6 +275,17 @@ export default function ConfiguracoesPage() {
     wa_enabled: "yes",
     resend_api_key: "",
     resend_from_email: "",
+    automation_style: "",
+    automation_include_about: "no",
+    automation_wa_pause_ms: "1400",
+    automation_wa_template_br_name: "modelo_br",
+    automation_wa_template_br_lang: "pt_BR",
+    automation_wa_template_br_body: "",
+    automation_wa_template_pt_name: "modelo_pt",
+    automation_wa_template_pt_lang: "pt_PT",
+    automation_wa_template_pt_body: "",
+    automation_wa_account_br: "",
+    automation_wa_account_pt: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -194,6 +296,7 @@ export default function ConfiguracoesPage() {
   const [waCusto, setWaCusto] = useState<CustoWhatsApp | null>(null);
   const [waCustoErro, setWaCustoErro] = useState<string | null>(null);
   const [waCustoCarregando, setWaCustoCarregando] = useState(true);
+  const [waAccountsList, setWaAccountsList] = useState<{ id: string; label: string }[]>([]);
   const isOwner = useIsOwner();
   const { panelEnabled, easterEggEnabled } = useDebugToggles();
 
@@ -221,6 +324,7 @@ export default function ConfiguracoesPage() {
       const res = await fetch("/api/settings");
       const data = (await res.json()) as SettingsMeta;
       setMeta(data);
+      const auto = data.automation_defaults;
       setValues((v) => ({
         ...v,
         data_source: data.data_source?.value || "auto",
@@ -228,6 +332,24 @@ export default function ConfiguracoesPage() {
         ig_user_id: data.ig_user_id?.value ?? "",
         resend_from_email: data.resend_from_email?.value ?? "",
         wa_enabled: data.wa_enabled?.value === "no" ? "no" : "yes",
+        automation_style: data.automation_style?.value ?? "",
+        automation_include_about: data.automation_include_about?.value === "yes" ? "yes" : "no",
+        automation_wa_pause_ms:
+          data.automation_wa_pause_ms?.value || String(auto?.waPauseMs ?? 1400),
+        automation_wa_template_br_name:
+          data.automation_wa_template_br_name?.value || auto?.templates.BR.name || "modelo_br",
+        automation_wa_template_br_lang:
+          data.automation_wa_template_br_lang?.value || auto?.templates.BR.language || "pt_BR",
+        automation_wa_template_br_body:
+          data.automation_wa_template_br_body?.value || auto?.templates.BR.bodyTemplate || "",
+        automation_wa_template_pt_name:
+          data.automation_wa_template_pt_name?.value || auto?.templates.PT.name || "modelo_pt",
+        automation_wa_template_pt_lang:
+          data.automation_wa_template_pt_lang?.value || auto?.templates.PT.language || "pt_PT",
+        automation_wa_template_pt_body:
+          data.automation_wa_template_pt_body?.value || auto?.templates.PT.bodyTemplate || "",
+        automation_wa_account_br: data.automation_wa_account_br?.value ?? "",
+        automation_wa_account_pt: data.automation_wa_account_pt?.value ?? "",
       }));
     } finally {
       setLoading(false);
@@ -238,6 +360,15 @@ export default function ConfiguracoesPage() {
     load();
     setOrigin(window.location.origin);
   }, [load]);
+
+  useEffect(() => {
+    fetch("/api/wa-accounts")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { accounts: { id: string; label: string }[] } | null) =>
+        setWaAccountsList(d?.accounts ?? []),
+      )
+      .catch(() => undefined);
+  }, []);
 
   async function save() {
     setSaving(true);
@@ -585,20 +716,91 @@ export default function ConfiguracoesPage() {
             desc="Botão “Automatizar” no lead: manda a Abordagem pronta por WhatsApp ou e-mail, direto pelo sistema."
             className="xl:col-span-2"
           >
-            <div className="rounded-xl border border-white/[0.07] bg-ink/60 p-5">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="space-y-4 lg:col-span-1">
+                <div>
+                  <label className="text-[12px] font-semibold text-zinc-400">
+                    Estilo padrão da mensagem
+                  </label>
+                  <select
+                    value={values.automation_style}
+                    onChange={(e) =>
+                      setValues((v) => ({ ...v, automation_style: e.target.value }))
+                    }
+                    className="mt-1.5 w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none focus:border-volt/50"
+                  >
+                    <option value="">Aleatório (varia por lead)</option>
+                    {MESSAGE_STYLES.map((s) => (
+                      <option key={s.key} value={s.key}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11.5px] text-zinc-600">
+                    Mesmos estilos disponíveis na Abordagem pronta do drawer.
+                  </p>
+                </div>
+                <Toggle
+                  on={values.automation_include_about === "yes"}
+                  onChange={(on) =>
+                    setValues((v) => ({
+                      ...v,
+                      automation_include_about: on ? "yes" : "no",
+                    }))
+                  }
+                  label="Incluir parágrafo “sobre a kreativ.ae”"
+                  hint="Acrescenta um parágrafo com os diferenciais do estúdio antes do fechamento."
+                />
+                <PlainInput
+                  label="Pausa entre partes do WhatsApp (ms)"
+                  hint="Quando a mensagem sai em mais de uma bolha, esse é o intervalo entre elas."
+                  value={values.automation_wa_pause_ms}
+                  onChange={(v) =>
+                    setValues((s) => ({ ...s, automation_wa_pause_ms: v.replace(/\D/g, "") }))
+                  }
+                />
+              </div>
+
+              <WaTemplateEditor
+                titulo="Template do WhatsApp — Brasil"
+                nome={values.automation_wa_template_br_name}
+                idioma={values.automation_wa_template_br_lang}
+                corpo={values.automation_wa_template_br_body}
+                contaId={values.automation_wa_account_br}
+                contas={waAccountsList}
+                onNome={(v) => setValues((s) => ({ ...s, automation_wa_template_br_name: v }))}
+                onIdioma={(v) => setValues((s) => ({ ...s, automation_wa_template_br_lang: v }))}
+                onCorpo={(v) => setValues((s) => ({ ...s, automation_wa_template_br_body: v }))}
+                onConta={(v) => setValues((s) => ({ ...s, automation_wa_account_br: v }))}
+              />
+
+              <WaTemplateEditor
+                titulo="Template do WhatsApp — Portugal"
+                nome={values.automation_wa_template_pt_name}
+                idioma={values.automation_wa_template_pt_lang}
+                corpo={values.automation_wa_template_pt_body}
+                contaId={values.automation_wa_account_pt}
+                contas={waAccountsList}
+                onNome={(v) => setValues((s) => ({ ...s, automation_wa_template_pt_name: v }))}
+                onIdioma={(v) => setValues((s) => ({ ...s, automation_wa_template_pt_lang: v }))}
+                onCorpo={(v) => setValues((s) => ({ ...s, automation_wa_template_pt_body: v }))}
+                onConta={(v) => setValues((s) => ({ ...s, automation_wa_account_pt: v }))}
+              />
+            </div>
+
+            <div className="mt-4 rounded-xl border border-white/[0.07] bg-ink/60 p-5">
               <div className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
                 <Zap className="h-4 w-4 text-volt" />
                 Como funciona
               </div>
               <ol className="mt-3 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
-                <li>O texto sai pronto do próprio sistema — mesma Abordagem pronta do drawer, considerando se o lead tem site e o diagnóstico coletado.</li>
-                <li>WhatsApp usa a conta cadastrada acima; e-mail usa o Resend, configurado ao lado.</li>
-                <li>Sem nada extra pra configurar aqui — as credenciais já são as mesmas das seções de WhatsApp e E-mail desta página.</li>
+                <li>O texto sai pronto do próprio sistema — mesma Abordagem pronta do drawer, considerando se o lead tem site e o diagnóstico coletado (estilo e parágrafo “sobre” seguem o que está configurado ao lado).</li>
+                <li>WhatsApp usa a conta escolhida por idioma acima (ou detecta automaticamente pelas contas cadastradas); e-mail usa o Resend, configurado nesta página.</li>
+                <li>Sem conversa aberta, tenta o template correspondente ao idioma do lead antes de cair pra e-mail.</li>
               </ol>
               <NotaInfo>
-                WhatsApp só envia texto livre dentro de uma conversa já aberta — sem
-                conversa, o sistema tenta abrir uma com o template aprovado pela Meta
-                (Configurações → contas de WhatsApp) e só cai pra e-mail se isso falhar.
+                Nome e idioma do template têm que bater exatamente com o que foi aprovado
+                no WhatsApp Manager, ou o envio é rejeitado pela Meta.
               </NotaInfo>
             </div>
           </Section>

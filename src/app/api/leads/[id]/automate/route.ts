@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
-import { getResendConfig } from "@/lib/settings-db";
+import { getAutomationSettings, getResendConfig } from "@/lib/settings-db";
 import {
   buildAutomationContent,
   finalizeAutomation,
@@ -67,7 +67,11 @@ export async function POST(req: Request, ctx: Ctx) {
     websiteGrade: lead.websiteGrade,
     websiteChecks,
   };
-  const { message, subject, html } = buildAutomationContent(leadParaMensagem, auth.user.name);
+  const automationSettings = await getAutomationSettings();
+  const { message, subject, html } = buildAutomationContent(leadParaMensagem, auth.user.name, {
+    style: automationSettings.style ?? undefined,
+    includeAbout: automationSettings.includeAbout,
+  });
 
   let ok = false;
   let detail = "";

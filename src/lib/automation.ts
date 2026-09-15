@@ -1,8 +1,13 @@
 import { db } from "@/db";
 import { conversations, leads, messages } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
-import { getWaAccount, getWaAccountForLocale, type ResendConfig } from "@/lib/settings-db";
-import { renderWaTemplateBody, sendWaText, sendWaTemplate, WA_TEMPLATES } from "@/lib/whatsapp";
+import {
+  getAutomationSettings,
+  getWaAccount,
+  getWaAccountForLocale,
+  type ResendConfig,
+} from "@/lib/settings-db";
+import { renderWaTemplateBody, sendWaText, sendWaTemplate } from "@/lib/whatsapp";
 import { sendEmail } from "@/lib/email";
 import { logEvent } from "@/lib/system-log";
 import {
@@ -10,10 +15,10 @@ import {
   emailSubject,
   textoParaHtmlEmail,
   type MessageLead,
+  type MessageStyle,
 } from "@/lib/messages";
 
 const MAX_PARTES = 10;
-const PAUSA_ENTRE_PARTES_MS = 1400;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -30,16 +35,21 @@ export interface AutomationLead {
 /**
  * A mesma "Abordagem pronta" do drawer: leva em conta se o lead tem site e
  * o diagnostico coletado. WhatsApp nao leva assinatura; o e-mail leva.
+ * `style`/`includeAbout` vem de Configurações → Automação — fica a cargo de
+ * quem chama buscar isso (getAutomationSettings) e passar aqui; a função
+ * continua pura e sem I/O, então dá pra testar sem tocar no banco.
  */
 export function buildAutomationContent(
   lead: MessageLead,
   senderName: string | null,
+  opts: { style?: MessageStyle; includeAbout?: boolean } = {},
 ): { message: string; subject: string; html: string } {
   const useAnalysis = (lead.websiteChecks?.length ?? 0) > 0;
-  const message = buildWhatsappMessage(lead, { useAnalysis });
+  const geracaoOpts = { useAnalysis, style: opts.style, includeAbout: opts.includeAbout };
+  const message = buildWhatsappMessage(lead, geracaoOpts);
   const subject = emailSubject(lead);
   const corpoEmail = buildWhatsappMessage(lead, {
-    useAnalysis,
+    ...geracaoOpts,
     includeSignature: true,
     senderName,
   });
@@ -56,9 +66,9 @@ export interface EnvioResult {
 /**
  * Texto livre so funciona dentro de uma conversa ja aberta. Sem conversa,
  * tenta abrir uma cold com o template aprovado da Meta pro idioma do lead
- * (WA_TEMPLATES); so se isso tambem nao der (sem conta/template pro idioma,
- * ou a Meta rejeitar o envio) e que devolve `semConversa: true`, pra quem
- * chamou decidir se cai pra e-mail.
+ * (configurado em Configurações → Automação); so se isso tambem nao der
+ * (sem conta/template pro idioma, ou a Meta rejeitar o envio) e que devolve
+ * `semConversa: true`, pra quem chamou decidir se cai pra e-mail.
  */
 export async function sendViaWhatsapp(
   lead: AutomationLead,
@@ -93,6 +103,7 @@ export async function sendViaWhatsapp(
     };
   }
 
+  const { waPauseMs } = await getAutomationSettings();
   let enviadas = 0;
   let ultimoErro: string | null = null;
   for (let i = 0; i < partes.length; i++) {
@@ -116,7 +127,7 @@ export async function sendViaWhatsapp(
       status: "sent",
       type: "text",
     });
-    if (i < partes.length - 1) await sleep(PAUSA_ENTRE_PARTES_MS);
+    if (i < partes.length - 1) await sleep(waPauseMs);
   }
   if (enviadas > 0) {
     const now = new Date();
@@ -153,8 +164,9 @@ async function abrirConversaComTemplate(
     return { ok: false, detail: "WhatsApp do lead ausente." };
 
   const locale: "BR" | "PT" = lead.country === "PT" ? "PT" : "BR";
-  const template = WA_TEMPLATES[locale];
-  const textoParaRegistro = renderWaTemplateBody(locale, lead.companyName);
+  const { templates } = await getAutomationSettings();
+  const template = templates[locale];
+  const textoParaRegistro = renderWaTemplateBody(template.bodyTemplate, lead.companyName);
   const conta = await getWaAccountForLocale(locale);
   if (!conta)
     return {

@@ -14,6 +14,17 @@ export const SETTING_KEYS = [
   "debug_easter_egg_enabled",
   "resend_api_key",
   "resend_from_email",
+  "automation_style", // "" (aleatório) | consultivo | direto | proximo | curto | pergunta
+  "automation_include_about",
+  "automation_wa_pause_ms",
+  "automation_wa_template_br_name",
+  "automation_wa_template_br_lang",
+  "automation_wa_template_br_body",
+  "automation_wa_template_pt_name",
+  "automation_wa_template_pt_lang",
+  "automation_wa_template_pt_body",
+  "automation_wa_account_br",
+  "automation_wa_account_pt",
 ] as const;
 
 /**
@@ -178,17 +189,96 @@ export async function getWaAccount(id: string): Promise<WaAccount | null> {
 }
 
 /**
- * Conta certa pra abrir um contato frio num idioma. Sem coluna dedicada de
- * região, casa Portugal pelo `label` (precisa ter "portugal" no nome); BR e
- * qualquer conta que NAO seja essa — funciona mesmo se a conta do Brasil
- * ficou com o nome padrão antigo ("Principal") em vez de "Brasil".
+ * Conta certa pra abrir um contato frio num idioma. Prioriza a escolha
+ * explícita em Configurações → Automação; sem ela, casa Portugal pelo
+ * `label` (precisa ter "portugal" no nome) e BR fica com qualquer conta que
+ * NAO seja essa — funciona mesmo se a conta do Brasil ficou com o nome
+ * padrão antigo ("Principal") em vez de "Brasil".
  */
 export async function getWaAccountForLocale(locale: "BR" | "PT"): Promise<WaAccount | null> {
   const contas = await listWaAccounts();
   if (contas.length === 0) return null;
+
+  const escolhidoId = await getSetting(
+    locale === "PT" ? "automation_wa_account_pt" : "automation_wa_account_br",
+  );
+  if (escolhidoId) {
+    const escolhido = contas.find((c) => c.id === escolhidoId);
+    if (escolhido) return escolhido;
+  }
+
   const pt = contas.find((c) => c.label.toLowerCase().includes("portugal"));
   if (locale === "PT") return pt ?? null;
   return contas.find((c) => c.id !== pt?.id) ?? null;
+}
+
+const AUTOMATION_STYLES = ["consultivo", "direto", "proximo", "curto", "pergunta"] as const;
+
+const DEFAULT_WA_TEMPLATE_BODY: Record<"BR" | "PT", string> = {
+  BR: "Olá! Sou da Kreativ.ae, estúdio de criação de sites. Vi a {{empresa}} e percebi que dá pra melhorar bastante a forma como o negócio aparece online. Topa ver algumas ideias rápidas, sem compromisso?",
+  PT: "Olá! Sou da Kreativ.ae, estúdio especializado na criação de sites profissionais. Reparei que há espaço para melhorar a forma como a {{empresa}} aparece online. Topa ver algumas ideias rápidas, sem qualquer compromisso?",
+};
+
+export interface AutomationWaTemplate {
+  name: string;
+  language: string;
+  bodyTemplate: string;
+}
+
+export interface AutomationSettings {
+  /** null = deixa o gerador escolher um estilo pseudo-aleatorio por lead. */
+  style: (typeof AUTOMATION_STYLES)[number] | null;
+  includeAbout: boolean;
+  /** Pausa entre partes de uma mensagem em varias bolhas, em ms. */
+  waPauseMs: number;
+  templates: Record<"BR" | "PT", AutomationWaTemplate>;
+}
+
+/** Config editavel em Configuracoes -> Automacao, com os mesmos padroes de sempre quando nada foi mudado. */
+export async function getAutomationSettings(): Promise<AutomationSettings> {
+  const [
+    style,
+    includeAbout,
+    pauseMs,
+    brName,
+    brLang,
+    brBody,
+    ptName,
+    ptLang,
+    ptBody,
+  ] = await Promise.all([
+    getSetting("automation_style"),
+    getSetting("automation_include_about"),
+    getSetting("automation_wa_pause_ms"),
+    getSetting("automation_wa_template_br_name"),
+    getSetting("automation_wa_template_br_lang"),
+    getSetting("automation_wa_template_br_body"),
+    getSetting("automation_wa_template_pt_name"),
+    getSetting("automation_wa_template_pt_lang"),
+    getSetting("automation_wa_template_pt_body"),
+  ]);
+
+  const pauseParsed = pauseMs ? Number(pauseMs) : NaN;
+
+  return {
+    style: (AUTOMATION_STYLES as readonly string[]).includes(style ?? "")
+      ? (style as AutomationSettings["style"])
+      : null,
+    includeAbout: includeAbout === "yes",
+    waPauseMs: Number.isFinite(pauseParsed) && pauseParsed >= 0 ? pauseParsed : 1400,
+    templates: {
+      BR: {
+        name: brName || "modelo_br",
+        language: brLang || "pt_BR",
+        bodyTemplate: brBody || DEFAULT_WA_TEMPLATE_BODY.BR,
+      },
+      PT: {
+        name: ptName || "modelo_pt",
+        language: ptLang || "pt_PT",
+        bodyTemplate: ptBody || DEFAULT_WA_TEMPLATE_BODY.PT,
+      },
+    },
+  };
 }
 
 export async function getWaAccountByPhoneNumberId(
