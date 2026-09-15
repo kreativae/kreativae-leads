@@ -171,11 +171,20 @@ function erroDetalhado(
 }
 
 /** Confere token + Phone Number ID sem enviar nada — so uma leitura, sem custo. */
+/** Qualidade da conta segundo a Meta — mesma escala do WhatsApp Manager. */
+export type WaQualityRating = "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+
+export interface WaAccountHealth {
+  displayPhone: string | null;
+  qualityRating: WaQualityRating | null;
+  messagingLimitTier: string | null;
+}
+
 export async function checkWaAccount(opts: {
   accessToken: string;
   phoneNumberId: string;
-}): Promise<{ ok: true; displayPhone: string | null } | { ok: false; error: string }> {
-  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${opts.phoneNumberId}?fields=display_phone_number`;
+}): Promise<({ ok: true } & WaAccountHealth) | { ok: false; error: string }> {
+  const url = `https://graph.facebook.com/${GRAPH_VERSION}/${opts.phoneNumberId}?fields=display_phone_number,quality_rating,messaging_limit_tier`;
   let res: Response;
   try {
     res = await fetch(url, {
@@ -188,11 +197,22 @@ export async function checkWaAccount(opts: {
   }
   const data = (await res.json().catch(() => ({}))) as {
     display_phone_number?: string;
+    quality_rating?: string;
+    messaging_limit_tier?: string;
     error?: { message?: string };
   };
   if (!res.ok || data.error)
     return { ok: false, error: data.error?.message ?? `Meta respondeu HTTP ${res.status}.` };
-  return { ok: true, displayPhone: data.display_phone_number ?? null };
+  const rating = data.quality_rating;
+  return {
+    ok: true,
+    displayPhone: data.display_phone_number ?? null,
+    qualityRating:
+      rating === "GREEN" || rating === "YELLOW" || rating === "RED" || rating === "UNKNOWN"
+        ? rating
+        : null,
+    messagingLimitTier: data.messaging_limit_tier ?? null,
+  };
 }
 
 /** Tipos de midia que o Cloud API aceita enviar/receber via mensagem. */

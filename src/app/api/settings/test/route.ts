@@ -57,9 +57,13 @@ export async function POST(req: Request) {
     const conta = id ? await getWaAccount(id) : null;
     if (!conta) return NextResponse.json({ ok: false, error: "Conta não encontrada." });
     const r = await checkWaAccount(conta);
-    return NextResponse.json(
-      r.ok ? { ok: true, detail: `Token válido (número: ${r.displayPhone ?? conta.phoneNumberId}).` } : r,
-    );
+    if (!r.ok) return NextResponse.json(r);
+    return NextResponse.json({
+      ok: true,
+      detail: `Token válido (número: ${r.displayPhone ?? conta.phoneNumberId}).`,
+      qualityRating: r.qualityRating,
+      messagingLimitTier: r.messagingLimitTier,
+    });
   }
 
   return NextResponse.json({ ok: false, error: "Tipo inválido." }, { status: 400 });

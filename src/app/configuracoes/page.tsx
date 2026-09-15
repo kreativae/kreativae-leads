@@ -903,6 +903,20 @@ interface WaAccountApi {
 
 const FORM_VAZIO = { label: "", phoneNumberId: "", wabaId: "", accessToken: "", displayPhone: "" };
 
+const QUALIDADE_LABEL: Record<string, { label: string; className: string }> = {
+  GREEN: { label: "Qualidade alta", className: "text-emerald-400" },
+  YELLOW: { label: "Qualidade média", className: "text-amber-300" },
+  RED: { label: "Qualidade baixa", className: "text-rose-400" },
+  UNKNOWN: { label: "Qualidade desconhecida", className: "text-zinc-500" },
+};
+
+interface SaudeConta {
+  estado: "carregando" | "ok" | "erro";
+  qualidade?: string | null;
+  tier?: string | null;
+  erro?: string;
+}
+
 /**
  * Lista de numeros de WhatsApp da empresa. Cada um tem seu proprio token e
  * Phone Number ID — o App Secret e o Verify Token continuam nos campos
@@ -910,11 +924,34 @@ const FORM_VAZIO = { label: "", phoneNumberId: "", wabaId: "", accessToken: "", 
  * numero especifico.
  */
 function WaAccountsManager() {
+  const isOwner = useIsOwner();
   const [contas, setContas] = useState<WaAccountApi[] | null>(null);
   const [editando, setEditando] = useState<string | "novo" | null>(null);
   const [form, setForm] = useState(FORM_VAZIO);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [saude, setSaude] = useState<Record<string, SaudeConta>>({});
+
+  async function verificarSaude(id: string) {
+    setSaude((s) => ({ ...s, [id]: { estado: "carregando" } }));
+    const res = await fetch("/api/settings/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "wa_account", id }),
+    });
+    const data = (await res.json()) as {
+      ok: boolean;
+      error?: string;
+      qualityRating?: string | null;
+      messagingLimitTier?: string | null;
+    };
+    setSaude((s) => ({
+      ...s,
+      [id]: data.ok
+        ? { estado: "ok", qualidade: data.qualityRating, tier: data.messagingLimitTier }
+        : { estado: "erro", erro: data.error ?? "Falha ao verificar." },
+    }));
+  }
 
   const carregar = useCallback(async () => {
     const res = await fetch("/api/wa-accounts");
@@ -1008,7 +1045,43 @@ function WaAccountsManager() {
                 <p className="truncate font-mono text-[11.5px] text-zinc-500">
                   {c.displayPhone ?? c.phoneNumberId} · Token {c.accessTokenMasked}
                 </p>
+                {saude[c.id]?.estado === "ok" && (
+                  <p className="mt-1 text-[11px] font-semibold">
+                    <span
+                      className={
+                        QUALIDADE_LABEL[saude[c.id]?.qualidade ?? "UNKNOWN"]?.className ??
+                        "text-zinc-500"
+                      }
+                    >
+                      {QUALIDADE_LABEL[saude[c.id]?.qualidade ?? "UNKNOWN"]?.label ??
+                        "Qualidade desconhecida"}
+                    </span>
+                    {saude[c.id]?.tier && (
+                      <span className="text-zinc-600"> · Limite: {saude[c.id]?.tier}</span>
+                    )}
+                  </p>
+                )}
+                {saude[c.id]?.estado === "erro" && (
+                  <p className="mt-1 text-[11px] font-semibold text-rose-400">
+                    {saude[c.id]?.erro}
+                  </p>
+                )}
               </div>
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => verificarSaude(c.id)}
+                  disabled={saude[c.id]?.estado === "carregando"}
+                  title="Verificar qualidade da conta na Meta"
+                  className="shrink-0 rounded-lg border border-white/[0.08] p-2 text-zinc-400 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-50"
+                >
+                  {saude[c.id]?.estado === "carregando" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => abrirEdicao(c)}
