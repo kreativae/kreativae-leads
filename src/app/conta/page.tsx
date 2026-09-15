@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { PasswordMeter } from "@/app/registrar/page";
 import { timeAgo } from "@/lib/format";
+import { DebugSwitch } from "@/components/secret-debug-trigger";
 
 interface Me {
   id: string;
@@ -709,55 +710,6 @@ function ContaInner() {
           </ul>
         </Card>
       </div>
-    </div>
-  );
-}
-
-function DebugSwitch({
-  enabled,
-  busy,
-  onToggle,
-  onLabel,
-  offLabel,
-}: {
-  enabled: boolean | null;
-  busy: boolean;
-  onToggle: () => void;
-  onLabel: string;
-  offLabel: string;
-}) {
-  if (enabled === null)
-    return (
-      <div className="flex justify-center py-4">
-        <Loader2 className="h-4 w-4 animate-spin text-volt" />
-      </div>
-    );
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3">
-      <div className="min-w-0">
-        <div className="text-[13px] font-semibold text-zinc-100">
-          {enabled ? "Ativado" : "Desativado"}
-        </div>
-        <div className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-500">
-          {enabled ? onLabel : offLabel}
-        </div>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={enabled}
-        onClick={onToggle}
-        disabled={busy}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
-          enabled ? "bg-volt" : "bg-white/25"
-        }`}
-      >
-        <span
-          className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-[#fff] shadow transition-transform ${
-            enabled ? "translate-x-5" : "translate-x-0"
-          }`}
-        />
-      </button>
     </div>
   );
 }
