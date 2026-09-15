@@ -195,6 +195,7 @@ export function LeadDrawer({
   const [automateMsg, setAutomateMsg] = useState<string | null>(null);
   const [automateOk, setAutomateOk] = useState<boolean | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [horariosAbertos, setHorariosAbertos] = useState(false);
   // Altura de cada textarea da lista "Em partes" segue o CONTEUDO, nao uma
@@ -657,6 +658,21 @@ export function LeadDrawer({
       setTimeout(() => setCopied(false), 1800);
     } catch {
       window.prompt("Copie a mensagem:", mensagemFinal);
+    }
+  }
+
+  /**
+   * Formato internacional (+351...) — pra colar direto na busca do Beeper
+   * (ou qualquer outro app), que não tem link universal pra abrir por fora.
+   */
+  async function copyPhone(numero: string) {
+    const formatado = `+${numero.replace(/\D/g, "")}`;
+    try {
+      await navigator.clipboard.writeText(formatado);
+      setCopiedPhone(true);
+      setTimeout(() => setCopiedPhone(false), 1800);
+    } catch {
+      window.prompt("Copie o número:", formatado);
     }
   }
 
@@ -1159,6 +1175,21 @@ export function LeadDrawer({
                   <Phone className="h-4 w-4" />
                   Ligar
                 </a>
+              )}
+              {lead.whatsapp && (
+                <button
+                  type="button"
+                  onClick={() => copyPhone(lead.whatsapp!)}
+                  title="Copia o número em formato internacional — cole na busca do Beeper (ou outro app)"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2.5 text-[12.5px] font-semibold text-zinc-200 transition-colors hover:border-volt/40 hover:text-volt"
+                >
+                  {copiedPhone ? (
+                    <Check className="h-4 w-4 text-volt" />
+                  ) : (
+                    <ClipboardCopy className="h-4 w-4" />
+                  )}
+                  {copiedPhone ? "Copiado!" : "Copiar número"}
+                </button>
               )}
               {!waChatLink && lead.phone && toWhatsappDigits(lead.phone, lead.country) && (
                 <a
