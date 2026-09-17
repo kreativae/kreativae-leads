@@ -3,12 +3,14 @@ import { db } from "@/db";
 import { leads, searches, type Lead } from "@/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { matchSegment } from "@/lib/constants";
-import { contactScore, type NormalizedLead } from "@/lib/osm";
+import { contactScore, normalizeWebsite, type NormalizedLead } from "@/lib/osm";
 import { searchPlaces } from "@/lib/places";
 import { registrarRequisicoesPlaces } from "@/lib/places-cost";
 import { getEffectiveSetting } from "@/lib/settings-db";
 import { requireUser } from "@/lib/auth";
 import { logEvent } from "@/lib/system-log";
+import { toWhatsappDigits } from "@/lib/phone";
+import type { SiteAnalysis } from "@/lib/site-analyzer";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -82,9 +84,22 @@ export async function GET(req: Request) {
   });
 }
 
+interface Overrides {
+  companyName?: string;
+  ownerName?: string;
+  segment?: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  website?: string;
+  notes?: string;
+}
+
 interface AddBody {
   candidate?: NormalizedLead;
   country?: unknown;
+  overrides?: Overrides;
+  analysis?: SiteAnalysis;
 }
 
 /** Adiciona UM candidato já achado (devolvido pelo GET acima) aos Leads e ao CRM. */
@@ -103,8 +118,22 @@ export async function POST(req: Request) {
   if (!c || typeof c.osmId !== "string" || typeof c.companyName !== "string" || !c.companyName.trim())
     return NextResponse.json({ ok: false, error: "Candidato inválido." }, { status: 400 });
   const country = body.country === "PT" ? "PT" : "BR";
+  const o = body.overrides ?? {};
 
-  const matched = matchSegment(c.categoryRaw?.trim() || "Contato manual");
+  // Campos "personalizados" antes de adicionar: só sobrescreve quando o
+  // usuário de fato editou (texto não-vazio); senão fica o que o Google achou.
+  const companyName = o.companyName?.trim() || c.companyName;
+  const ownerName = o.ownerName?.trim() || c.ownerName;
+  const phone = o.phone?.trim() || c.phone;
+  const whatsapp = o.whatsapp?.trim() ? toWhatsappDigits(o.whatsapp.trim(), country) : c.whatsapp;
+  const emailEditado = o.email?.trim();
+  if (emailEditado && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailEditado))
+    return NextResponse.json({ ok: false, error: "E-mail inválido." }, { status: 400 });
+  const email = emailEditado || c.email;
+  const website = o.website?.trim() ? normalizeWebsite(o.website.trim()) : c.website;
+  const notes = o.notes?.trim() || null;
+
+  const matched = matchSegment(o.segment?.trim() || c.categoryRaw?.trim() || "Contato manual");
   const startedAt = Date.now();
 
   const [search] = await db
@@ -119,13 +148,23 @@ export async function POST(req: Request) {
     })
     .returning();
 
+  const mergedForScore: NormalizedLead = { ...c, companyName, ownerName, phone, whatsapp, email, website };
+  const analysis = body.analysis;
+  const opportunity = analysis
+    ? analysis.grade === "modern"
+      ? "modern"
+      : "outdated"
+    : website
+      ? "unreviewed"
+      : "no_website";
+
   const [inserted] = (await db
     .insert(leads)
     .values({
       searchId: search.id,
       osmId: c.osmId,
-      companyName: c.companyName,
-      ownerName: c.ownerName,
+      companyName,
+      ownerName,
       segment: matched.displayLabel,
       city: c.city,
       state: null,
@@ -135,12 +174,12 @@ export async function POST(req: Request) {
       postcode: c.postcode,
       lat: c.lat,
       lon: c.lon,
-      phone: c.phone,
+      phone,
       phoneAlt: c.phoneAlt,
-      whatsapp: c.whatsapp,
+      whatsapp,
       whatsappSource: c.whatsappSource,
-      email: c.email,
-      website: c.website,
+      email,
+      website,
       instagram: c.instagram,
       facebook: c.facebook,
       linkedin: c.linkedin,
@@ -151,8 +190,13 @@ export async function POST(req: Request) {
       googleMapsUri: c.googleMapsUri,
       categoryRaw: c.categoryRaw,
       extra: c.extra,
-      contactScore: contactScore(c),
-      opportunity: c.website ? "unreviewed" : "no_website",
+      notes,
+      contactScore: contactScore(mergedForScore),
+      opportunity,
+      websiteScore: analysis?.score ?? null,
+      websiteGrade: analysis?.grade ?? null,
+      websiteChecks: analysis?.checks ?? null,
+      analyzedAt: analysis ? new Date() : null,
     })
     .onConflictDoUpdate({
       target: leads.osmId,
