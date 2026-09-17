@@ -10,6 +10,7 @@ import {
   LogOut,
   MessageSquare,
   Radar,
+  Search,
   Settings2,
   SquareKanban,
   ShieldAlert,
@@ -92,6 +93,7 @@ function UserBlock({ me }: { me: Me | null }) {
 const NAV = [
   { href: "/", label: "Radar", icon: Radar },
   { href: "/buscar", label: "Nova busca", icon: Crosshair },
+  { href: "/buscador", label: "Buscador", icon: Search },
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/crm", label: "CRM", icon: SquareKanban },
   { href: "/conversas", label: "Conversas", icon: MessageSquare },
