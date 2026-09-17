@@ -92,7 +92,17 @@ interface Overrides {
   whatsapp?: string;
   email?: string;
   website?: string;
+  instagram?: string;
+  facebook?: string;
+  linkedin?: string;
   notes?: string;
+}
+
+interface EnrichExtra {
+  taxId?: string | null;
+  emailsAlt?: string[];
+  whatsappAlt?: string[];
+  enrichPages?: string[];
 }
 
 interface AddBody {
@@ -100,6 +110,7 @@ interface AddBody {
   country?: unknown;
   overrides?: Overrides;
   analysis?: SiteAnalysis;
+  enrichExtra?: EnrichExtra;
 }
 
 /** Adiciona UM candidato já achado (devolvido pelo GET acima) aos Leads e ao CRM. */
@@ -131,6 +142,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "E-mail inválido." }, { status: 400 });
   const email = emailEditado || c.email;
   const website = o.website?.trim() ? normalizeWebsite(o.website.trim()) : c.website;
+  const instagram = o.instagram?.trim() || c.instagram;
+  const facebook = o.facebook?.trim() || c.facebook;
+  const linkedin = o.linkedin?.trim() || c.linkedin;
   const notes = o.notes?.trim() || null;
 
   const matched = matchSegment(o.segment?.trim() || c.categoryRaw?.trim() || "Contato manual");
@@ -148,7 +162,18 @@ export async function POST(req: Request) {
     })
     .returning();
 
-  const mergedForScore: NormalizedLead = { ...c, companyName, ownerName, phone, whatsapp, email, website };
+  const mergedForScore: NormalizedLead = {
+    ...c,
+    companyName,
+    ownerName,
+    phone,
+    whatsapp,
+    email,
+    website,
+    instagram,
+    facebook,
+    linkedin,
+  };
   const analysis = body.analysis;
   const opportunity = analysis
     ? analysis.grade === "modern"
@@ -157,6 +182,14 @@ export async function POST(req: Request) {
     : website
       ? "unreviewed"
       : "no_website";
+  const ex = body.enrichExtra;
+  const extra = {
+    ...(c.extra ?? {}),
+    ...(ex?.taxId ? { taxId: ex.taxId } : {}),
+    ...(ex?.emailsAlt?.length ? { emailsAlt: ex.emailsAlt } : {}),
+    ...(ex?.whatsappAlt?.length ? { whatsappAlt: ex.whatsappAlt } : {}),
+    ...(ex?.enrichPages?.length ? { enrichPages: ex.enrichPages } : {}),
+  };
 
   const [inserted] = (await db
     .insert(leads)
@@ -180,16 +213,16 @@ export async function POST(req: Request) {
       whatsappSource: c.whatsappSource,
       email,
       website,
-      instagram: c.instagram,
-      facebook: c.facebook,
-      linkedin: c.linkedin,
+      instagram,
+      facebook,
+      linkedin,
       openingHours: c.openingHours,
       rating: c.rating,
       reviewsCount: c.reviewsCount,
       priceLevel: c.priceLevel,
       googleMapsUri: c.googleMapsUri,
       categoryRaw: c.categoryRaw,
-      extra: c.extra,
+      extra,
       notes,
       contactScore: contactScore(mergedForScore),
       opportunity,

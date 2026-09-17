@@ -23,6 +23,7 @@ import {
   SearchX,
   Star,
   Stethoscope,
+  Wand2,
   X,
 } from "lucide-react";
 import { formatPhone } from "@/lib/phone";
@@ -66,7 +67,22 @@ interface Edits {
   whatsapp: string;
   email: string;
   website: string;
+  instagram: string;
+  facebook: string;
+  linkedin: string;
   notes: string;
+}
+
+interface EnrichResult {
+  emails: string[];
+  phones: string[];
+  whatsapps: string[];
+  instagram: string | null;
+  facebook: string | null;
+  linkedin: string | null;
+  ownerName: string | null;
+  taxId: string | null;
+  pagesScanned: string[];
 }
 
 interface HistoryEntry {
@@ -111,6 +127,9 @@ function edicaoVazia(c: Candidate): Edits {
     whatsapp: c.whatsapp ?? "",
     email: c.email ?? "",
     website: c.website ?? "",
+    instagram: "",
+    facebook: "",
+    linkedin: "",
     notes: "",
   };
 }
@@ -128,6 +147,9 @@ export default function BuscadorPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [analyses, setAnalyses] = useState<
     Record<string, { loading: boolean; result: SiteAnalysis | null; error: string | null }>
+  >({});
+  const [enrichments, setEnrichments] = useState<
+    Record<string, { loading: boolean; result: EnrichResult | null; error: string | null }>
   >({});
   const [historico, setHistorico] = useState<HistoryEntry[]>([]);
   const [historicoAberto, setHistoricoAberto] = useState(false);
@@ -245,10 +267,51 @@ export default function BuscadorPage() {
     }
   }
 
+  async function enriquecer(c: Candidate) {
+    const website = edicaoDe(c).website.trim();
+    if (!website) return;
+    setEnrichments((s) => ({ ...s, [c.osmId]: { loading: true, result: null, error: null } }));
+    try {
+      const res = await fetch("/api/search/manual/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ website, country }),
+      });
+      const data = (await res.json()) as { ok: boolean; result?: EnrichResult; error?: string };
+      if (data.ok && data.result) {
+        const r = data.result;
+        setEnrichments((s) => ({ ...s, [c.osmId]: { loading: false, result: r, error: null } }));
+        // So preenche o que ainda esta vazio — nunca sobrescreve o que o
+        // usuario ja tinha editado ou o que o Google ja tinha trazido.
+        const atual = edicaoDe(c);
+        atualizarEdicao(c, {
+          ownerName: atual.ownerName || r.ownerName || "",
+          email: atual.email || r.emails[0] || "",
+          whatsapp: atual.whatsapp || r.whatsapps[0] || "",
+          phone: atual.phone || r.phones[0] || "",
+          instagram: atual.instagram || r.instagram || "",
+          facebook: atual.facebook || r.facebook || "",
+          linkedin: atual.linkedin || r.linkedin || "",
+        });
+      } else {
+        setEnrichments((s) => ({
+          ...s,
+          [c.osmId]: { loading: false, result: null, error: data.error ?? "Falha ao enriquecer." },
+        }));
+      }
+    } catch {
+      setEnrichments((s) => ({
+        ...s,
+        [c.osmId]: { loading: false, result: null, error: "Erro de rede ao enriquecer." },
+      }));
+    }
+  }
+
   async function adicionar(c: Candidate) {
     setAddingId(c.osmId);
     try {
       const e = edicaoDe(c);
+      const enr = enrichments[c.osmId]?.result;
       const res = await fetch("/api/search/manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -257,6 +320,14 @@ export default function BuscadorPage() {
           country,
           overrides: e,
           analysis: analyses[c.osmId]?.result ?? undefined,
+          enrichExtra: enr
+            ? {
+                taxId: enr.taxId,
+                emailsAlt: enr.emails.slice(1),
+                whatsappAlt: enr.whatsapps.slice(1),
+                enrichPages: enr.pagesScanned,
+              }
+            : undefined,
         }),
       });
       const data = (await res.json()) as { ok: boolean; lead?: { id: string }; error?: string };
@@ -428,6 +499,7 @@ export default function BuscadorPage() {
             const e = edicaoDe(c);
             const aberto = expanded[c.osmId] ?? false;
             const analise = analyses[c.osmId];
+            const enriquecimento = enrichments[c.osmId];
 
             if (leadId) {
               return (
@@ -513,7 +585,10 @@ export default function BuscadorPage() {
                       <Campo label="Telefone" value={e.phone} onChange={(v) => atualizarEdicao(c, { phone: v })} />
                       <Campo label="WhatsApp" value={e.whatsapp} onChange={(v) => atualizarEdicao(c, { whatsapp: v })} />
                       <Campo label="E-mail" value={e.email} onChange={(v) => atualizarEdicao(c, { email: v })} />
-                      <Campo label="Site" value={e.website} onChange={(v) => atualizarEdicao(c, { website: v })} className="md:col-span-2" />
+                      <Campo label="Site" value={e.website} onChange={(v) => atualizarEdicao(c, { website: v })} />
+                      <Campo label="Instagram" value={e.instagram} onChange={(v) => atualizarEdicao(c, { instagram: v })} />
+                      <Campo label="Facebook" value={e.facebook} onChange={(v) => atualizarEdicao(c, { facebook: v })} />
+                      <Campo label="LinkedIn" value={e.linkedin} onChange={(v) => atualizarEdicao(c, { linkedin: v })} />
                     </div>
                     <div>
                       <label className="text-[11.5px] font-semibold text-zinc-500">Anotações</label>
@@ -528,19 +603,55 @@ export default function BuscadorPage() {
 
                     {e.website && (
                       <div>
-                        <button
-                          type="button"
-                          onClick={() => analisarSite(c)}
-                          disabled={analise?.loading}
-                          className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-2 text-[12px] font-semibold text-zinc-200 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-60"
-                        >
-                          {analise?.loading ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Stethoscope className="h-3.5 w-3.5" />
-                          )}
-                          Analisar o site
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => enriquecer(c)}
+                            disabled={enriquecimento?.loading}
+                            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-2 text-[12px] font-semibold text-zinc-200 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-60"
+                          >
+                            {enriquecimento?.loading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Wand2 className="h-3.5 w-3.5" />
+                            )}
+                            Enriquecer
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => analisarSite(c)}
+                            disabled={analise?.loading}
+                            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-2 text-[12px] font-semibold text-zinc-200 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-60"
+                          >
+                            {analise?.loading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Stethoscope className="h-3.5 w-3.5" />
+                            )}
+                            Analisar o site
+                          </button>
+                        </div>
+                        {enriquecimento?.error && (
+                          <p className="mt-2 text-[12px] text-rose-300">{enriquecimento.error}</p>
+                        )}
+                        {enriquecimento?.result && (
+                          <p className="mt-2.5 rounded-lg border border-white/[0.07] bg-ink/60 px-3 py-2.5 text-[11.5px] text-zinc-400">
+                            <Wand2 className="mr-1.5 inline h-3 w-3 text-volt" />
+                            Achado em {enriquecimento.result.pagesScanned.length} página(s): {" "}
+                            {[
+                              enriquecimento.result.emails.length && `${enriquecimento.result.emails.length} e-mail(s)`,
+                              enriquecimento.result.whatsapps.length && `${enriquecimento.result.whatsapps.length} WhatsApp`,
+                              enriquecimento.result.ownerName && "nome do dono",
+                              (enriquecimento.result.instagram ||
+                                enriquecimento.result.facebook ||
+                                enriquecimento.result.linkedin) &&
+                                "redes sociais",
+                            ]
+                              .filter(Boolean)
+                              .join(", ") || "nada de novo — preenchido acima já foi aplicado"}
+                            . Os campos vazios acima foram completados automaticamente.
+                          </p>
+                        )}
                         {analise?.error && (
                           <p className="mt-2 text-[12px] text-rose-300">{analise.error}</p>
                         )}
