@@ -186,7 +186,12 @@ function LeadsApp() {
    * concorrencia baixa: cada chamada respeita o limite de tempo da Vercel e
    * uma falha isolada nao derruba a fila inteira.
    */
-  async function runBatch(kind: BatchKind) {
+  /**
+   * `idsExplicitos`, quando informado (ex.: "Enriquecer selecionados"), pula
+   * a fila do servidor e roda exatamente essa lista — sem o filtro de
+   * "nunca enriquecido" da fila, já que quem escolheu foi o usuário.
+   */
+  async function runBatch(kind: BatchKind, idsExplicitos?: string[]) {
     if (batch?.running) return;
     const base: BatchState = {
       kind,
@@ -196,26 +201,30 @@ function LeadsApp() {
       ganhos: 0,
       falhas: 0,
     };
-    const queueUrl =
-      kind === "enrich" ? "/api/leads/enrich-queue" : "/api/leads/instagram-queue";
 
     let ids: string[] = [];
-    try {
-      const res = await fetch(queueUrl);
-      if (!res.ok) throw new Error("fila");
-      const data = (await res.json()) as { ids: string[]; configured?: boolean };
-      if (kind === "instagram" && data.configured === false) {
-        setBatch({
-          ...base,
-          aviso:
-            "Instagram não configurado. Preencha o token e o ID da conta em Configurações.",
-        });
+    if (idsExplicitos) {
+      ids = idsExplicitos;
+    } else {
+      const queueUrl =
+        kind === "enrich" ? "/api/leads/enrich-queue" : "/api/leads/instagram-queue";
+      try {
+        const res = await fetch(queueUrl);
+        if (!res.ok) throw new Error("fila");
+        const data = (await res.json()) as { ids: string[]; configured?: boolean };
+        if (kind === "instagram" && data.configured === false) {
+          setBatch({
+            ...base,
+            aviso:
+              "Instagram não configurado. Preencha o token e o ID da conta em Configurações.",
+          });
+          return;
+        }
+        ids = data.ids;
+      } catch {
+        setBatch({ ...base, falhas: 1, aviso: "Não foi possível montar a fila." });
         return;
       }
-      ids = data.ids;
-    } catch {
-      setBatch({ ...base, falhas: 1, aviso: "Não foi possível montar a fila." });
-      return;
     }
     if (ids.length === 0) {
       setBatch({
@@ -275,6 +284,7 @@ function LeadsApp() {
 
     await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
     setBatch((b) => (b ? { ...b, running: false } : b));
+    if (idsExplicitos) setSelecionados(new Set());
     fetchLeads();
   }
 
@@ -348,9 +358,15 @@ function LeadsApp() {
       return;
     setExcluindoLote(true);
     try {
-      await Promise.all(
-        [...selecionados].map((id) => fetch(`/api/leads/${id}`, { method: "DELETE" })),
+      const resultados = await Promise.all(
+        [...selecionados].map(async (id) => {
+          const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+          const json = (await res.json().catch(() => null)) as { ok: boolean } | null;
+          return res.ok && json?.ok;
+        }),
       );
+      const falhas = resultados.filter((ok) => !ok).length;
+      if (falhas > 0) window.alert(`${falhas} de ${n} lead(s) não puderam ser excluídos.`);
       if (selectedId && selecionados.has(selectedId)) setSelectedId(null);
       setSelecionados(new Set());
       await fetchLeads();
@@ -666,9 +682,22 @@ function LeadsApp() {
               </button>
               <button
                 type="button"
+                onClick={() => runBatch("enrich", [...selecionados])}
+                disabled={batch?.running}
+                className="ml-auto inline-flex items-center gap-2 rounded-full border border-volt/40 bg-volt/10 px-4 py-2 text-[12.5px] font-bold text-volt disabled:opacity-50"
+              >
+                {batch?.running ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
+                Enriquecer selecionados
+              </button>
+              <button
+                type="button"
                 onClick={excluirSelecionados}
                 disabled={excluindoLote}
-                className="ml-auto inline-flex items-center gap-2 rounded-full bg-rose-400 px-4 py-2 text-[12.5px] font-bold text-ink disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-full bg-rose-400 px-4 py-2 text-[12.5px] font-bold text-ink disabled:opacity-50"
               >
                 {excluindoLote ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
