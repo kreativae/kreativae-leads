@@ -408,46 +408,6 @@ function LeadsApp() {
             )}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setNovoLeadAberto(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-volt px-4 py-2.5 text-[12.5px] font-bold text-onvolt transition-transform hover:scale-[1.03]"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Criar lead
-        </button>
-        <button
-          type="button"
-          onClick={fetchLeads}
-          className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] px-4 py-2.5 text-[12.5px] font-semibold text-zinc-300 transition-colors hover:border-volt/40 hover:text-volt"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          Atualizar
-        </button>
-        <button
-          type="button"
-          onClick={() => runBatch("enrich")}
-          disabled={batch?.running}
-          className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] px-4 py-2.5 text-[12.5px] font-semibold text-zinc-300 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-50"
-        >
-          <Wand2
-            className={`h-3.5 w-3.5 ${batch?.running && batch.kind === "enrich" ? "animate-pulse" : ""}`}
-          />
-          {batch?.running && batch.kind === "enrich" ? "Enriquecendo…" : "Enriquecer em lote"}
-        </button>
-        <button
-          type="button"
-          onClick={() => runBatch("instagram")}
-          disabled={batch?.running}
-          className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/[0.07] px-4 py-2.5 text-[12.5px] font-semibold text-sky-300 transition-colors hover:border-sky-400/60 disabled:opacity-50"
-        >
-          <Users
-            className={`h-3.5 w-3.5 ${batch?.running && batch.kind === "instagram" ? "animate-pulse" : ""}`}
-          />
-          {batch?.running && batch.kind === "instagram"
-            ? "Consultando…"
-            : "Buscar seguidores"}
-        </button>
       </div>
 
       {/* Filter bar */}
@@ -577,6 +537,48 @@ function LeadsApp() {
             <AtSign className="h-3.5 w-3.5" />
             Só Instagram
           </button>
+          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => runBatch("instagram")}
+              disabled={batch?.running}
+              className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/[0.07] px-4 py-2.5 text-[12.5px] font-semibold text-sky-300 transition-colors hover:border-sky-400/60 disabled:opacity-50"
+            >
+              <Users
+                className={`h-3.5 w-3.5 ${batch?.running && batch.kind === "instagram" ? "animate-pulse" : ""}`}
+              />
+              {batch?.running && batch.kind === "instagram"
+                ? "Consultando…"
+                : "Buscar seguidores"}
+            </button>
+            <button
+              type="button"
+              onClick={() => runBatch("enrich")}
+              disabled={batch?.running}
+              className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] px-4 py-2.5 text-[12.5px] font-semibold text-zinc-300 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-50"
+            >
+              <Wand2
+                className={`h-3.5 w-3.5 ${batch?.running && batch.kind === "enrich" ? "animate-pulse" : ""}`}
+              />
+              {batch?.running && batch.kind === "enrich" ? "Enriquecendo…" : "Enriquecer em lote"}
+            </button>
+            <button
+              type="button"
+              onClick={fetchLeads}
+              className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] px-4 py-2.5 text-[12.5px] font-semibold text-zinc-300 transition-colors hover:border-volt/40 hover:text-volt"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              Atualizar
+            </button>
+            <button
+              type="button"
+              onClick={() => setNovoLeadAberto(true)}
+              className="ml-1.5 inline-flex items-center gap-2 rounded-full bg-volt px-4 py-2.5 text-[12.5px] font-bold text-onvolt transition-transform hover:scale-[1.03]"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Criar lead
+            </button>
+          </div>
           </div>
         </div>
       </div>
