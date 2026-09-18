@@ -24,6 +24,7 @@ import {
   SearchX,
   Star,
   Stethoscope,
+  Trash2,
   Wand2,
   X,
 } from "lucide-react";
@@ -271,6 +272,20 @@ export default function BuscadorPage() {
     setHistoricoAberto(false);
   }
 
+  function removerHistorico(key: string) {
+    const novo = historico.filter((h) => h.key !== key);
+    setHistorico(novo);
+    gravarHistorico(novo);
+    if (servidoDoCache?.key === key) setServidoDoCache(null);
+  }
+
+  function limparHistoricoTudo() {
+    if (!confirm("Limpar todo o histórico de buscas? Não dá pra desfazer.")) return;
+    setHistorico([]);
+    gravarHistorico([]);
+    setServidoDoCache(null);
+  }
+
   async function analisarSite(c: Candidate) {
     const website = edicaoDe(c).website.trim();
     if (!website) return;
@@ -420,16 +435,26 @@ export default function BuscadorPage() {
 
       {historicoAberto && (
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-          <p className="mb-3 text-[11.5px] text-zinc-500">
-            Reabrir usa o resultado já salvo — não gasta uma nova consulta na API.
-          </p>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-[11.5px] text-zinc-500">
+              Reabrir usa o resultado já salvo — não gasta uma nova consulta na API.
+            </p>
+            <button
+              type="button"
+              onClick={limparHistoricoTudo}
+              className="inline-flex shrink-0 items-center gap-1.5 text-[11.5px] font-semibold text-zinc-500 hover:text-rose-300"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Limpar tudo
+            </button>
+          </div>
           <ul className="divide-y divide-white/[0.05]">
             {historico.map((h) => (
-              <li key={h.key}>
+              <li key={h.key} className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => reabrirHistorico(h)}
-                  className="flex w-full items-center justify-between gap-3 py-2.5 text-left hover:text-volt"
+                  className="flex min-w-0 flex-1 items-center justify-between gap-3 py-2.5 text-left hover:text-volt"
                 >
                   <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-zinc-200">
                     {h.query}
@@ -441,6 +466,14 @@ export default function BuscadorPage() {
                   <span className="shrink-0 text-[11.5px] text-zinc-500">
                     {h.candidates.length} resultado(s) · {timeAgo(new Date(h.at))}
                   </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removerHistorico(h.key)}
+                  title="Remover do histórico"
+                  className="shrink-0 rounded-full p-1.5 text-zinc-600 transition-colors hover:text-rose-300"
+                >
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </li>
             ))}
