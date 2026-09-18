@@ -61,6 +61,7 @@ const SECRET_LABEL: Record<string, string> = {
   wa_app_secret: "WhatsApp — App Secret",
   ig_access_token: "Instagram — Access Token",
   resend_api_key: "Resend — API Key",
+  anthropic_api_key: "Anthropic — API Key (aba IA)",
 };
 
 /** wa_app_secret não é usado em chamada de saída, então não tem teste. */
@@ -68,6 +69,7 @@ const TEST_KIND: Record<string, string> = {
   google_places_key: "google_places_key",
   ig_access_token: "ig_access_token",
   resend_api_key: "resend_api_key",
+  anthropic_api_key: "anthropic_api_key",
 };
 
 function DeployInfoCard() {

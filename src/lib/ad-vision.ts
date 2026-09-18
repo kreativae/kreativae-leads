@@ -72,3 +72,19 @@ export async function extractAdInfo(imageUrl: string): Promise<AdExtraction> {
   });
   return object;
 }
+
+/** Testa a chave contra a API real (lista de modelos — não gasta tokens), sem rodar o pipeline inteiro. */
+export async function testAnthropicKey(
+  apiKey: string,
+): Promise<{ ok: true; detail: string } | { ok: false; error: string }> {
+  const res = await fetch("https://api.anthropic.com/v1/models?limit=1", {
+    headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    signal: AbortSignal.timeout(10_000),
+    cache: "no-store",
+  }).catch(() => null);
+  if (!res) return { ok: false, error: "Sem conexão com a API da Anthropic." };
+  const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+  if (!res.ok)
+    return { ok: false, error: data.error?.message ?? `Anthropic respondeu HTTP ${res.status}.` };
+  return { ok: true, detail: "Chave autenticou normalmente." };
+}

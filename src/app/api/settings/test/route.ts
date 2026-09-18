@@ -6,6 +6,7 @@ import { registrarRequisicoesPlaces } from "@/lib/places-cost";
 import { checkIgToken } from "@/lib/instagram";
 import { checkWaAccount } from "@/lib/whatsapp";
 import { testResendKey } from "@/lib/email";
+import { testAnthropicKey } from "@/lib/ad-vision";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,12 @@ export async function POST(req: Request) {
           }
         : r,
     );
+  }
+
+  if (body.kind === "anthropic_api_key") {
+    const key = await getEffectiveSetting("anthropic_api_key", "ANTHROPIC_API_KEY");
+    if (!key) return NextResponse.json({ ok: false, error: "Chave não configurada." });
+    return NextResponse.json(await testAnthropicKey(key));
   }
 
   if (body.kind === "wa_account") {
