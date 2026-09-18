@@ -1,7 +1,9 @@
 import { generateObject } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+import { getEffectiveSetting } from "@/lib/settings-db";
 
-const AD_MODEL = "anthropic/claude-sonnet-5";
+const AD_MODEL_ID = "claude-sonnet-5";
 
 const AdExtractionSchema = z.object({
   companyName: z
@@ -48,8 +50,15 @@ Se um campo não estiver visível ou não puder ser inferido com razoável segur
 
 /** Extrai dados do anunciante a partir do print de um anúncio, via visão do Claude. */
 export async function extractAdInfo(imageUrl: string): Promise<AdExtraction> {
+  const apiKey = await getEffectiveSetting("anthropic_api_key", "ANTHROPIC_API_KEY");
+  if (!apiKey)
+    throw new Error(
+      "IA não configurada — adicione a Anthropic API Key em Configurações.",
+    );
+  const anthropic = createAnthropic({ apiKey });
+
   const { object } = await generateObject({
-    model: AD_MODEL,
+    model: anthropic(AD_MODEL_ID),
     schema: AdExtractionSchema,
     messages: [
       {

@@ -18,6 +18,7 @@ const SECRET_KEYS: SettingKey[] = [
   "wa_app_secret",
   "ig_access_token",
   "resend_api_key",
+  "anthropic_api_key",
 ];
 
 const ENV_HINT: Partial<Record<SettingKey, string>> = {
@@ -27,6 +28,7 @@ const ENV_HINT: Partial<Record<SettingKey, string>> = {
   ig_user_id: "IG_USER_ID",
   resend_api_key: "RESEND_API_KEY",
   resend_from_email: "RESEND_FROM_EMAIL",
+  anthropic_api_key: "ANTHROPIC_API_KEY",
 };
 
 export async function GET() {

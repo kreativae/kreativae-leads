@@ -4,6 +4,7 @@ import { asc, eq } from "drizzle-orm";
 
 export const SETTING_KEYS = [
   "google_places_key",
+  "anthropic_api_key",
   "data_source", // auto | osm | places
   "wa_verify_token",
   "wa_app_secret",

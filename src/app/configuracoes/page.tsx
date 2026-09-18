@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Save,
   Settings2,
+  Sparkles,
   Trash2,
   Webhook,
   Zap,
@@ -264,6 +265,7 @@ const SECRET_FIELDS = [
   "wa_app_secret",
   "ig_access_token",
   "resend_api_key",
+  "anthropic_api_key",
 ];
 const PLAIN_FIELDS = [
   "wa_verify_token",
@@ -287,6 +289,7 @@ export default function ConfiguracoesPage() {
   const [meta, setMeta] = useState<SettingsMeta>({});
   const [values, setValues] = useState<Record<string, string>>({
     google_places_key: "",
+    anthropic_api_key: "",
     data_source: "auto",
     wa_verify_token: "",
     wa_app_secret: "",
@@ -404,6 +407,7 @@ export default function ConfiguracoesPage() {
       setValues((v) => ({
         ...v,
         google_places_key: "",
+        anthropic_api_key: "",
         wa_access_token: "",
         wa_app_secret: "",
         ig_access_token: "",
@@ -556,6 +560,23 @@ export default function ConfiguracoesPage() {
               <Globe2 className="h-3.5 w-3.5 shrink-0 text-volt" />
               OpenStreetMap: gratuito, sem chave, com 3 espelhos de contingência.
             </div>
+          </Section>
+
+          {/* IA (análise de prints de anúncio) */}
+          <Section
+            icon={Sparkles}
+            title="IA (análise de anúncios)"
+            desc="Usada na aba IA pra ler os prints de anúncio que você sobe."
+          >
+            <SecretInput
+              label="Anthropic API Key"
+              hint="Crie em console.anthropic.com → API Keys. Chamada direta à API da Claude, sem depender do AI Gateway da Vercel."
+              masked={meta.anthropic_api_key?.masked}
+              fromEnv={meta.anthropic_api_key?.fromEnv}
+              value={values.anthropic_api_key}
+              onChange={(v) => setValues((s) => ({ ...s, anthropic_api_key: v }))}
+              onRemove={() => removeSecret("anthropic_api_key")}
+            />
           </Section>
 
           {/* WhatsApp Cloud API */}
