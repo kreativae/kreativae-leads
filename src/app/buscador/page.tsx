@@ -453,7 +453,7 @@ export default function BuscadorPage() {
           <div className="inline-flex rounded-full border border-white/[0.09] bg-ink p-1">
             {([
               { key: "nome" as const, label: "Nome / empresa" },
-              { key: "instagram" as const, label: "@ Instagram" },
+              { key: "instagram" as const, label: "Instagram" },
             ]).map((m) => (
               <button
                 key={m.key}
