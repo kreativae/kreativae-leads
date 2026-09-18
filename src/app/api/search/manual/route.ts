@@ -23,6 +23,10 @@ export const maxDuration = 60;
 const SEGMENT_BUSCA_MANUAL = "Busca manual";
 const CITY_BUSCA_MANUAL = "Manual";
 
+/** Mesma ideia, mas para leads vindos de prints de anúncio analisados por IA. */
+const SEGMENT_ANUNCIO_IA = "Anúncio (IA)";
+const CITY_ANUNCIO_IA = "IA";
+
 /** Busca por nome — não grava nada, só devolve candidatos pro usuário escolher. */
 export async function GET(req: Request) {
   const auth = await requireUser();
@@ -119,6 +123,8 @@ interface AddBody {
   analysis?: SiteAnalysis;
   enrichExtra?: EnrichExtra;
   igProfile?: IgProfileInput;
+  source?: unknown;
+  adSummary?: unknown;
 }
 
 /** Adiciona UM candidato já achado (devolvido pelo GET acima) aos Leads e ao CRM. */
@@ -153,18 +159,21 @@ export async function POST(req: Request) {
   const instagram = o.instagram?.trim() || c.instagram;
   const facebook = o.facebook?.trim() || c.facebook;
   const linkedin = o.linkedin?.trim() || c.linkedin;
-  const notes = o.notes?.trim() || null;
-
-  const matched = matchSegment(o.segment?.trim() || c.categoryRaw?.trim() || "Contato manual");
+  const viaIa = body.source === "ia";
+  const adSummary = typeof body.adSummary === "string" ? body.adSummary.trim() : "";
+  const notes = o.notes?.trim() || (viaIa && adSummary ? adSummary : null);
+  const matched = matchSegment(
+    o.segment?.trim() || c.categoryRaw?.trim() || (viaIa ? "Anúncio" : "Contato manual"),
+  );
   const startedAt = Date.now();
 
   const [search] = await db
     .insert(searches)
     .values({
-      segment: SEGMENT_BUSCA_MANUAL,
-      city: CITY_BUSCA_MANUAL,
+      segment: viaIa ? SEGMENT_ANUNCIO_IA : SEGMENT_BUSCA_MANUAL,
+      city: viaIa ? CITY_ANUNCIO_IA : CITY_BUSCA_MANUAL,
       country,
-      source: "places",
+      source: viaIa ? "ia" : "places",
       mode: "city",
       status: "running",
     })
