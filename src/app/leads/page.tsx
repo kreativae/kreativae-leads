@@ -534,6 +534,12 @@ function LeadsApp() {
               { value: "followers", label: "Mais seguidores" },
             ]}
           />
+          </div>
+          <div
+            className={`${
+              filtersOpen ? "mt-2.5 flex" : "hidden"
+            } w-full flex-wrap gap-2.5 sm:mt-2.5 sm:flex`}
+          >
           <button
             type="button"
             onClick={() => setOnlyHot((v) => !v)}
@@ -660,7 +666,7 @@ function LeadsApp() {
       ) : (
         <>
           {selecionados.size > 0 && (
-            <div className="sticky top-[4.5rem] z-30 mb-3.5 flex flex-wrap items-center gap-2.5 rounded-2xl border border-rose-400/30 bg-rose-400/[0.07] px-4 py-3 backdrop-blur-xl">
+            <div className="sticky top-[4.5rem] z-30 mb-3.5 flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/[0.09] bg-ink/95 px-4 py-3 backdrop-blur-xl">
               <span className="text-[13px] font-semibold text-zinc-100">
                 {selecionados.size} selecionado{selecionados.size > 1 ? "s" : ""}
               </span>
@@ -680,32 +686,47 @@ function LeadsApp() {
               >
                 Cancelar
               </button>
-              <button
-                type="button"
-                onClick={() => runBatch("enrich", [...selecionados])}
-                disabled={batch?.running}
-                className="ml-auto inline-flex items-center gap-2 rounded-full border border-volt/40 bg-volt/10 px-4 py-2 text-[12.5px] font-bold text-volt disabled:opacity-50"
-              >
-                {batch?.running ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Wand2 className="h-3.5 w-3.5" />
-                )}
-                Enriquecer selecionados
-              </button>
-              <button
-                type="button"
-                onClick={excluirSelecionados}
-                disabled={excluindoLote}
-                className="inline-flex items-center gap-2 rounded-full bg-rose-400 px-4 py-2 text-[12.5px] font-bold text-ink disabled:opacity-50"
-              >
-                {excluindoLote ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                Excluir selecionados
-              </button>
+              <div className="ml-auto flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => runBatch("enrich", [...selecionados])}
+                  disabled={batch?.running}
+                  className="inline-flex items-center gap-2 rounded-full border border-volt/40 bg-volt/10 px-4 py-2 text-[12.5px] font-bold text-volt transition-colors hover:bg-volt/[0.16] disabled:opacity-50"
+                >
+                  {batch?.running ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                  Enriquecer selecionados
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runBatch("instagram", [...selecionados])}
+                  disabled={batch?.running}
+                  className="inline-flex items-center gap-2 rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-[12.5px] font-bold text-sky-300 transition-colors hover:bg-sky-400/[0.16] disabled:opacity-50"
+                >
+                  {batch?.running ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Users className="h-3.5 w-3.5" />
+                  )}
+                  Buscar seguidores
+                </button>
+                <button
+                  type="button"
+                  onClick={excluirSelecionados}
+                  disabled={excluindoLote}
+                  className="inline-flex items-center gap-2 rounded-full border border-rose-400/40 bg-rose-400/10 px-4 py-2 text-[12.5px] font-bold text-rose-300 transition-colors hover:bg-rose-400/20 disabled:opacity-50"
+                >
+                  {excluindoLote ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  Excluir selecionados
+                </button>
+              </div>
             </div>
           )}
           <motion.ul layout className="grid grid-cols-1 gap-3.5 md:grid-cols-2 2xl:grid-cols-3">
