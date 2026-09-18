@@ -32,6 +32,7 @@ import { TeamSection } from "@/components/team-section";
 import { SecretDebugTrigger, DebugFab } from "@/components/secret-debug-trigger";
 import { formatDate } from "@/lib/format";
 import { MESSAGE_STYLES } from "@/lib/messages";
+import { ANTHROPIC_MODELS } from "@/lib/anthropic-models";
 
 interface MeRole {
   role: string;
@@ -269,6 +270,7 @@ const SECRET_FIELDS = [
 ];
 const PLAIN_FIELDS = [
   "wa_verify_token",
+  "anthropic_model",
   "data_source",
   "ig_user_id",
   "resend_from_email",
@@ -290,6 +292,7 @@ export default function ConfiguracoesPage() {
   const [values, setValues] = useState<Record<string, string>>({
     google_places_key: "",
     anthropic_api_key: "",
+    anthropic_model: ANTHROPIC_MODELS[0].id,
     data_source: "auto",
     wa_verify_token: "",
     wa_app_secret: "",
@@ -351,6 +354,7 @@ export default function ConfiguracoesPage() {
       setValues((v) => ({
         ...v,
         data_source: data.data_source?.value || "auto",
+        anthropic_model: data.anthropic_model?.value || ANTHROPIC_MODELS[0].id,
         wa_verify_token: data.wa_verify_token?.value ?? "",
         ig_user_id: data.ig_user_id?.value ?? "",
         resend_from_email: data.resend_from_email?.value ?? "",
@@ -577,6 +581,20 @@ export default function ConfiguracoesPage() {
               onChange={(v) => setValues((s) => ({ ...s, anthropic_api_key: v }))}
               onRemove={() => removeSecret("anthropic_api_key")}
             />
+            <div className="mt-4">
+              <label className="text-[12px] font-semibold text-zinc-400">Modelo usado na consulta</label>
+              <select
+                value={values.anthropic_model}
+                onChange={(e) => setValues((v) => ({ ...v, anthropic_model: e.target.value }))}
+                className="mt-1.5 w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none focus:border-volt/50"
+              >
+                {ANTHROPIC_MODELS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label} — {m.hint}
+                  </option>
+                ))}
+              </select>
+            </div>
           </Section>
 
           {/* WhatsApp Cloud API */}
@@ -890,6 +908,15 @@ export default function ConfiguracoesPage() {
                 label="E-mail (Resend)"
                 active={!!meta.resend_configured}
                 detail={meta.resend_configured ? "Chave + remetente ok" : "Não configurado"}
+              />
+              <StatusChip
+                label="Claude (IA)"
+                active={!!meta.anthropic_api_key?.set}
+                detail={
+                  meta.anthropic_api_key?.set
+                    ? `Chave ${meta.anthropic_api_key.masked}`
+                    : "Não configurado"
+                }
               />
               <StatusChip
                 label="Automação"

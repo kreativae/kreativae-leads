@@ -1,10 +1,12 @@
 import { db } from "@/db";
 import { settings, waAccounts } from "@/db/schema";
 import { asc, eq } from "drizzle-orm";
+import { ANTHROPIC_MODELS } from "@/lib/anthropic-models";
 
 export const SETTING_KEYS = [
   "google_places_key",
   "anthropic_api_key",
+  "anthropic_model",
   "data_source", // auto | osm | places
   "wa_verify_token",
   "wa_app_secret",
@@ -64,6 +66,12 @@ export async function getEffectiveSetting(
   if (v && v.trim()) return v.trim();
   const env = envFallback ? process.env[envFallback] : undefined;
   return env && env.trim() ? env.trim() : null;
+}
+
+/** Modelo do Claude usado na aba IA — o recomendado (primeiro da lista) se nunca configurado. */
+export async function getAnthropicModel(): Promise<string> {
+  const v = await getEffectiveSetting("anthropic_model", "ANTHROPIC_MODEL");
+  return v || ANTHROPIC_MODELS[0].id;
 }
 
 export async function setSetting(
