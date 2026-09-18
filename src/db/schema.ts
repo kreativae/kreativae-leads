@@ -320,7 +320,28 @@ export const systemLogs = pgTable("system_logs", {
     .defaultNow(),
 });
 
+/**
+ * Historico de buscas unitarias do Buscador — antes ficava so no
+ * localStorage do navegador (por aparelho), o que impedia duas pessoas (ou
+ * a mesma pessoa em dois computadores) de verem as buscas uma da outra.
+ * "chave" e o mesmo identificador de deduplicacao que ja existia no
+ * front (modo|query|cidade|pais): reabrir a mesma busca atualiza a linha
+ * em vez de duplicar.
+ */
+export const buscadorHistorico = pgTable("buscador_historico", {
+  chave: text("chave").primaryKey(),
+  modo: text("modo").notNull(), // "nome" | "instagram"
+  query: text("query").notNull(),
+  city: text("city").notNull().default(""),
+  country: text("country").notNull().default("BR"),
+  candidatos: jsonb("candidatos").notNull(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
+export type BuscadorHistorico = typeof buscadorHistorico.$inferSelect;

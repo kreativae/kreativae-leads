@@ -64,6 +64,13 @@
       "when": 1789297118323,
       "tag": "0008_white_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789739368736,
+      "tag": "0009_shiny_korvac",
+      "breakpoints": true
     }
   ]
 }

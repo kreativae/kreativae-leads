@@ -107,27 +107,41 @@ interface HistoryEntry {
   candidates: Candidate[];
 }
 
-const HISTORICO_KEY = "buscador_historico";
 const HISTORICO_MAX = 15;
+
+interface HistoricoRow {
+  chave: string;
+  modo: string;
+  query: string;
+  city: string;
+  country: string;
+  candidatos: Candidate[];
+  atualizadoEm: string;
+}
 
 function chaveHistorico(modo: Modo, query: string, city: string, country: string): string {
   return `${modo}|${query.trim().toLowerCase()}|${city.trim().toLowerCase()}|${country}`;
 }
 
-function lerHistorico(): HistoryEntry[] {
-  try {
-    const bruto = localStorage.getItem(HISTORICO_KEY);
-    return bruto ? (JSON.parse(bruto) as HistoryEntry[]) : [];
-  } catch {
-    return [];
-  }
+function linhaParaEntrada(r: HistoricoRow): HistoryEntry {
+  return {
+    key: r.chave,
+    modo: r.modo === "instagram" ? "instagram" : "nome",
+    query: r.query,
+    city: r.city,
+    country: r.country === "PT" ? "PT" : "BR",
+    at: new Date(r.atualizadoEm).getTime(),
+    candidates: r.candidatos,
+  };
 }
 
-function gravarHistorico(entradas: HistoryEntry[]) {
+async function buscarHistorico(): Promise<HistoryEntry[]> {
   try {
-    localStorage.setItem(HISTORICO_KEY, JSON.stringify(entradas.slice(0, HISTORICO_MAX)));
+    const res = await fetch("/api/search/manual/historico", { cache: "no-store" });
+    const data = (await res.json()) as { ok: boolean; historico?: HistoricoRow[] };
+    return data.ok && data.historico ? data.historico.map(linhaParaEntrada) : [];
   } catch {
-    /* localStorage indisponível — histórico só não persiste, sem quebrar nada */
+    return [];
   }
 }
 
@@ -170,7 +184,7 @@ export default function BuscadorPage() {
   const [servidoDoCache, setServidoDoCache] = useState<HistoryEntry | null>(null);
 
   useEffect(() => {
-    setHistorico(lerHistorico());
+    buscarHistorico().then(setHistorico);
   }, []);
 
   function edicaoDe(c: Candidate): Edits {
@@ -246,7 +260,17 @@ export default function BuscadorPage() {
             HISTORICO_MAX,
           );
           setHistorico(novoHistorico);
-          gravarHistorico(novoHistorico);
+          fetch("/api/search/manual/historico", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              modo,
+              query: termo,
+              city: entrada.city,
+              country,
+              candidates: data.candidates,
+            }),
+          }).catch(() => {});
         }
       } else {
         setError(data.error ?? "Falha ao buscar.");
@@ -272,18 +296,33 @@ export default function BuscadorPage() {
     setHistoricoAberto(false);
   }
 
-  function removerHistorico(key: string) {
-    const novo = historico.filter((h) => h.key !== key);
-    setHistorico(novo);
-    gravarHistorico(novo);
+  async function removerHistorico(key: string) {
+    const anterior = historico;
+    setHistorico((h) => h.filter((it) => it.key !== key));
     if (servidoDoCache?.key === key) setServidoDoCache(null);
+    try {
+      const res = await fetch(`/api/search/manual/historico?chave=${encodeURIComponent(key)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setHistorico(anterior);
+      alert("Não foi possível remover do histórico — tente de novo.");
+    }
   }
 
-  function limparHistoricoTudo() {
+  async function limparHistoricoTudo() {
     if (!confirm("Limpar todo o histórico de buscas? Não dá pra desfazer.")) return;
+    const anterior = historico;
     setHistorico([]);
-    gravarHistorico([]);
     setServidoDoCache(null);
+    try {
+      const res = await fetch("/api/search/manual/historico?all=true", { method: "DELETE" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setHistorico(anterior);
+      alert("Não foi possível limpar o histórico — tente de novo.");
+    }
   }
 
   async function analisarSite(c: Candidate) {
