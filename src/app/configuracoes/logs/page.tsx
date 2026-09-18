@@ -310,7 +310,10 @@ function RevealRow({
 
 export default function LogsSecretosPage() {
   const pathname = usePathname();
-  const lastPathname = useRef(pathname);
+  // Começa null (não igual à rota atual) de propósito — é o que garante que
+  // o efeito abaixo roda também na primeira chegada à página, não só em
+  // trocas de rota subsequentes. Ver comentário do efeito.
+  const lastPathname = useRef<string | null>(null);
   const [unlocked, setUnlocked] = useState(false);
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -369,13 +372,6 @@ export default function LogsSecretosPage() {
       setFabBusy(false);
     }
   }
-
-  // Entrar pelo FAB ou pela sequência secreta em Configurações já deixa a
-  // "chave" marcada — quem cai aqui de qualquer outro jeito (URL direta,
-  // favorito, aba antiga) precisa refazer a sequência nesta própria tela.
-  useEffect(() => {
-    if (consumeLogsUnlocked()) setUnlocked(true);
-  }, []);
 
   // O App Router pode manter esta página viva na navegação (voltar/trocar
   // de tela e retornar não remonta o componente), então sem isto o
