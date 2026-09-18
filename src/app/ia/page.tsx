@@ -128,6 +128,34 @@ function gravarFila(itens: QueueItem[]) {
   }
 }
 
+/**
+ * Normaliza qualquer imagem pra JPEG antes do upload. Resolve dois problemas
+ * de uma vez: fotos HEIC/HEIF do iPhone (formato que a Cloud Vision da
+ * Claude não aceita) e a miniatura não aparecendo em navegadores que não
+ * sabem renderizar HEIC (só o Safari sabe). Se o navegador não conseguir
+ * decodificar o arquivo original, sobe do jeito que veio — nesse caso o
+ * próprio upload/análise vai falhar com um erro claro, em vez de silencioso.
+ */
+async function paraJpeg(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.9),
+    );
+    if (!blob) return file;
+    const nome = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], nome, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 function edicaoVazia(c: Candidate): Edits {
   return {
     companyName: c.companyName,
@@ -225,7 +253,8 @@ export default function IaPage() {
       ...f,
     ]);
     try {
-      const blob = await upload(file.name, file, {
+      const arquivo = await paraJpeg(file);
+      const blob = await upload(arquivo.name, arquivo, {
         access: "public",
         handleUploadUrl: "/api/blob-upload",
       });
