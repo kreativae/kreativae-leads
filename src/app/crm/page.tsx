@@ -111,7 +111,7 @@ export default function CrmPage() {
       const qs = new URLSearchParams({ novos: incluirNovos ? "1" : "0" });
       if (escopo) qs.set("pesquisa", escopo);
       if (busca) qs.set("q", busca);
-      const res = await fetch(`/api/leads/board?${qs}`);
+      const res = await fetch(`/api/leads/board?${qs}`, { cache: "no-store" });
       const data = (await res.json()) as {
         columns: Column[];
         newTotal: number;
@@ -225,7 +225,13 @@ export default function CrmPage() {
   }
 
   async function removerLead(id: string) {
-    await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    if (!window.confirm("Excluir este lead permanentemente?")) return;
+    const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    const json = (await res.json().catch(() => null)) as { ok: boolean; error?: string } | null;
+    if (!res.ok || !json?.ok) {
+      window.alert(json?.error ?? "Não foi possível excluir o lead.");
+      return;
+    }
     setSelecionado(null);
     await load();
   }

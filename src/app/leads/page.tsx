@@ -144,7 +144,7 @@ function LeadsApp() {
     params.set("sort", sort);
     params.set("limit", "120");
     try {
-      const res = await fetch(`/api/leads?${params.toString()}`);
+      const res = await fetch(`/api/leads?${params.toString()}`, { cache: "no-store" });
       const json = (await res.json()) as LeadsResponse;
       setData(json);
     } finally {
@@ -301,7 +301,12 @@ function LeadsApp() {
 
   async function deleteLead(id: string) {
     if (!window.confirm("Excluir este lead permanentemente?")) return;
-    await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    const json = (await res.json().catch(() => null)) as { ok: boolean; error?: string } | null;
+    if (!res.ok || !json?.ok) {
+      window.alert(json?.error ?? "Não foi possível excluir o lead.");
+      return;
+    }
     setSelectedId(null);
     fetchLeads();
   }

@@ -353,7 +353,12 @@ export default function ConversasPage() {
 
   async function excluirLeadAberto(id: string) {
     if (!window.confirm("Excluir este lead permanentemente?")) return;
-    await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    const json = (await res.json().catch(() => null)) as { ok: boolean; error?: string } | null;
+    if (!res.ok || !json?.ok) {
+      window.alert(json?.error ?? "Não foi possível excluir o lead.");
+      return;
+    }
     setOpenLeadId(null);
     if (activeId) {
       await loadThread(activeId);
