@@ -71,6 +71,13 @@
       "when": 1789739368736,
       "tag": "0009_shiny_korvac",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789741069494,
+      "tag": "0010_silly_iron_fist",
+      "breakpoints": true
     }
   ]
 }

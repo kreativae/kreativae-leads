@@ -107,25 +107,68 @@ interface QueueItem {
   createdAt: number;
 }
 
-const FILA_KEY = "ia_fila";
-const FILA_MAX = 100;
 const CONCURRENCY = 2;
+/** Acima disso, um item "enviando"/"analisando" travado é considerado órfão
+ * (aba que fechou no meio do processo) — abaixo, pode ser outro aparelho
+ * processando ao vivo, então não tocamos nele. */
+const TRAVADO_MS = 2 * 60 * 1000;
 
-function lerFila(): QueueItem[] {
+interface FilaRow {
+  id: string;
+  imageUrl: string;
+  status: string;
+  candidato: Candidate | null;
+  edicao: Edits | null;
+  erro: string | null;
+  leadAdicionadoId: string | null;
+  criadoEm: string;
+}
+
+function linhaParaItem(r: FilaRow): QueueItem {
+  return {
+    id: r.id,
+    imageUrl: r.imageUrl,
+    status: (["enviando", "analisando", "pronto", "erro"] as const).includes(
+      r.status as QueueItem["status"],
+    )
+      ? (r.status as QueueItem["status"])
+      : "erro",
+    candidate: r.candidato ?? undefined,
+    edits: r.edicao ?? undefined,
+    error: r.erro ?? undefined,
+    addedLeadId: r.leadAdicionadoId ?? undefined,
+    createdAt: new Date(r.criadoEm).getTime(),
+  };
+}
+
+async function buscarFila(): Promise<QueueItem[]> {
   try {
-    const bruto = localStorage.getItem(FILA_KEY);
-    return bruto ? (JSON.parse(bruto) as QueueItem[]) : [];
+    const res = await fetch("/api/ia/fila", { cache: "no-store" });
+    const data = (await res.json()) as { ok: boolean; fila?: FilaRow[] };
+    return data.ok && data.fila ? data.fila.map(linhaParaItem) : [];
   } catch {
     return [];
   }
 }
 
-function gravarFila(itens: QueueItem[]) {
-  try {
-    localStorage.setItem(FILA_KEY, JSON.stringify(itens.slice(0, FILA_MAX)));
-  } catch {
-    /* localStorage indisponível — a fila só não persiste, sem quebrar nada */
-  }
+/** Reflete uma mudança no servidor — fila compartilhada entre aparelhos. Falha aqui não
+ * bloqueia a UI: o estado local já foi atualizado, e é reconciliado no próximo carregamento. */
+function persistirItem(
+  id: string,
+  patch: Partial<{
+    imageUrl: string;
+    status: QueueItem["status"];
+    candidato: Candidate | null;
+    edicao: Edits | null;
+    erro: string | null;
+    leadAdicionadoId: string | null;
+  }>,
+) {
+  fetch(`/api/ia/fila/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  }).catch(() => {});
 }
 
 function ehHeic(file: File): boolean {
@@ -211,6 +254,7 @@ export default function IaPage() {
   const filaRef = useRef<QueueItem[]>([]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [addErrors, setAddErrors] = useState<Record<string, string>>({});
   const [discardingId, setDiscardingId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [analyses, setAnalyses] = useState<
@@ -222,12 +266,12 @@ export default function IaPage() {
   const filaArquivos = useRef<File[]>([]);
   const processando = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const debounceEdicao = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   function atualizarFila(updater: (f: QueueItem[]) => QueueItem[]) {
     const novo = updater(filaRef.current);
     filaRef.current = novo;
     setFila(novo);
-    gravarFila(novo);
   }
 
   function atualizarItem(id: string, patch: Partial<QueueItem>) {
@@ -239,11 +283,17 @@ export default function IaPage() {
   }
 
   function atualizarEdicao(item: QueueItem, patch: Partial<Edits>) {
-    atualizarItem(item.id, { edits: { ...edicaoDe(item), ...patch } });
+    const novaEdicao = { ...edicaoDe(item), ...patch };
+    atualizarItem(item.id, { edits: novaEdicao });
+    clearTimeout(debounceEdicao.current[item.id]);
+    debounceEdicao.current[item.id] = setTimeout(() => {
+      persistirItem(item.id, { edicao: novaEdicao });
+    }, 700);
   }
 
   async function analisar(id: string, imageUrl: string) {
     atualizarItem(id, { status: "analisando", error: undefined });
+    persistirItem(id, { status: "analisando", erro: null });
     try {
       const res = await fetch("/api/ia/analyze", {
         method: "POST",
@@ -252,30 +302,39 @@ export default function IaPage() {
       });
       const data = (await res.json()) as { ok: boolean; candidate?: Candidate; error?: string };
       if (data.ok && data.candidate) {
-        atualizarItem(id, {
-          status: "pronto",
-          candidate: data.candidate,
-          edits: edicaoVazia(data.candidate),
-        });
+        const edicao = edicaoVazia(data.candidate);
+        atualizarItem(id, { status: "pronto", candidate: data.candidate, edits: edicao });
+        persistirItem(id, { status: "pronto", candidato: data.candidate, edicao });
       } else {
-        atualizarItem(id, { status: "erro", error: data.error ?? "Falha ao analisar." });
+        const erro = data.error ?? "Falha ao analisar.";
+        atualizarItem(id, { status: "erro", error: erro });
+        persistirItem(id, { status: "erro", erro });
       }
     } catch {
       atualizarItem(id, { status: "erro", error: "Erro de rede ao analisar." });
+      persistirItem(id, { status: "erro", erro: "Erro de rede ao analisar." });
     }
   }
 
   useEffect(() => {
-    const inicial = lerFila().map((it) =>
-      it.status === "enviando"
-        ? { ...it, status: "erro" as const, error: "Envio interrompido — tente de novo." }
-        : it,
-    );
-    filaRef.current = inicial;
-    setFila(inicial);
-    for (const it of inicial) {
-      if (it.status === "analisando" && it.imageUrl) void analisar(it.id, it.imageUrl);
-    }
+    buscarFila().then((linhas) => {
+      const agora = Date.now();
+      const inicial = linhas.map((it) => {
+        const travado = agora - it.createdAt > TRAVADO_MS;
+        if (it.status === "enviando" && travado) {
+          const erro = "Envio interrompido — tente de novo.";
+          persistirItem(it.id, { status: "erro", erro });
+          return { ...it, status: "erro" as const, error: erro };
+        }
+        return it;
+      });
+      filaRef.current = inicial;
+      setFila(inicial);
+      for (const it of inicial) {
+        const travado = agora - it.createdAt > TRAVADO_MS;
+        if (it.status === "analisando" && it.imageUrl && travado) void analisar(it.id, it.imageUrl);
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- carga única na montagem; analisar não precisa disparar o efeito de novo
   }, []);
 
@@ -285,15 +344,15 @@ export default function IaPage() {
       { id, imageUrl: "", status: "enviando", createdAt: Date.now() },
       ...f,
     ]);
+    persistirItem(id, { status: "enviando" });
     try {
       const arquivo = await paraJpeg(file);
       if (!arquivo) {
-        atualizarItem(id, {
-          status: "erro",
-          error: ehHeic(file)
-            ? "Este navegador não conseguiu converter esse HEIC. Tente enviar um print de tela (em vez de uma foto), ou abra esta página pelo Safari no iPhone/Mac."
-            : "Não foi possível processar essa imagem — tente outro arquivo.",
-        });
+        const erro = ehHeic(file)
+          ? "Este navegador não conseguiu converter esse HEIC. Tente enviar um print de tela (em vez de uma foto), ou abra esta página pelo Safari no iPhone/Mac."
+          : "Não foi possível processar essa imagem — tente outro arquivo.";
+        atualizarItem(id, { status: "erro", error: erro });
+        persistirItem(id, { status: "erro", erro });
         return;
       }
       const blob = await upload(arquivo.name, arquivo, {
@@ -301,12 +360,12 @@ export default function IaPage() {
         handleUploadUrl: "/api/blob-upload",
       });
       atualizarItem(id, { imageUrl: blob.url });
+      persistirItem(id, { imageUrl: blob.url });
       await analisar(id, blob.url);
     } catch (err) {
-      atualizarItem(id, {
-        status: "erro",
-        error: err instanceof Error ? err.message : "Falha no envio da imagem.",
-      });
+      const erro = err instanceof Error ? err.message : "Falha no envio da imagem.";
+      atualizarItem(id, { status: "erro", error: erro });
+      persistirItem(id, { status: "erro", erro });
     }
   }
 
@@ -400,6 +459,7 @@ export default function IaPage() {
   async function adicionar(item: QueueItem) {
     if (!item.candidate) return;
     setAddingId(item.id);
+    setAddErrors((s) => ({ ...s, [item.id]: "" }));
     try {
       const c = item.candidate;
       const e = edicaoDe(item);
@@ -431,11 +491,12 @@ export default function IaPage() {
       const data = (await res.json()) as { ok: boolean; lead?: { id: string }; error?: string };
       if (data.ok && data.lead) {
         atualizarItem(item.id, { addedLeadId: data.lead.id });
+        persistirItem(item.id, { leadAdicionadoId: data.lead.id });
       } else {
-        atualizarItem(item.id, { error: data.error ?? "Falha ao adicionar." });
+        setAddErrors((s) => ({ ...s, [item.id]: data.error ?? "Falha ao adicionar." }));
       }
     } catch {
-      atualizarItem(item.id, { error: "Erro de rede ao adicionar." });
+      setAddErrors((s) => ({ ...s, [item.id]: "Erro de rede ao adicionar." }));
     } finally {
       setAddingId(null);
     }
@@ -444,6 +505,7 @@ export default function IaPage() {
   async function descartar(item: QueueItem) {
     setDiscardingId(item.id);
     atualizarFila((f) => f.filter((it) => it.id !== item.id));
+    await fetch(`/api/ia/fila/${item.id}`, { method: "DELETE" }).catch(() => {});
     if (item.imageUrl) {
       try {
         await fetch("/api/ia/discard", {
@@ -458,11 +520,12 @@ export default function IaPage() {
     setDiscardingId(null);
   }
 
-  function limparTudo() {
+  async function limparTudo() {
     if (fila.length === 0) return;
     if (!confirm("Descartar todos os itens da fila? Não dá pra desfazer.")) return;
     const urls = fila.map((it) => it.imageUrl).filter(Boolean);
     atualizarFila(() => []);
+    await fetch("/api/ia/fila?all=true", { method: "DELETE" }).catch(() => {});
     for (const url of urls) {
       fetch("/api/ia/discard", {
         method: "POST",
@@ -839,6 +902,9 @@ export default function IaPage() {
                       </div>
                     )}
 
+                    {addErrors[item.id] && (
+                      <p className="text-[12px] text-rose-300">{addErrors[item.id]}</p>
+                    )}
                     <div className="flex items-center justify-between gap-3">
                       <button
                         type="button"

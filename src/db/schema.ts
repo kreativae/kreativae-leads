@@ -340,8 +340,31 @@ export const buscadorHistorico = pgTable("buscador_historico", {
     .defaultNow(),
 });
 
+/**
+ * Fila da aba IA (prints de anúncio em análise) — mesma razão da tabela
+ * acima: morava no localStorage e cada aparelho tinha a sua fila isolada.
+ * "id" é gerado no navegador (crypto.randomUUID) na hora do upload, antes
+ * de existir qualquer resposta do servidor — por isso não é defaultRandom.
+ */
+export const iaFila = pgTable("ia_fila", {
+  id: uuid("id").primaryKey(),
+  imageUrl: text("image_url").notNull().default(""),
+  status: text("status").notNull(), // enviando | analisando | pronto | erro
+  candidato: jsonb("candidato"),
+  edicao: jsonb("edicao"),
+  erro: text("erro"),
+  leadAdicionadoId: uuid("lead_adicionado_id"),
+  criadoEm: timestamp("criado_em", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type Search = typeof searches.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type BuscadorHistorico = typeof buscadorHistorico.$inferSelect;
+export type IaFilaRow = typeof iaFila.$inferSelect;
