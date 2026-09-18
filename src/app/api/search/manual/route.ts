@@ -105,12 +105,20 @@ interface EnrichExtra {
   enrichPages?: string[];
 }
 
+interface IgProfileInput {
+  handle: string;
+  followersCount: number | null;
+  mediaCount: number | null;
+  biography: string | null;
+}
+
 interface AddBody {
   candidate?: NormalizedLead;
   country?: unknown;
   overrides?: Overrides;
   analysis?: SiteAnalysis;
   enrichExtra?: EnrichExtra;
+  igProfile?: IgProfileInput;
 }
 
 /** Adiciona UM candidato já achado (devolvido pelo GET acima) aos Leads e ao CRM. */
@@ -230,6 +238,15 @@ export async function POST(req: Request) {
       websiteGrade: analysis?.grade ?? null,
       websiteChecks: analysis?.checks ?? null,
       analyzedAt: analysis ? new Date() : null,
+      ...(body.igProfile
+        ? {
+            igUsername: body.igProfile.handle,
+            igFollowers: body.igProfile.followersCount,
+            igMediaCount: body.igProfile.mediaCount,
+            igBiography: body.igProfile.biography?.slice(0, 1000) ?? null,
+            igCheckedAt: new Date(),
+          }
+        : {}),
     })
     .onConflictDoUpdate({
       target: leads.osmId,

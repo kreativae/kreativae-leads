@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle,
+  AtSign,
   Building2,
   Check,
   CheckCircle2,
@@ -43,7 +44,15 @@ interface Candidate {
   rating: number | null;
   reviewsCount: number | null;
   googleMapsUri: string | null;
+  instagram?: string | null;
+  facebook?: string | null;
+  linkedin?: string | null;
   existingLeadId: string | null;
+  /** Só presente quando o candidato veio da busca por @Instagram. */
+  instagramHandle?: string;
+  instagramFollowers?: number | null;
+  instagramMediaCount?: number | null;
+  instagramBio?: string | null;
 }
 
 interface SiteCheck {
@@ -85,8 +94,11 @@ interface EnrichResult {
   pagesScanned: string[];
 }
 
+type Modo = "nome" | "instagram";
+
 interface HistoryEntry {
   key: string;
+  modo: Modo;
   query: string;
   city: string;
   country: "BR" | "PT";
@@ -97,8 +109,8 @@ interface HistoryEntry {
 const HISTORICO_KEY = "buscador_historico";
 const HISTORICO_MAX = 15;
 
-function chaveHistorico(query: string, city: string, country: string): string {
-  return `${query.trim().toLowerCase()}|${city.trim().toLowerCase()}|${country}`;
+function chaveHistorico(modo: Modo, query: string, city: string, country: string): string {
+  return `${modo}|${query.trim().toLowerCase()}|${city.trim().toLowerCase()}|${country}`;
 }
 
 function lerHistorico(): HistoryEntry[] {
@@ -127,14 +139,15 @@ function edicaoVazia(c: Candidate): Edits {
     whatsapp: c.whatsapp ?? "",
     email: c.email ?? "",
     website: c.website ?? "",
-    instagram: "",
-    facebook: "",
-    linkedin: "",
+    instagram: c.instagram ?? "",
+    facebook: c.facebook ?? "",
+    linkedin: c.linkedin ?? "",
     notes: "",
   };
 }
 
 export default function BuscadorPage() {
+  const [modo, setModo] = useState<Modo>("nome");
   const [country, setCountry] = useState<"BR" | "PT">("BR");
   const [city, setCity] = useState("");
   const [query, setQuery] = useState("");
@@ -169,11 +182,12 @@ export default function BuscadorPage() {
 
   async function buscar(forcar = false) {
     const termo = query.trim();
-    if (termo.length < 2) {
-      setError("Digite ao menos 2 letras do nome.");
+    const minimo = modo === "instagram" ? 1 : 2;
+    if (termo.length < minimo) {
+      setError(modo === "instagram" ? "Digite o @ do perfil." : "Digite ao menos 2 letras do nome.");
       return;
     }
-    const chave = chaveHistorico(termo, city, country);
+    const chave = chaveHistorico(modo, termo, modo === "instagram" ? "" : city, country);
 
     if (!forcar) {
       const emCache = historico.find((h) => h.key === chave);
@@ -183,6 +197,7 @@ export default function BuscadorPage() {
         setError(null);
         setEdits({});
         setAnalyses({});
+        setEnrichments({});
         return;
       }
     }
@@ -192,21 +207,35 @@ export default function BuscadorPage() {
     setCandidates(null);
     setServidoDoCache(null);
     try {
-      const sp = new URLSearchParams({ q: termo, country });
-      if (city.trim()) sp.set("city", city.trim());
-      const res = await fetch(`/api/search/manual?${sp.toString()}`);
-      const data = (await res.json()) as { ok: boolean; candidates?: Candidate[]; error?: string };
+      let data: { ok: boolean; candidates?: Candidate[]; candidate?: Candidate; error?: string };
+      if (modo === "instagram") {
+        const sp = new URLSearchParams({ handle: termo, country });
+        const res = await fetch(`/api/search/manual/instagram?${sp.toString()}`);
+        data = await res.json();
+        if (data.ok) data.candidates = data.candidate ? [data.candidate] : [];
+      } else {
+        const sp = new URLSearchParams({ q: termo, country });
+        if (city.trim()) sp.set("city", city.trim());
+        const res = await fetch(`/api/search/manual?${sp.toString()}`);
+        data = await res.json();
+      }
       if (data.ok && data.candidates) {
         setCandidates(data.candidates);
         setEdits({});
         setAnalyses({});
+        setEnrichments({});
         if (data.candidates.length === 0) {
-          setError("Nenhum resultado — tente outro nome ou cidade.");
+          setError(
+            modo === "instagram"
+              ? "Perfil não encontrado."
+              : "Nenhum resultado — tente outro nome ou cidade.",
+          );
         } else {
           const entrada: HistoryEntry = {
             key: chave,
+            modo,
             query: termo,
-            city: city.trim(),
+            city: modo === "instagram" ? "" : city.trim(),
             country,
             at: Date.now(),
             candidates: data.candidates,
@@ -229,6 +258,7 @@ export default function BuscadorPage() {
   }
 
   function reabrirHistorico(h: HistoryEntry) {
+    setModo(h.modo ?? "nome");
     setQuery(h.query);
     setCity(h.city);
     setCountry(h.country);
@@ -237,6 +267,7 @@ export default function BuscadorPage() {
     setError(null);
     setEdits({});
     setAnalyses({});
+    setEnrichments({});
     setHistoricoAberto(false);
   }
 
@@ -328,6 +359,14 @@ export default function BuscadorPage() {
                 enrichPages: enr.pagesScanned,
               }
             : undefined,
+          igProfile: c.instagramHandle
+            ? {
+                handle: c.instagramHandle,
+                followersCount: c.instagramFollowers ?? null,
+                mediaCount: c.instagramMediaCount ?? null,
+                biography: c.instagramBio ?? null,
+              }
+            : undefined,
         }),
       });
       const data = (await res.json()) as { ok: boolean; lead?: { id: string }; error?: string };
@@ -410,36 +449,70 @@ export default function BuscadorPage() {
       )}
 
       <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
-        <div className="inline-flex rounded-full border border-white/[0.09] bg-ink p-1">
-          {(["BR", "PT"] as const).map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCountry(c)}
-              className={`rounded-full px-5 py-2 text-[12.5px] font-bold transition-all ${
-                country === c ? "bg-volt text-onvolt" : "text-zinc-500 hover:text-zinc-200"
-              }`}
-            >
-              {c === "BR" ? "Brasil" : "Portugal"}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-full border border-white/[0.09] bg-ink p-1">
+            {([
+              { key: "nome" as const, label: "Nome / empresa" },
+              { key: "instagram" as const, label: "@ Instagram" },
+            ]).map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => {
+                  setModo(m.key);
+                  setError(null);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12.5px] font-bold transition-all ${
+                  modo === m.key ? "bg-volt text-onvolt" : "text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                {m.key === "instagram" && <AtSign className="h-3.5 w-3.5" />}
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="inline-flex rounded-full border border-white/[0.09] bg-ink p-1">
+            {(["BR", "PT"] as const).map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCountry(c)}
+                className={`rounded-full px-5 py-2 text-[12.5px] font-bold transition-all ${
+                  country === c ? "bg-volt text-onvolt" : "text-zinc-500 hover:text-zinc-200"
+                }`}
+              >
+                {c === "BR" ? "Brasil" : "Portugal"}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_auto]">
+        <div
+          className={`mt-4 grid grid-cols-1 gap-3 ${
+            modo === "instagram" ? "md:grid-cols-[1fr_auto]" : "md:grid-cols-[2fr_1fr_auto]"
+          }`}
+        >
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && buscar()}
-            placeholder="Nome da empresa ou da pessoa… ex.: Estúdio Bella Arquitetura"
+            placeholder={
+              modo === "instagram"
+                ? "@ do perfil… ex.: estudiobella"
+                : "Nome da empresa ou da pessoa… ex.: Estúdio Bella Arquitetura"
+            }
             className="w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50"
           />
-          <input
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && buscar()}
-            placeholder={country === "PT" ? "Cidade (opcional)… ex.: Braga" : "Cidade (opcional)… ex.: Maringá"}
-            className="w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50"
-          />
+          {modo === "nome" && (
+            <input
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && buscar()}
+              placeholder={country === "PT" ? "Cidade (opcional)… ex.: Braga" : "Cidade (opcional)… ex.: Maringá"}
+              className="w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50"
+            />
+          )}
           <button
             type="button"
             onClick={() => buscar()}
@@ -450,6 +523,12 @@ export default function BuscadorPage() {
             Buscar
           </button>
         </div>
+        {modo === "instagram" && (
+          <p className="mt-2 text-[11.5px] text-zinc-500">
+            Precisa saber o @ exato — o Instagram não permite descobrir perfis por cidade ou
+            categoria, só consultar um @ já conhecido.
+          </p>
+        )}
 
         {servidoDoCache && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-400/25 bg-sky-400/[0.06] px-3.5 py-2.5 text-[12px] text-sky-300">
@@ -553,6 +632,12 @@ export default function BuscadorPage() {
                           {c.reviewsCount ? ` (${c.reviewsCount})` : ""}
                         </span>
                       )}
+                      {typeof c.instagramFollowers === "number" && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-400/25 bg-fuchsia-400/10 px-2 py-0.5 text-[10.5px] font-semibold text-fuchsia-300">
+                          <AtSign className="h-3 w-3" />
+                          {c.instagramFollowers.toLocaleString("pt-BR")} seguidores
+                        </span>
+                      )}
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-zinc-500">
                       {c.address && (
@@ -567,7 +652,16 @@ export default function BuscadorPage() {
                           {formatPhone(c.phone, country)}
                         </span>
                       )}
+                      {c.instagramHandle && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <AtSign className="h-3 w-3 shrink-0" />@{c.instagramHandle}
+                          {typeof c.instagramMediaCount === "number" && ` · ${c.instagramMediaCount} posts`}
+                        </span>
+                      )}
                     </div>
+                    {c.instagramBio && (
+                      <p className="mt-1.5 text-[11.5px] italic text-zinc-500">“{c.instagramBio}”</p>
+                    )}
                   </div>
                   {aberto ? (
                     <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
