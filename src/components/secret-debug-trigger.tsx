@@ -119,21 +119,24 @@ function SequenceDots({ stage, erro }: { stage: number; erro: boolean }) {
 /** Ícone quase invisível no canto de Configurações — a sequência secreta de verdade. */
 export function SecretDebugTrigger() {
   const router = useRouter();
-  const { onClick } = useSecretSequence(() => {
+  const { onClick, stage, erro } = useSecretSequence(() => {
     markLogsUnlocked();
     router.push("/configuracoes/logs");
   });
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Debug"
-      title=""
-      className="fixed right-4 top-4 z-40 rounded-full p-1.5 text-zinc-700 opacity-30 transition-opacity hover:opacity-60 md:right-6 md:top-6"
-    >
-      <Bug className="h-4 w-4" />
-    </button>
+    <div className="fixed right-4 top-4 z-40 flex flex-col items-end gap-1.5 md:right-6 md:top-6">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Debug"
+        title=""
+        className="rounded-full p-1.5 text-zinc-700 opacity-30 transition-opacity hover:opacity-60"
+      >
+        <Bug className="h-4 w-4" />
+      </button>
+      {stage > 0 && <SequenceDots stage={stage} erro={erro} />}
+    </div>
   );
 }
 
