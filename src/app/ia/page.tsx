@@ -128,32 +128,65 @@ function gravarFila(itens: QueueItem[]) {
   }
 }
 
+function ehHeic(file: File): boolean {
+  return /heic|heif/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
+}
+
+function desenharEExportar(
+  fonte: CanvasImageSource,
+  largura: number,
+  altura: number,
+): Promise<Blob | null> {
+  const canvas = document.createElement("canvas");
+  canvas.width = largura;
+  canvas.height = altura;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Promise.resolve(null);
+  ctx.drawImage(fonte, 0, 0, largura, altura);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
+}
+
 /**
  * Normaliza qualquer imagem pra JPEG antes do upload. Resolve dois problemas
  * de uma vez: fotos HEIC/HEIF do iPhone (formato que a Cloud Vision da
  * Claude não aceita) e a miniatura não aparecendo em navegadores que não
- * sabem renderizar HEIC (só o Safari sabe). Se o navegador não conseguir
- * decodificar o arquivo original, sobe do jeito que veio — nesse caso o
- * próprio upload/análise vai falhar com um erro claro, em vez de silencioso.
+ * sabem renderizar HEIC (só o Safari sabe). Tenta duas formas de decodificar
+ * — createImageBitmap (mais rápido) e, se o navegador não suportar HEIC por
+ * esse caminho, um <img> comum (é o caminho que o Safari usa até pra exibir
+ * a foto na tela, então cobre casos que o createImageBitmap não cobre).
+ * Se nenhuma funcionar, devolve null — quem chamou decide o que fazer, em
+ * vez de tentar subir o HEIC original e repetir o mesmo erro.
  */
-async function paraJpeg(file: File): Promise<File> {
+async function paraJpeg(file: File): Promise<File | null> {
+  let blob: Blob | null = null;
+
   try {
     const bitmap = await createImageBitmap(file);
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.9),
-    );
-    if (!blob) return file;
-    const nome = file.name.replace(/\.[^.]+$/, "") + ".jpg";
-    return new File([blob], nome, { type: "image/jpeg" });
+    blob = await desenharEExportar(bitmap, bitmap.width, bitmap.height);
   } catch {
-    return file;
+    /* segue pro fallback via <img> abaixo */
   }
+
+  if (!blob) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("decode falhou"));
+        el.src = url;
+      });
+      blob = await desenharEExportar(img, img.naturalWidth, img.naturalHeight);
+    } catch {
+      blob = null;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  if (!blob) return null;
+  const nome = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+  return new File([blob], nome, { type: "image/jpeg" });
 }
 
 function edicaoVazia(c: Candidate): Edits {
@@ -254,6 +287,15 @@ export default function IaPage() {
     ]);
     try {
       const arquivo = await paraJpeg(file);
+      if (!arquivo) {
+        atualizarItem(id, {
+          status: "erro",
+          error: ehHeic(file)
+            ? "Este navegador não conseguiu converter esse HEIC. Tente enviar um print de tela (em vez de uma foto), ou abra esta página pelo Safari no iPhone/Mac."
+            : "Não foi possível processar essa imagem — tente outro arquivo.",
+        });
+        return;
+      }
       const blob = await upload(arquivo.name, arquivo, {
         access: "public",
         handleUploadUrl: "/api/blob-upload",
