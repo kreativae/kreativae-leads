@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { leads } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
-import { getAutomationSettings, getResendConfig } from "@/lib/settings-db";
+import { getAutomationSettings, getResendConfig, isAutomationEnabled } from "@/lib/settings-db";
 import {
   buildAutomationContent,
   finalizeAutomation,
@@ -26,6 +26,11 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function POST(req: Request, ctx: Ctx) {
   const auth = await requireUser();
   if (auth.error) return auth.error;
+  if (!(await isAutomationEnabled()))
+    return NextResponse.json(
+      { ok: false, error: "Automação está desligada em Configurações." },
+      { status: 400 },
+    );
   const { id } = await ctx.params;
 
   let canalPedido: "whatsapp" | "email" | undefined;

@@ -343,6 +343,7 @@ export default function ConfiguracoesPage() {
     wa_enabled: "yes",
     resend_api_key: "",
     resend_from_email: "",
+    automation_enabled: "yes",
     automation_style: "",
     automation_include_about: "no",
     automation_wa_pause_ms: "1400",
@@ -437,6 +438,7 @@ export default function ConfiguracoesPage() {
         ig_user_id: data.ig_user_id?.value ?? "",
         resend_from_email: data.resend_from_email?.value ?? "",
         wa_enabled: data.wa_enabled?.value === "no" ? "no" : "yes",
+        automation_enabled: data.automation_enabled?.value === "no" ? "no" : "yes",
         automation_style: data.automation_style?.value ?? "",
         automation_include_about: data.automation_include_about?.value === "yes" ? "yes" : "no",
         automation_wa_pause_ms:
@@ -514,6 +516,16 @@ export default function ConfiguracoesPage() {
     // O menu lateral so recarrega o estado a cada 15s; recarregar a pagina
     // faz a aba Conversas aparecer/sumir na hora.
     window.location.reload();
+  }
+
+  async function setAutomationEnabled(on: boolean) {
+    setValues((s) => ({ ...s, automation_enabled: on ? "yes" : "no" }));
+    await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ automation_enabled: on ? "yes" : "no" }),
+    });
+    await load();
   }
 
   async function removeSecret(key: string) {
@@ -862,7 +874,13 @@ export default function ConfiguracoesPage() {
             desc="Botão “Automatizar” no lead: manda a Abordagem pronta por WhatsApp ou e-mail, direto pelo sistema."
             className="xl:col-span-2"
           >
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Toggle
+              on={values.automation_enabled !== "no"}
+              onChange={setAutomationEnabled}
+              label="Automação ativa"
+              hint="Desligado, o disparo pelo botão “Automatizar” do lead é bloqueado."
+            />
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="space-y-4 lg:col-span-1">
                 <div>
                   <label className="text-[12px] font-semibold text-zinc-400">

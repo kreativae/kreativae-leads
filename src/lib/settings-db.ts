@@ -29,6 +29,7 @@ export const SETTING_KEYS = [
   "automation_wa_template_pt_body",
   "automation_wa_account_br",
   "automation_wa_account_pt",
+  "automation_enabled",
 ] as const;
 
 /**
@@ -103,6 +104,15 @@ export function maskSecret(v: string | null): string | null {
  */
 export async function isWaEnabled(): Promise<boolean> {
   const v = await getSetting("wa_enabled");
+  return v !== "no";
+}
+
+/**
+ * Interruptor do botão "Automatizar" do lead. Ausente = ligado, para nao
+ * mudar o comportamento de quem ja usava antes deste botao existir.
+ */
+export async function isAutomationEnabled(): Promise<boolean> {
+  const v = await getSetting("automation_enabled");
   return v !== "no";
 }
 
