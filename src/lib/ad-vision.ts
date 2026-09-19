@@ -2,6 +2,7 @@ import { generateObject } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { getAnthropicModel, getEffectiveSetting } from "@/lib/settings-db";
+import { registrarUsoAnthropic } from "@/lib/anthropic-cost";
 
 const AdExtractionSchema = z.object({
   companyName: z
@@ -56,7 +57,7 @@ export async function extractAdInfo(imageUrl: string): Promise<AdExtraction> {
   const anthropic = createAnthropic({ apiKey });
   const modelId = await getAnthropicModel();
 
-  const { object } = await generateObject({
+  const { object, usage } = await generateObject({
     model: anthropic(modelId),
     schema: AdExtractionSchema,
     messages: [
@@ -69,6 +70,16 @@ export async function extractAdInfo(imageUrl: string): Promise<AdExtraction> {
       },
     ],
   });
+
+  // Custo real (Configurações → Custo da IA) não pode travar a extração
+  // que o usuário já recebeu — qualquer falha aqui fica só no console.
+  registrarUsoAnthropic(modelId, {
+    noCacheInputTokens: usage.inputTokenDetails?.noCacheTokens ?? usage.inputTokens ?? 0,
+    cacheReadTokens: usage.inputTokenDetails?.cacheReadTokens ?? 0,
+    cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? 0,
+    outputTokens: usage.outputTokens ?? 0,
+  }).catch((err) => console.error("Falha ao registrar uso da Anthropic:", err));
+
   return object;
 }
 

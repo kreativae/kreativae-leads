@@ -9,6 +9,7 @@ import {
 } from "@/lib/settings-db";
 import { getAutomationSettings, getIgConfig, getResendConfig } from "@/lib/settings-db";
 import { lerCustoPlaces } from "@/lib/places-cost";
+import { lerCustoAnthropic } from "@/lib/anthropic-cost";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,7 @@ export async function GET() {
   out.ig_configured = !!(await getIgConfig());
   out.resend_configured = !!(await getResendConfig());
   out.places_cost = await lerCustoPlaces();
+  out.anthropic_cost = await lerCustoAnthropic();
   // Valores efetivos (com os padrões já resolvidos) pra UI mostrar o texto
   // real do template mesmo antes de qualquer edição salva.
   out.automation_defaults = await getAutomationSettings();

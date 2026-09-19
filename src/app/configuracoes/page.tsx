@@ -88,6 +88,21 @@ interface CustoPlaces {
   precoPorRequisicao: number;
   custoUsd: number;
 }
+interface CustoAnthropicModelo {
+  modelId: string;
+  label: string;
+  noCacheInputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  outputTokens: number;
+  calls: number;
+  custoUsd: number;
+}
+interface CustoAnthropic {
+  desde: string | null;
+  modelos: CustoAnthropicModelo[];
+  custoUsd: number;
+}
 interface CustoWhatsAppConta {
   accountId: string;
   label: string;
@@ -117,6 +132,7 @@ type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   ig_configured?: boolean;
   resend_configured?: boolean;
   places_cost?: CustoPlaces;
+  anthropic_cost?: CustoAnthropic;
   automation_defaults?: AutomationDefaults;
 };
 
@@ -934,6 +950,16 @@ export default function ConfiguracoesPage() {
             <CustoPlacesBlock custo={meta.places_cost} />
           </Section>
 
+          {/* Custo IA */}
+          <Section
+            icon={Receipt}
+            title="Custo da IA (Claude)"
+            desc="Custo real, calculado a partir dos tokens de cada chamada e do preço oficial do modelo usado."
+            className="xl:col-span-2"
+          >
+            <CustoAnthropicBlock custo={meta.anthropic_cost} />
+          </Section>
+
           {/* Custo Meta */}
           <Section
             icon={Receipt}
@@ -1000,6 +1026,82 @@ function CustoPlacesBlock({ custo }: { custo?: CustoPlaces }) {
           .
         </span>{" "}
         Buscas pelo OpenStreetMap não entram aqui: não têm custo.
+      </p>
+    </div>
+  );
+}
+
+function CustoAnthropicBlock({ custo }: { custo?: CustoAnthropic }) {
+  if (!custo) return <p className="text-[12.5px] text-zinc-500">Carregando…</p>;
+  const formatUsd = (v: number) =>
+    v.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    });
+  const totalChamadas = custo.modelos.reduce((s, m) => s + m.calls, 0);
+  if (custo.modelos.length === 0) {
+    return (
+      <p className="text-[12.5px] text-zinc-500">
+        Nenhuma chamada registrada ainda — suba um print na aba IA pra começar a contar.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-3.5">
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div>
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
+            Custo acumulado
+          </p>
+          <p className="font-display text-[28px] font-bold leading-tight text-white">
+            {formatUsd(custo.custoUsd)}
+          </p>
+        </div>
+        <div className="pb-1 text-[12.5px] text-zinc-400">
+          <span className="font-semibold text-zinc-200 tabular-nums">
+            {totalChamadas.toLocaleString("pt-BR")}
+          </span>{" "}
+          chamada{totalChamadas === 1 ? "" : "s"} à IA
+          {custo.desde && <> · contando desde {formatDate(custo.desde)}</>}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {custo.modelos.map((m) => (
+          <div
+            key={m.modelId}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-2.5"
+          >
+            <div className="text-[12.5px] font-semibold text-zinc-200">{m.label}</div>
+            <div className="text-[11.5px] text-zinc-500">
+              {m.calls.toLocaleString("pt-BR")} chamada{m.calls === 1 ? "" : "s"} ·{" "}
+              {(m.noCacheInputTokens + m.cacheReadTokens + m.cacheWriteTokens).toLocaleString(
+                "pt-BR",
+              )}{" "}
+              tok. entrada · {m.outputTokens.toLocaleString("pt-BR")} tok. saída
+            </div>
+            <div className="font-display text-[13.5px] font-bold text-white">
+              {formatUsd(m.custoUsd)}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3 text-[11.5px] leading-relaxed text-zinc-500">
+        Calculado com o preço oficial por token de cada modelo, sobre os tokens reais de cada
+        chamada — é o custo de verdade, não uma estimativa.{" "}
+        <span className="text-zinc-400">
+          Contado a partir de quando este painel foi ligado; a fatura oficial fica no{" "}
+          <a
+            href="https://console.anthropic.com/settings/billing"
+            target="_blank"
+            rel="noreferrer"
+            className="text-volt hover:underline"
+          >
+            console da Anthropic
+          </a>
+          .
+        </span>
       </p>
     </div>
   );
