@@ -141,40 +141,35 @@ export function SecretDebugTrigger() {
 }
 
 /**
- * Botão flutuante (estilo bolha do WhatsApp). Com o atalho ligado (padrão),
- * é acesso direto pro proprietário, sem repetir a sequência. Desligado (em
- * Logs & segredos → "Atalho do botão flutuante"), o próprio FAB passa a
- * exigir a mesma sequência do ícone escondido, sempre.
+ * Botão flutuante (estilo bolha do WhatsApp) — exige a mesma sequência
+ * secreta do ícone escondido, sempre. Não existe atalho de acesso direto,
+ * nem pro dono da conta.
  */
-export function DebugFab({
-  visible,
-  shortcutEnabled,
-}: {
-  visible: boolean;
-  shortcutEnabled: boolean;
-}) {
+export function DebugFab({ visible }: { visible: boolean }) {
   const router = useRouter();
-  const { onClick } = useSecretSequence(() => {
+  const { onClick, stage, erro } = useSecretSequence(() => {
     markLogsUnlocked();
     router.push("/configuracoes/logs");
   });
   if (!visible) return null;
 
-  function onClickAtalho() {
-    markLogsUnlocked();
-    router.push("/configuracoes/logs");
-  }
-
   return (
-    <button
-      type="button"
-      onClick={shortcutEnabled ? onClickAtalho : onClick}
-      aria-label="Ver logs"
-      title={shortcutEnabled ? "Logs & segredos" : "Logs & segredos — repita a sequência secreta"}
-      className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-volt text-onvolt shadow-lg shadow-volt/30 transition-transform hover:scale-110"
-    >
-      <Bug className="h-6 w-6" />
-    </button>
+    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+      {stage > 0 && (
+        <div className="rounded-full border border-white/10 bg-ink/90 px-3 py-1.5 shadow-lg">
+          <SequenceDots stage={stage} erro={erro} />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Ver logs"
+        title="Logs & segredos — repita a sequência secreta"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-volt text-onvolt shadow-lg shadow-volt/30 transition-transform hover:scale-110"
+      >
+        <Bug className="h-6 w-6" />
+      </button>
+    </div>
   );
 }
 

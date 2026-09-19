@@ -15,7 +15,6 @@ export const SETTING_KEYS = [
   "wa_enabled",
   "debug_panel_enabled",
   "debug_easter_egg_enabled",
-  "debug_fab_shortcut_enabled",
   "resend_api_key",
   "resend_from_email",
   "automation_style", // "" (aleatório) | consultivo | direto | proximo | curto | pergunta
@@ -125,17 +124,6 @@ export async function isDebugPanelEnabled(): Promise<boolean> {
  */
 export async function isDebugEasterEggEnabled(): Promise<boolean> {
   const v = await getSetting("debug_easter_egg_enabled");
-  return v !== "no";
-}
-
-/**
- * O botão flutuante (FAB) é um atalho: por padrão, o dono da conta entra
- * direto em /configuracoes/logs sem repetir a sequência secreta. Desligado
- * aqui, o FAB passa a exigir a mesma sequência que o ícone escondido —
- * ninguém entra sem repetir o gesto, nem o dono.
- */
-export async function isDebugFabShortcutEnabled(): Promise<boolean> {
-  const v = await getSetting("debug_fab_shortcut_enabled");
   return v !== "no";
 }
 

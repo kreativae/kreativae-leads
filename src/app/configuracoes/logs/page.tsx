@@ -16,7 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { formatDate } from "@/lib/format";
-import { consumeLogsUnlocked, DebugSwitch, LogsLockGate } from "@/components/secret-debug-trigger";
+import { consumeLogsUnlocked, LogsLockGate } from "@/components/secret-debug-trigger";
 
 interface LogRow {
   id: string;
@@ -324,54 +324,20 @@ export default function LogsSecretosPage() {
   const LOGS_POR_PAGINA = 10;
   const [panelEnabled, setPanelEnabled] = useState<boolean | null>(null);
   const [easterEggEnabled, setEasterEggEnabled] = useState(true);
-  const [fabShortcutEnabled, setFabShortcutEnabled] = useState<boolean | null>(null);
-  const [fabBusy, setFabBusy] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
 
   const carregarTogglesDebug = useCallback(() => {
     fetch("/api/settings/debug-toggle")
       .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (
-          d: {
-            panelEnabled?: boolean;
-            easterEggEnabled?: boolean;
-            fabShortcutEnabled?: boolean;
-          } | null,
-        ) => {
-          setPanelEnabled(d?.panelEnabled ?? true);
-          setEasterEggEnabled(d?.easterEggEnabled ?? true);
-          setFabShortcutEnabled(d?.fabShortcutEnabled ?? true);
-        },
-      )
+      .then((d: { panelEnabled?: boolean; easterEggEnabled?: boolean } | null) => {
+        setPanelEnabled(d?.panelEnabled ?? true);
+        setEasterEggEnabled(d?.easterEggEnabled ?? true);
+      })
       .catch(() => setPanelEnabled(true));
   }, []);
 
   useEffect(() => {
     carregarTogglesDebug();
   }, [carregarTogglesDebug]);
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { user?: { role?: string } } | null) => setIsOwner(d?.user?.role === "owner"))
-      .catch(() => undefined);
-  }, []);
-
-  async function toggleFabShortcut() {
-    if (fabShortcutEnabled === null) return;
-    setFabBusy(true);
-    try {
-      await fetch("/api/settings/debug-toggle", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ which: "fab_shortcut", enabled: !fabShortcutEnabled }),
-      });
-      carregarTogglesDebug();
-    } finally {
-      setFabBusy(false);
-    }
-  }
 
   // O App Router pode manter esta página viva na navegação (voltar/trocar
   // de tela e retornar não remonta o componente), então sem isto o
@@ -487,25 +453,6 @@ export default function LogsSecretosPage() {
         )
       ) : (
         <>
-          {isOwner && (
-            <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
-              <h2 className="mb-1 font-display text-[15px] font-bold text-white">
-                Configurações do modo debug
-              </h2>
-              <p className="mb-4 text-[12.5px] text-zinc-500">
-                Decide se o botão flutuante em Configurações entra direto ou exige a mesma
-                sequência secreta toda vez.
-              </p>
-              <DebugSwitch
-                enabled={fabShortcutEnabled}
-                busy={fabBusy}
-                onToggle={toggleFabShortcut}
-                onLabel="O botão flutuante entra direto em Logs & segredos, sem repetir a sequência."
-                offLabel="O botão flutuante também exige a sequência (3 cliques + → → A) toda vez, mesmo pra você."
-              />
-            </section>
-          )}
-
           <DeployInfoCard />
 
           <DbInfoCard />

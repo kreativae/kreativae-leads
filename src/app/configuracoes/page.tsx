@@ -53,32 +53,21 @@ function useIsOwner(): boolean {
 function useDebugToggles(): {
   panelEnabled: boolean;
   easterEggEnabled: boolean;
-  fabShortcutEnabled: boolean;
 } {
   const [state, setState] = useState({
     panelEnabled: true,
     easterEggEnabled: true,
-    fabShortcutEnabled: true,
   });
   useEffect(() => {
     fetch("/api/settings/debug-toggle")
       .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (
-          d: {
-            panelEnabled?: boolean;
-            easterEggEnabled?: boolean;
-            fabShortcutEnabled?: boolean;
-          } | null,
-        ) => {
-          if (!d) return;
-          setState({
-            panelEnabled: d.panelEnabled ?? true,
-            easterEggEnabled: d.easterEggEnabled ?? true,
-            fabShortcutEnabled: d.fabShortcutEnabled ?? true,
-          });
-        },
-      )
+      .then((d: { panelEnabled?: boolean; easterEggEnabled?: boolean } | null) => {
+        if (!d) return;
+        setState({
+          panelEnabled: d.panelEnabled ?? true,
+          easterEggEnabled: d.easterEggEnabled ?? true,
+        });
+      })
       .catch(() => undefined);
   }, []);
   return state;
@@ -324,7 +313,7 @@ export default function ConfiguracoesPage() {
   const [waCustoCarregando, setWaCustoCarregando] = useState(true);
   const [waAccountsList, setWaAccountsList] = useState<{ id: string; label: string }[]>([]);
   const isOwner = useIsOwner();
-  const { panelEnabled, easterEggEnabled, fabShortcutEnabled } = useDebugToggles();
+  const { panelEnabled, easterEggEnabled } = useDebugToggles();
 
   const carregarCustoWhatsApp = useCallback(async () => {
     setWaCustoCarregando(true);
@@ -482,7 +471,7 @@ export default function ConfiguracoesPage() {
   return (
     <div className="space-y-6">
       {panelEnabled && easterEggEnabled && <SecretDebugTrigger />}
-      <DebugFab visible={isOwner && panelEnabled} shortcutEnabled={fabShortcutEnabled} />
+      <DebugFab visible={isOwner && panelEnabled} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
