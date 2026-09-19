@@ -159,6 +159,31 @@ function useMeuNome(): string | null {
   return nome;
 }
 
+/**
+ * Se o interruptor "Automação ativa" (Configurações) está ligado. Ausente =
+ * ligado, mesma regra do backend. Cacheado no modulo pelo mesmo motivo do
+ * nome: o drawer remonta a cada lead aberto.
+ */
+let automacaoCache: boolean | undefined;
+let automacaoEmVoo: Promise<void> | null = null;
+
+function useAutomacaoAtiva(): boolean {
+  const [ativa, setAtiva] = useState(automacaoCache ?? true);
+  useEffect(() => {
+    if (automacaoCache !== undefined) return;
+    automacaoEmVoo ??= fetch("/api/settings/automation-enabled")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { enabled?: boolean } | null) => {
+        automacaoCache = d?.enabled ?? true;
+      })
+      .catch(() => {
+        automacaoCache = true;
+      });
+    automacaoEmVoo.then(() => setAtiva(automacaoCache ?? true));
+  }, []);
+  return ativa;
+}
+
 /** Rotulo de cada item favoritavel, na ordem em que aparecem no painel de favoritos. */
 const SLOTS_COM_LABEL: [Slot, string][] = [
   ["saudacao", "Saudação"],
@@ -369,6 +394,7 @@ export function LeadDrawer({
     });
   }
   const meuNome = useMeuNome();
+  const automacaoAtiva = useAutomacaoAtiva();
   const [editandoContato, setEditandoContato] = useState(false);
   const [salvandoContato, setSalvandoContato] = useState(false);
   const [erroContato, setErroContato] = useState<string | null>(null);
@@ -1092,6 +1118,7 @@ export function LeadDrawer({
             </div>
 
             {/* Automação */}
+            {automacaoAtiva && (
             <div className="mt-3.5 rounded-xl border border-white/[0.07] bg-ink/50 p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -1154,6 +1181,7 @@ export function LeadDrawer({
                 </p>
               )}
             </div>
+            )}
 
             <div className="mt-3.5 flex flex-wrap gap-2">
               {waChatLink && (
