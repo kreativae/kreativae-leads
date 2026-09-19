@@ -671,6 +671,7 @@ export default function LogsSecretosPage() {
             )}
           </section>
 
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
             <div className="mb-4 flex items-center gap-2">
               <MonitorSmartphone className="h-4 w-4 text-volt" />
@@ -755,6 +756,7 @@ export default function LogsSecretosPage() {
               ))}
             </ul>
           </section>
+          </div>
         </>
       )}
     </div>
