@@ -103,6 +103,9 @@ interface CustoAnthropic {
   modelos: CustoAnthropicModelo[];
   custoUsd: number;
 }
+type GastoMensalAnthropic =
+  | { ok: true; totalUsd: number; desde: string; ate: string }
+  | { ok: false; error: string };
 interface CustoWhatsAppConta {
   accountId: string;
   label: string;
@@ -272,6 +275,7 @@ const SECRET_FIELDS = [
   "ig_access_token",
   "resend_api_key",
   "anthropic_api_key",
+  "anthropic_admin_api_key",
 ];
 const PLAIN_FIELDS = [
   "wa_verify_token",
@@ -297,6 +301,7 @@ export default function ConfiguracoesPage() {
   const [values, setValues] = useState<Record<string, string>>({
     google_places_key: "",
     anthropic_api_key: "",
+    anthropic_admin_api_key: "",
     anthropic_model: ANTHROPIC_MODELS[0].id,
     data_source: "auto",
     wa_verify_token: "",
@@ -327,6 +332,8 @@ export default function ConfiguracoesPage() {
   const [waCusto, setWaCusto] = useState<CustoWhatsApp | null>(null);
   const [waCustoErro, setWaCustoErro] = useState<string | null>(null);
   const [waCustoCarregando, setWaCustoCarregando] = useState(true);
+  const [gastoAnthropic, setGastoAnthropic] = useState<GastoMensalAnthropic | null>(null);
+  const [gastoAnthropicCarregando, setGastoAnthropicCarregando] = useState(true);
   const [waAccountsList, setWaAccountsList] = useState<{ id: string; label: string }[]>([]);
   const isOwner = useIsOwner();
   const { panelEnabled, easterEggEnabled } = useDebugToggles();
@@ -348,6 +355,22 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     carregarCustoWhatsApp();
   }, [carregarCustoWhatsApp]);
+
+  const carregarGastoAnthropic = useCallback(async () => {
+    setGastoAnthropicCarregando(true);
+    try {
+      const res = await fetch("/api/settings/anthropic-cost");
+      setGastoAnthropic((await res.json()) as GastoMensalAnthropic);
+    } catch {
+      setGastoAnthropic({ ok: false, error: "Erro de rede ao consultar a Anthropic." });
+    } finally {
+      setGastoAnthropicCarregando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarGastoAnthropic();
+  }, [carregarGastoAnthropic]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -417,6 +440,7 @@ export default function ConfiguracoesPage() {
         ...v,
         google_places_key: "",
         anthropic_api_key: "",
+        anthropic_admin_api_key: "",
         wa_access_token: "",
         wa_app_secret: "",
         ig_access_token: "",
@@ -600,6 +624,17 @@ export default function ConfiguracoesPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="mt-4">
+              <SecretInput
+                label="Anthropic Admin API Key"
+                hint="Crie em console.anthropic.com → Organização → Admin API Keys (só um admin da organização consegue). Chave diferente da de cima — só serve pra puxar o gasto real do mês no card de custo abaixo."
+                masked={meta.anthropic_admin_api_key?.masked}
+                fromEnv={meta.anthropic_admin_api_key?.fromEnv}
+                value={values.anthropic_admin_api_key}
+                onChange={(v) => setValues((s) => ({ ...s, anthropic_admin_api_key: v }))}
+                onRemove={() => removeSecret("anthropic_admin_api_key")}
+              />
             </div>
           </Section>
 
@@ -957,7 +992,12 @@ export default function ConfiguracoesPage() {
             desc="Custo real, calculado a partir dos tokens de cada chamada e do preço oficial do modelo usado."
             className="xl:col-span-2"
           >
-            <CustoAnthropicBlock custo={meta.anthropic_cost} />
+            <CustoAnthropicBlock
+              custo={meta.anthropic_cost}
+              gastoMensal={gastoAnthropic}
+              gastoMensalCarregando={gastoAnthropicCarregando}
+              onRecarregarGastoMensal={carregarGastoAnthropic}
+            />
           </Section>
 
           {/* Custo Meta */}
@@ -1031,8 +1071,17 @@ function CustoPlacesBlock({ custo }: { custo?: CustoPlaces }) {
   );
 }
 
-function CustoAnthropicBlock({ custo }: { custo?: CustoAnthropic }) {
-  if (!custo) return <p className="text-[12.5px] text-zinc-500">Carregando…</p>;
+function CustoAnthropicBlock({
+  custo,
+  gastoMensal,
+  gastoMensalCarregando,
+  onRecarregarGastoMensal,
+}: {
+  custo?: CustoAnthropic;
+  gastoMensal: GastoMensalAnthropic | null;
+  gastoMensalCarregando: boolean;
+  onRecarregarGastoMensal: () => void;
+}) {
   const formatUsd = (v: number) =>
     v.toLocaleString("en-US", {
       style: "currency",
@@ -1040,16 +1089,68 @@ function CustoAnthropicBlock({ custo }: { custo?: CustoAnthropic }) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 4,
     });
+
+  const gastoMensalBlock = (
+    <div className="rounded-xl border border-volt/20 bg-volt/[0.05] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
+            Gasto real este mês (Anthropic)
+          </p>
+          {gastoMensalCarregando && !gastoMensal ? (
+            <p className="mt-1 flex items-center gap-2 text-[13px] text-zinc-400">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Consultando…
+            </p>
+          ) : gastoMensal?.ok ? (
+            <p className="font-display text-[22px] font-bold leading-tight text-white">
+              {formatUsd(gastoMensal.totalUsd)}
+            </p>
+          ) : (
+            <p className="mt-1 text-[12px] text-amber-300">
+              {gastoMensal?.error ?? "Indisponível."}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onRecarregarGastoMensal}
+          disabled={gastoMensalCarregando}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[11.5px] font-semibold text-zinc-300 hover:border-white/20 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${gastoMensalCarregando ? "animate-spin" : ""}`} />{" "}
+          Atualizar
+        </button>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
+        Direto da Admin API da Anthropic (organização) — não é o mesmo cálculo do &ldquo;custo
+        acumulado&rdquo; abaixo, que é uma estimativa nossa a partir dos tokens de cada chamada.
+        Exige uma Admin API Key configurada acima.
+      </p>
+    </div>
+  );
+
+  if (!custo)
+    return (
+      <div className="space-y-3.5">
+        {gastoMensalBlock}
+        <p className="text-[12.5px] text-zinc-500">Carregando…</p>
+      </div>
+    );
+
   const totalChamadas = custo.modelos.reduce((s, m) => s + m.calls, 0);
   if (custo.modelos.length === 0) {
     return (
-      <p className="text-[12.5px] text-zinc-500">
-        Nenhuma chamada registrada ainda — suba um print na aba IA pra começar a contar.
-      </p>
+      <div className="space-y-3.5">
+        {gastoMensalBlock}
+        <p className="text-[12.5px] text-zinc-500">
+          Nenhuma chamada registrada ainda — suba um print na aba IA pra começar a contar.
+        </p>
+      </div>
     );
   }
   return (
     <div className="space-y-3.5">
+      {gastoMensalBlock}
       <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
         <div>
           <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">

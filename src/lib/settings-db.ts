@@ -6,6 +6,7 @@ import { ANTHROPIC_MODELS } from "@/lib/anthropic-models";
 export const SETTING_KEYS = [
   "google_places_key",
   "anthropic_api_key",
+  "anthropic_admin_api_key",
   "anthropic_model",
   "data_source", // auto | osm | places
   "wa_verify_token",
