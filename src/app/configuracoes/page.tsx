@@ -703,47 +703,44 @@ export default function ConfiguracoesPage() {
             icon={MessageSquare}
             title="WhatsApp Cloud API (omnichannel)"
             desc="Conecta o número oficial da empresa para receber e responder conversas aqui dentro."
-            className="xl:col-span-2"
           >
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="space-y-4">
-                <Toggle
-                  on={values.wa_enabled !== "no"}
-                  onChange={setWaEnabled}
-                  label="Omnichannel ativo"
-                  hint="Desligado, a aba Conversas some do menu e o WhatsApp fica fora do fluxo."
-                />
-                <WaAccountsManager />
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-[12px] font-semibold text-zinc-400">
-                      Verify Token do webhook
-                    </label>
-                    <button
-                      type="button"
-                      onClick={generateVerifyToken}
-                      className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-volt hover:underline"
-                    >
-                      <RefreshCw className={`h-3 w-3 ${salvandoToken ? "animate-spin" : ""}`} />
-                      {salvandoToken ? "Salvando…" : "Gerar e salvar"}
-                    </button>
-                  </div>
-                  <input
-                    value={values.wa_verify_token}
-                    onChange={(e) => setValues((s) => ({ ...s, wa_verify_token: e.target.value }))}
-                    placeholder="ex.: kreatae-x9f2…"
-                    className="mt-1.5 w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 font-mono text-[12.5px] text-zinc-100 outline-none focus:border-volt/50"
-                  />
+            <div className="space-y-4">
+              <Toggle
+                on={values.wa_enabled !== "no"}
+                onChange={setWaEnabled}
+                label="Omnichannel ativo"
+                hint="Desligado, a aba Conversas some do menu e o WhatsApp fica fora do fluxo."
+              />
+              <WaAccountsManager />
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-[12px] font-semibold text-zinc-400">
+                    Verify Token do webhook
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateVerifyToken}
+                    className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-volt hover:underline"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${salvandoToken ? "animate-spin" : ""}`} />
+                    {salvandoToken ? "Salvando…" : "Gerar e salvar"}
+                  </button>
                 </div>
-                <SecretInput
-                  label="App Secret (obrigatório)"
-                  hint="Valida a assinatura dos webhooks. Sem ele o webhook recusa todo payload."
-                  masked={meta.wa_app_secret?.masked}
-                  value={values.wa_app_secret}
-                  onChange={(v) => setValues((s) => ({ ...s, wa_app_secret: v }))}
-                  onRemove={() => removeSecret("wa_app_secret")}
+                <input
+                  value={values.wa_verify_token}
+                  onChange={(e) => setValues((s) => ({ ...s, wa_verify_token: e.target.value }))}
+                  placeholder="ex.: kreatae-x9f2…"
+                  className="mt-1.5 w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 font-mono text-[12.5px] text-zinc-100 outline-none focus:border-volt/50"
                 />
               </div>
+              <SecretInput
+                label="App Secret (obrigatório)"
+                hint="Valida a assinatura dos webhooks. Sem ele o webhook recusa todo payload."
+                masked={meta.wa_app_secret?.masked}
+                value={values.wa_app_secret}
+                onChange={(v) => setValues((s) => ({ ...s, wa_app_secret: v }))}
+                onRemove={() => removeSecret("wa_app_secret")}
+              />
 
               <InstrucoesPanel icon={Webhook} title="Como conectar na Meta">
                 <ol className="list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
@@ -785,27 +782,24 @@ export default function ConfiguracoesPage() {
             icon={AtSign}
             title="Instagram (qualificação de leads)"
             desc="Busca seguidores e bio dos perfis já descobertos no enriquecimento."
-            className="xl:col-span-2"
           >
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="space-y-4">
-                <SecretInput
-                  label="Access Token (Meta)"
-                  hint="Mesmo app do WhatsApp, com instagram_basic e instagram_manage_insights."
-                  masked={meta.ig_access_token?.masked}
-                  fromEnv={meta.ig_access_token?.fromEnv}
-                  value={values.ig_access_token}
-                  onChange={(v) => setValues((s) => ({ ...s, ig_access_token: v }))}
-                  onRemove={() => removeSecret("ig_access_token")}
-                />
-                <PlainInput
-                  label="ID da sua conta Instagram Business"
-                  hint="O ID da SUA conta — é por ela que a API consulta os perfis dos leads."
-                  value={values.ig_user_id}
-                  onChange={(v) => setValues((s) => ({ ...s, ig_user_id: v }))}
-                  fromEnv={meta.ig_user_id?.fromEnv}
-                />
-              </div>
+            <div className="space-y-4">
+              <SecretInput
+                label="Access Token (Meta)"
+                hint="Mesmo app do WhatsApp, com instagram_basic e instagram_manage_insights."
+                masked={meta.ig_access_token?.masked}
+                fromEnv={meta.ig_access_token?.fromEnv}
+                value={values.ig_access_token}
+                onChange={(v) => setValues((s) => ({ ...s, ig_access_token: v }))}
+                onRemove={() => removeSecret("ig_access_token")}
+              />
+              <PlainInput
+                label="ID da sua conta Instagram Business"
+                hint="O ID da SUA conta — é por ela que a API consulta os perfis dos leads."
+                value={values.ig_user_id}
+                onChange={(v) => setValues((s) => ({ ...s, ig_user_id: v }))}
+                fromEnv={meta.ig_user_id?.fromEnv}
+              />
               <InstrucoesPanel icon={AtSign} title="Como funciona">
                 <ol className="list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
                   <li>O <span className="text-zinc-200">enriquecimento</span> descobre o @perfil no site do lead.</li>
