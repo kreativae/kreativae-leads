@@ -5,6 +5,8 @@ import {
   AtSign,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ClipboardCopy,
   Database,
   Globe2,
@@ -199,6 +201,43 @@ function NotaInfo({ children }: { children: React.ReactNode }) {
           {children}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Painel de instruções ("Como conectar"/"Como funciona") — fechado por
+ * padrão. Antes ficava sempre aberto e tomava boa parte da tela; agora só
+ * quem precisa consultar o passo a passo clica pra ver.
+ */
+function InstrucoesPanel({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof Webhook;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="rounded-xl border border-white/[0.07] bg-ink/60 p-5">
+      <button
+        type="button"
+        onClick={() => setAberto((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <span className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
+          <Icon className="h-4 w-4 text-volt" />
+          {title}
+        </span>
+        {aberto ? (
+          <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
+        ) : (
+          <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
+        )}
+      </button>
+      {aberto && <div className="mt-3">{children}</div>}
     </div>
   );
 }
@@ -713,12 +752,8 @@ export default function ConfiguracoesPage() {
                 />
               </div>
 
-              <div className="rounded-xl border border-white/[0.07] bg-ink/60 p-5">
-                <div className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
-                  <Webhook className="h-4 w-4 text-volt" />
-                  Como conectar na Meta
-                </div>
-                <ol className="mt-3 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
+              <InstrucoesPanel icon={Webhook} title="Como conectar na Meta">
+                <ol className="list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
                   <li>Crie um app em <span className="text-zinc-200">developers.facebook.com</span> e adicione o produto <span className="text-zinc-200">WhatsApp</span>.</li>
                   <li>Em <span className="text-zinc-200">API Setup</span>, copie o token permanente e o Phone Number ID e clique em <span className="text-zinc-200">Adicionar número</span> ao lado.</li>
                   <li>Em <span className="text-zinc-200">Configuration → Webhook</span>, cadastre a URL abaixo com o Verify Token definido aqui — isso vale para todos os números, é o mesmo app da Meta.</li>
@@ -748,7 +783,7 @@ export default function ConfiguracoesPage() {
                   Nota da Meta: fora da janela de 24h após a última mensagem do cliente,
                   a API exige mensagens de template pré-aprovadas.
                 </NotaInfo>
-              </div>
+              </InstrucoesPanel>
             </div>
           </Section>
 
@@ -778,12 +813,8 @@ export default function ConfiguracoesPage() {
                   fromEnv={meta.ig_user_id?.fromEnv}
                 />
               </div>
-              <div className="rounded-xl border border-white/[0.07] bg-ink/60 p-5">
-                <div className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
-                  <AtSign className="h-4 w-4 text-volt" />
-                  Como funciona
-                </div>
-                <ol className="mt-3 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
+              <InstrucoesPanel icon={AtSign} title="Como funciona">
+                <ol className="list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
                   <li>O <span className="text-zinc-200">enriquecimento</span> descobre o @perfil no site do lead.</li>
                   <li>Com as credenciais acima, o botão <span className="text-zinc-200">Buscar seguidores</span> consulta a API da Meta.</li>
                   <li>Leads com muitos seguidores <span className="text-zinc-200">e sem site</span> viram prioridade de abordagem.</li>
@@ -793,7 +824,7 @@ export default function ConfiguracoesPage() {
                   Perfis pessoais ficam sem seguidores — e não existe busca por cidade ou
                   segmento, apenas consulta por @perfil já conhecido.
                 </NotaInfo>
-              </div>
+              </InstrucoesPanel>
             </div>
           </Section>
 
@@ -916,20 +947,18 @@ export default function ConfiguracoesPage() {
               />
             </div>
 
-            <div className="mt-4 rounded-xl border border-white/[0.07] bg-ink/60 p-5">
-              <div className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
-                <Zap className="h-4 w-4 text-volt" />
-                Como funciona
-              </div>
-              <ol className="mt-3 list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
-                <li>O texto sai pronto do próprio sistema — mesma Abordagem pronta do drawer, considerando se o lead tem site e o diagnóstico coletado (estilo e parágrafo “sobre” seguem o que está configurado ao lado).</li>
-                <li>WhatsApp usa a conta escolhida por idioma acima (ou detecta automaticamente pelas contas cadastradas); e-mail usa o Resend, configurado nesta página.</li>
-                <li>Sem conversa aberta, tenta o template correspondente ao idioma do lead antes de cair pra e-mail.</li>
-              </ol>
-              <NotaInfo>
-                Nome e idioma do template têm que bater exatamente com o que foi aprovado
-                no WhatsApp Manager, ou o envio é rejeitado pela Meta.
-              </NotaInfo>
+            <div className="mt-4">
+              <InstrucoesPanel icon={Zap} title="Como funciona">
+                <ol className="list-decimal space-y-2 pl-4 text-[12.5px] leading-relaxed text-zinc-400">
+                  <li>O texto sai pronto do próprio sistema — mesma Abordagem pronta do drawer, considerando se o lead tem site e o diagnóstico coletado (estilo e parágrafo “sobre” seguem o que está configurado ao lado).</li>
+                  <li>WhatsApp usa a conta escolhida por idioma acima (ou detecta automaticamente pelas contas cadastradas); e-mail usa o Resend, configurado nesta página.</li>
+                  <li>Sem conversa aberta, tenta o template correspondente ao idioma do lead antes de cair pra e-mail.</li>
+                </ol>
+                <NotaInfo>
+                  Nome e idioma do template têm que bater exatamente com o que foi aprovado
+                  no WhatsApp Manager, ou o envio é rejeitado pela Meta.
+                </NotaInfo>
+              </InstrucoesPanel>
             </div>
           </Section>
 
