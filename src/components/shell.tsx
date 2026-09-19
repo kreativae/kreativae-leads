@@ -100,7 +100,6 @@ const NAV = [
   { href: "/crm", label: "CRM", icon: SquareKanban },
   { href: "/conversas", label: "Conversas", icon: MessageSquare },
   { href: "/pesquisas", label: "Pesquisas", icon: History },
-  { href: "/configuracoes", label: "Configurações", icon: Settings2 },
 ];
 
 function Wordmark() {
@@ -216,13 +215,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           <WorldClock />
           <ThemeToggle />
           <Link
-            href="/conta"
+            href="/configuracoes"
             className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] font-medium transition-colors ${
-              pathname.startsWith("/conta") ? "text-white" : "text-zinc-500 hover:text-zinc-200"
+              pathname.startsWith("/configuracoes") ? "text-white" : "text-zinc-500 hover:text-zinc-200"
             }`}
           >
-            <UserRound className={`h-4 w-4 ${pathname.startsWith("/conta") ? "text-volt" : "text-zinc-600"}`} strokeWidth={2} />
-            Conta
+            <Settings2 className={`h-4 w-4 ${pathname.startsWith("/configuracoes") ? "text-volt" : "text-zinc-600"}`} strokeWidth={2} />
+            Configurações
           </Link>
         </div>
         <div className="px-3 pb-3">
@@ -304,20 +303,27 @@ export function AppShell({ children }: { children: ReactNode }) {
               className="app-menu-mobile fixed inset-x-0 z-40 space-y-1 border-b border-white/[0.08] bg-ink px-3 pb-4 pt-2 shadow-2xl lg:hidden"
             >
               {me && (
-                <div className="mb-2 px-3.5 py-2">
-                  <div className="truncate text-[13.5px] font-bold text-zinc-100">
-                    {me.name}
+                <Link
+                  href="/conta"
+                  onClick={() => setMenuAberto(false)}
+                  className="group mb-2 flex items-center gap-3 rounded-xl px-3.5 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13.5px] font-bold text-zinc-100">
+                      {me.name}
+                    </div>
+                    <div className="truncate text-[11.5px] text-zinc-500">{me.email}</div>
                   </div>
-                  <div className="truncate text-[11.5px] text-zinc-500">{me.email}</div>
-                </div>
+                  <UserRound className="h-4 w-4 shrink-0 text-zinc-600 group-hover:text-volt" />
+                </Link>
               )}
               <Link
-                href="/conta"
+                href="/configuracoes"
                 onClick={() => setMenuAberto(false)}
                 className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] font-medium text-zinc-300"
               >
-                <UserRound className="h-4 w-4 text-zinc-600" strokeWidth={2} />
-                Conta
+                <Settings2 className="h-4 w-4 text-zinc-600" strokeWidth={2} />
+                Configurações
               </Link>
               <ThemeToggle />
               <WorldClock />
