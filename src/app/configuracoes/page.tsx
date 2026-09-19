@@ -514,6 +514,7 @@ export default function ConfiguracoesPage() {
             icon={Palette}
             title="Aparência"
             desc="Tema da interface para toda a equipe deste navegador."
+            className="xl:col-span-2"
           >
             <ThemeSelector />
           </Section>
