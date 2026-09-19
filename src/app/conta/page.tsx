@@ -475,35 +475,36 @@ function ContaInner() {
 
         {/* Painel de debug e easter egg — dois interruptores independentes, só o proprietário decide */}
         {me.role === "owner" && (
-          <>
-            <Card
-              icon={Bug}
-              title="Painel de debug"
-              desc="Botão flutuante em Configurações que abre Logs & segredos."
-            >
-              <DebugSwitch
-                enabled={panelEnabled}
-                busy={debugBusy === "panel"}
-                onToggle={() => toggleDebug("panel")}
-                onLabel="O botão flutuante em Configurações abre Logs & segredos normalmente."
-                offLabel="O botão flutuante some e /configuracoes/logs fica inacessível, mesmo por URL direta."
-              />
-            </Card>
-
-            <Card
-              icon={Fingerprint}
-              title="Easter egg (ícone escondido)"
-              desc="Ícone de bug quase invisível + sequência secreta em Configurações."
-            >
-              <DebugSwitch
-                enabled={easterEggEnabled}
-                busy={debugBusy === "easter_egg"}
-                onToggle={() => toggleDebug("easter_egg")}
-                onLabel="O ícone escondido e a sequência (3 cliques + → → A) funcionam em Configurações."
-                offLabel="O ícone escondido some — o painel de debug, se ativado acima, só abre pelo botão flutuante."
-              />
-            </Card>
-          </>
+          <Card
+            icon={Bug}
+            title="Painel de debug"
+            desc="Controla o botão flutuante e o ícone escondido que levam a Logs & segredos."
+          >
+            <div className="space-y-4">
+              <div>
+                <p className="mb-2 text-[12px] font-semibold text-zinc-400">Botão flutuante</p>
+                <DebugSwitch
+                  enabled={panelEnabled}
+                  busy={debugBusy === "panel"}
+                  onToggle={() => toggleDebug("panel")}
+                  onLabel="O botão flutuante em Configurações abre Logs & segredos normalmente."
+                  offLabel="O botão flutuante some e /configuracoes/logs fica inacessível, mesmo por URL direta."
+                />
+              </div>
+              <div>
+                <p className="mb-2 text-[12px] font-semibold text-zinc-400">
+                  Easter egg (ícone escondido)
+                </p>
+                <DebugSwitch
+                  enabled={easterEggEnabled}
+                  busy={debugBusy === "easter_egg"}
+                  onToggle={() => toggleDebug("easter_egg")}
+                  onLabel="O ícone escondido e a sequência (3 cliques + → → A) funcionam em Configurações."
+                  offLabel="O ícone escondido some — o painel de debug, se ativado acima, só abre pelo botão flutuante."
+                />
+              </div>
+            </div>
+          </Card>
         )}
       </div>
 
