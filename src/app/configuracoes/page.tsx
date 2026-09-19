@@ -334,6 +334,24 @@ export default function ConfiguracoesPage() {
   const [waCustoCarregando, setWaCustoCarregando] = useState(true);
   const [gastoAnthropic, setGastoAnthropic] = useState<GastoMensalAnthropic | null>(null);
   const [gastoAnthropicCarregando, setGastoAnthropicCarregando] = useState(true);
+  const [mostrarCustoIa, setMostrarCustoIa] = useState(false);
+
+  useEffect(() => {
+    try {
+      setMostrarCustoIa(localStorage.getItem("configuracoes_mostrar_custo_ia") === "1");
+    } catch {
+      /* localStorage indisponível — fica oculto por padrão, sem quebrar nada */
+    }
+  }, []);
+
+  function alternarMostrarCustoIa(v: boolean) {
+    setMostrarCustoIa(v);
+    try {
+      localStorage.setItem("configuracoes_mostrar_custo_ia", v ? "1" : "0");
+    } catch {
+      /* localStorage indisponível — o toggle só não persiste */
+    }
+  }
   const [waAccountsList, setWaAccountsList] = useState<{ id: string; label: string }[]>([]);
   const isOwner = useIsOwner();
   const { panelEnabled, easterEggEnabled } = useDebugToggles();
@@ -626,15 +644,25 @@ export default function ConfiguracoesPage() {
               </select>
             </div>
             <div className="mt-4">
-              <SecretInput
-                label="Anthropic Admin API Key"
-                hint="Crie em console.anthropic.com → Organização → Admin API Keys (só um admin da organização consegue). Chave diferente da de cima — só serve pra puxar o gasto real do mês no card de custo abaixo."
-                masked={meta.anthropic_admin_api_key?.masked}
-                fromEnv={meta.anthropic_admin_api_key?.fromEnv}
-                value={values.anthropic_admin_api_key}
-                onChange={(v) => setValues((s) => ({ ...s, anthropic_admin_api_key: v }))}
-                onRemove={() => removeSecret("anthropic_admin_api_key")}
+              <Toggle
+                on={mostrarCustoIa}
+                onChange={alternarMostrarCustoIa}
+                label="Gasto real da IA (Admin API)"
+                hint="Liga pra configurar a Admin API Key e mostrar o card de custo real no final da página. Desliga pra esconder os dois."
               />
+              {mostrarCustoIa && (
+                <div className="mt-4">
+                  <SecretInput
+                    label="Anthropic Admin API Key"
+                    hint="Crie em console.anthropic.com → Organização → Admin API Keys (só um admin da organização consegue). Chave diferente da de cima — só serve pra puxar o gasto real do mês no card de custo abaixo."
+                    masked={meta.anthropic_admin_api_key?.masked}
+                    fromEnv={meta.anthropic_admin_api_key?.fromEnv}
+                    value={values.anthropic_admin_api_key}
+                    onChange={(v) => setValues((s) => ({ ...s, anthropic_admin_api_key: v }))}
+                    onRemove={() => removeSecret("anthropic_admin_api_key")}
+                  />
+                </div>
+              )}
             </div>
           </Section>
 
@@ -985,20 +1013,22 @@ export default function ConfiguracoesPage() {
             <CustoPlacesBlock custo={meta.places_cost} />
           </Section>
 
-          {/* Custo IA */}
-          <Section
-            icon={Receipt}
-            title="Custo da IA (Claude)"
-            desc="Custo real, calculado a partir dos tokens de cada chamada e do preço oficial do modelo usado."
-            className="xl:col-span-2"
-          >
-            <CustoAnthropicBlock
-              custo={meta.anthropic_cost}
-              gastoMensal={gastoAnthropic}
-              gastoMensalCarregando={gastoAnthropicCarregando}
-              onRecarregarGastoMensal={carregarGastoAnthropic}
-            />
-          </Section>
+          {/* Custo IA — só aparece com o toggle "Gasto real da IA" ligado, lá em cima */}
+          {mostrarCustoIa && (
+            <Section
+              icon={Receipt}
+              title="Custo da IA (Claude)"
+              desc="Custo real, calculado a partir dos tokens de cada chamada e do preço oficial do modelo usado."
+              className="xl:col-span-2"
+            >
+              <CustoAnthropicBlock
+                custo={meta.anthropic_cost}
+                gastoMensal={gastoAnthropic}
+                gastoMensalCarregando={gastoAnthropicCarregando}
+                onRecarregarGastoMensal={carregarGastoAnthropic}
+              />
+            </Section>
+          )}
 
           {/* Custo Meta */}
           <Section
