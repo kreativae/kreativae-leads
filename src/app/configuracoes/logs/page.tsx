@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   AlertTriangle,
   Bug,
   CheckCircle2,
@@ -10,12 +11,14 @@ import {
   EyeOff,
   Loader2,
   Lock,
+  LogOut,
+  MonitorSmartphone,
   Plug,
   RefreshCw,
   Trash2,
   XCircle,
 } from "lucide-react";
-import { formatDate } from "@/lib/format";
+import { formatDate, timeAgo } from "@/lib/format";
 import { consumeLogsUnlocked, LogsLockGate } from "@/components/secret-debug-trigger";
 
 interface LogRow {
@@ -27,6 +30,52 @@ interface LogRow {
   leadId: string | null;
   createdAt: string;
 }
+
+interface SessionRow {
+  id: string;
+  userAgent: string | null;
+  ip: string | null;
+  lastSeenAt: string;
+  createdAt: string;
+  current: boolean;
+}
+
+interface ActivityRow {
+  id: string;
+  event: string;
+  ip: string | null;
+  detail: string | null;
+  createdAt: string;
+}
+
+const EVENT_LABELS: Record<string, string> = {
+  login_success: "Login realizado",
+  login_success_totp: "Login com 2FA",
+  login_success_recovery_code: "Login com código de recuperação",
+  login_failed: "Tentativa de senha incorreta",
+  login_failed_locked: "Conta bloqueada por tentativas",
+  login_locked_attempt: "Tentativa durante bloqueio",
+  login_totp_failed: "Código 2FA incorreto",
+  login_totp_required: "2FA solicitado",
+  logout: "Sessão encerrada",
+  password_changed: "Senha alterada",
+  totp_enabled: "2FA ativado",
+  totp_disabled: "2FA desativado",
+  sessions_revoked_others: "Outras sessões encerradas",
+  session_revoked: "Sessão revogada",
+  account_created_owner: "Conta criada",
+  user_created: "Criou um usuário",
+  user_deleted: "Removeu um usuário",
+  user_password_reset: "Redefiniu senha de usuário",
+  login_failed_unknown: "Login de conta inexistente",
+  login_success_webauthn: "Login com Face ID / Windows Hello",
+  webauthn_registered: "Chave de acesso cadastrada",
+  webauthn_removed: "Chave de acesso removida",
+  debug_panel_enabled: "Painel de debug ativado",
+  debug_panel_disabled: "Painel de debug desativado",
+  debug_easter_egg_enabled: "Easter egg do painel de debug ativado",
+  debug_easter_egg_disabled: "Easter egg do painel de debug desativado",
+};
 
 interface DeployInfo {
   shortSha: string | null;
@@ -319,6 +368,8 @@ export default function LogsSecretosPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"" | "ok" | "error">("");
   const [waAccounts, setWaAccounts] = useState<{ id: string; label: string }[]>([]);
+  const [sessionRows, setSessionRows] = useState<SessionRow[]>([]);
+  const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [limpando, setLimpando] = useState(false);
   const [page, setPage] = useState(1);
   const LOGS_POR_PAGINA = 10;
@@ -375,6 +426,32 @@ export default function LogsSecretosPage() {
       )
       .catch(() => undefined);
   }, [unlocked]);
+
+  const loadSessions = useCallback(async () => {
+    const res = await fetch("/api/auth/sessions");
+    if (res.ok) setSessionRows(((await res.json()) as { sessions: SessionRow[] }).sessions);
+  }, []);
+
+  const loadActivity = useCallback(async () => {
+    const res = await fetch("/api/auth/activity");
+    if (res.ok) setActivity(((await res.json()) as { activity: ActivityRow[] }).activity);
+  }, []);
+
+  useEffect(() => {
+    if (!unlocked) return;
+    loadSessions();
+    loadActivity();
+  }, [unlocked, loadSessions, loadActivity]);
+
+  async function revoke(id: string) {
+    await fetch(`/api/auth/sessions?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    loadSessions();
+  }
+
+  async function revokeOthers() {
+    await fetch("/api/auth/sessions?others=1", { method: "DELETE" });
+    loadSessions();
+  }
 
   async function limparAntigos() {
     if (!confirm("Apagar logs com mais de 30 dias? Não dá pra desfazer.")) return;
@@ -592,6 +669,91 @@ export default function LogsSecretosPage() {
                 </div>
               </div>
             )}
+          </section>
+
+          <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <MonitorSmartphone className="h-4 w-4 text-volt" />
+              <h2 className="font-display text-[15px] font-bold text-white">Sessões ativas</h2>
+            </div>
+            <ul className="space-y-2.5">
+              {sessionRows.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-ink/50 px-3.5 py-3"
+                >
+                  <MonitorSmartphone className="h-4 w-4 shrink-0 text-zinc-500" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[12.5px] font-semibold text-zinc-200">
+                      {s.userAgent?.slice(0, 70) ?? "Dispositivo desconhecido"}
+                      {s.current && (
+                        <span className="ml-2 rounded-full bg-volt px-2 py-0.5 text-[9.5px] font-bold text-onvolt">
+                          ESTA SESSÃO
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-zinc-500">
+                      {s.ip ?? "IP —"} · ativa {timeAgo(s.lastSeenAt)}
+                    </div>
+                  </div>
+                  {!s.current && (
+                    <button
+                      type="button"
+                      onClick={() => revoke(s.id)}
+                      title="Revogar sessão"
+                      className="rounded-lg border border-rose-400/20 p-1.5 text-rose-300 transition-colors hover:bg-rose-400/10"
+                    >
+                      <XCircle className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {sessionRows.length > 1 && (
+              <button
+                type="button"
+                onClick={revokeOthers}
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-[12px] font-semibold text-zinc-300 hover:border-rose-400/40 hover:text-rose-300"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                Encerrar todas as outras sessões
+              </button>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-volt" />
+              <h2 className="font-display text-[15px] font-bold text-white">Atividade da conta</h2>
+            </div>
+            <ul className="space-y-2">
+              {activity.length === 0 && (
+                <li className="text-[12.5px] text-zinc-500">Nenhum evento registrado ainda.</li>
+              )}
+              {activity.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-center gap-3 rounded-lg border border-white/[0.05] bg-ink/40 px-3.5 py-2.5"
+                >
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      a.event.includes("failed") || a.event.includes("locked")
+                        ? "bg-rose-400"
+                        : a.event.includes("success") || a.event === "login_success"
+                          ? "bg-volt"
+                          : "bg-zinc-500"
+                    }`}
+                  />
+                  <span className="flex-1 text-[12.5px] text-zinc-300">
+                    {EVENT_LABELS[a.event] ?? a.event}
+                    {a.detail ? <span className="text-zinc-500"> · {a.detail}</span> : null}
+                  </span>
+                  <span className="shrink-0 text-[10.5px] text-zinc-600">
+                    {timeAgo(a.createdAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </section>
         </>
       )}
