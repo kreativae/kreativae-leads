@@ -5,8 +5,6 @@ import {
   AtSign,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   ClipboardCopy,
   Database,
   Globe2,
@@ -207,8 +205,8 @@ function NotaInfo({ children }: { children: React.ReactNode }) {
 
 /**
  * Painel de instruções ("Como conectar"/"Como funciona") — fechado por
- * padrão. Antes ficava sempre aberto e tomava boa parte da tela; agora só
- * quem precisa consultar o passo a passo clica pra ver.
+ * padrão. Igual à NotaInfo: quando fechado, some por completo (só o
+ * botãozinho fica), em vez de deixar uma caixa vazia sempre visível.
  */
 function InstrucoesPanel({
   icon: Icon,
@@ -221,23 +219,18 @@ function InstrucoesPanel({
 }) {
   const [aberto, setAberto] = useState(false);
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-ink/60 p-5">
+    <div>
       <button
         type="button"
         onClick={() => setAberto((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 text-left"
+        className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-zinc-500 transition-colors hover:text-zinc-300"
       >
-        <span className="flex items-center gap-2 text-[13px] font-bold text-zinc-100">
-          <Icon className="h-4 w-4 text-volt" />
-          {title}
-        </span>
-        {aberto ? (
-          <ChevronUp className="h-4 w-4 shrink-0 text-zinc-500" />
-        ) : (
-          <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
-        )}
+        <Icon className="h-3.5 w-3.5" />
+        {title}
       </button>
-      {aberto && <div className="mt-3">{children}</div>}
+      {aberto && (
+        <div className="mt-2 rounded-xl border border-white/[0.07] bg-ink/60 p-5">{children}</div>
+      )}
     </div>
   );
 }
