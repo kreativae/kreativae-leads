@@ -77,14 +77,14 @@ export function ThemeSelector() {
       label: "Escuro",
       desc: "Visual original do radar — ideal à noite.",
       icon: Moon,
-      preview: "bg-[#0c0c10] border-white/15",
+      preview: "bg-[#0c0c10] border-[#fff]/15",
     },
     {
       key: "light",
       label: "Claro",
       desc: "Alto contraste para uso diurno.",
       icon: Sun,
-      preview: "bg-white border-black/15",
+      preview: "bg-[#fff] border-black/15",
     },
   ];
 
@@ -108,7 +108,7 @@ export function ThemeSelector() {
             <div className={`mb-3 h-14 rounded-lg border ${o.preview} p-2`}>
               <div
                 className={`h-1.5 w-2/3 rounded-full ${
-                  o.key === "dark" ? "bg-white/25" : "bg-black/20"
+                  o.key === "dark" ? "bg-[#fff]/25" : "bg-black/20"
                 }`}
               />
               <div
