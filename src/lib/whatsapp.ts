@@ -16,14 +16,20 @@ export function renderWaTemplateBody(bodyTemplate: string, companyName: string):
   return bodyTemplate.replace("{{empresa}}", companyName);
 }
 
-/** Sends an approved Meta message template — the only way to start a WhatsApp conversation cold. */
+/**
+ * Sends an approved Meta message template — the only way to start a
+ * WhatsApp conversation cold. So componente "body": o editor de template em
+ * Configurações → Automação so expoe nome/idioma/corpo, sem cabecalho — um
+ * componente "header" aqui so faz sentido se o template aprovado na Meta
+ * tiver de fato uma variavel de cabecalho, e mandar um sem essa variavel
+ * derruba a chamada inteira com "(#100) Invalid parameter".
+ */
 export async function sendWaTemplate(opts: {
   accessToken: string;
   phoneNumberId: string;
   to: string; // digits with country code
   templateName: string;
   languageCode: string;
-  headerParam: string;
   bodyParam: string;
 }): Promise<WaSendResult> {
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${opts.phoneNumberId}/messages`;
@@ -44,7 +50,6 @@ export async function sendWaTemplate(opts: {
           name: opts.templateName,
           language: { code: opts.languageCode },
           components: [
-            { type: "header", parameters: [{ type: "text", text: opts.headerParam }] },
             { type: "body", parameters: [{ type: "text", text: opts.bodyParam }] },
           ],
         },
