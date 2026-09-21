@@ -27,12 +27,11 @@ export function renderWaTemplateBody(bodyTemplate: string, companyName: string):
 
 /**
  * Sends an approved Meta message template — the only way to start a
- * WhatsApp conversation cold. So manda componente pros que existem de
- * verdade: o editor de template em Configurações → Automação so expoe
- * nome/idioma/corpo (sem cabecalho), e so tem variavel no corpo se o texto
- * usar {{empresa}} — mandar um componente (ou uma variavel) que o template
- * aprovado na Meta nao tem derruba a chamada inteira com "(#100) Invalid
- * parameter".
+ * WhatsApp conversation cold. "modelo_br"/"modelo_pt" (conferidos direto no
+ * WhatsApp Manager) tem cabecalho de texto com 1 variavel ALEM da variavel
+ * do corpo — os dois usam o nome da empresa. Um componente que o template
+ * aprovado nao tem (ou que falta um que ele tem) derruba a chamada inteira
+ * com "(#100) Invalid parameter".
  */
 export async function sendWaTemplate(opts: {
   accessToken: string;
@@ -40,13 +39,17 @@ export async function sendWaTemplate(opts: {
   to: string; // digits with country code
   templateName: string;
   languageCode: string;
+  headerParam: string;
   /** null quando o corpo aprovado na Meta nao tem variavel nenhuma. */
   bodyParam: string | null;
 }): Promise<WaSendResult> {
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${opts.phoneNumberId}/messages`;
-  const components = opts.bodyParam
-    ? [{ type: "body", parameters: [{ type: "text", text: opts.bodyParam }] }]
-    : [];
+  const components = [
+    { type: "header", parameters: [{ type: "text", text: opts.headerParam }] },
+    ...(opts.bodyParam
+      ? [{ type: "body", parameters: [{ type: "text", text: opts.bodyParam }] }]
+      : []),
+  ];
   let res: Response;
   try {
     res = await fetch(url, {
@@ -63,7 +66,7 @@ export async function sendWaTemplate(opts: {
         template: {
           name: opts.templateName,
           language: { code: opts.languageCode },
-          ...(components.length > 0 ? { components } : {}),
+          components,
         },
       }),
       signal: AbortSignal.timeout(20_000),

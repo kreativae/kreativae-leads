@@ -180,12 +180,17 @@ async function abrirConversaComTemplate(
     to: lead.whatsapp,
     templateName: template.name,
     languageCode: template.language,
+    headerParam: lead.companyName,
     bodyParam: template.bodyTemplate.includes("{{empresa}}") ? lead.companyName : null,
   });
   if (!resultado.ok)
     return {
       ok: false,
-      detail: `Sem conversa aberta com esse lead — o template do WhatsApp falhou: ${resultado.error ?? "erro desconhecido"}.`,
+      // Contexto do que foi tentado (template/idioma/numero de origem e
+      // destino) junto do erro da Meta — sem isso, um erro generico como
+      // "(#100) Invalid parameter" nao da pra saber se e o template, a
+      // conta ou o numero do lead sem reproduzir a chamada.
+      detail: `Sem conversa aberta com esse lead — o template do WhatsApp falhou: ${resultado.error ?? "erro desconhecido"} [template=${template.name}/${template.language}, de=${conta.phoneNumberId}, para=${lead.whatsapp}].`,
     };
 
   const now = new Date();
