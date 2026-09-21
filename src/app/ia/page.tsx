@@ -783,6 +783,15 @@ export default function IaPage() {
                       <ChevronDown className="h-4 w-4 shrink-0 text-zinc-500" />
                     )}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => descartar(item)}
+                    disabled={discardingId === item.id}
+                    title="Descartar"
+                    className="shrink-0 rounded-full p-1.5 text-zinc-500 transition-colors hover:text-rose-300 disabled:opacity-50"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
 
                 {aberto && (
