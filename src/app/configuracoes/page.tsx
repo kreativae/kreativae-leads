@@ -346,7 +346,7 @@ export default function ConfiguracoesPage() {
     automation_enabled: "yes",
     automation_style: "",
     automation_include_about: "no",
-    automation_wa_pause_ms: "1400",
+    automation_wa_pause_ms: "15000",
     automation_wa_template_br_name: "modelo_br",
     automation_wa_template_br_lang: "pt_BR",
     automation_wa_template_br_body: "",
@@ -442,7 +442,7 @@ export default function ConfiguracoesPage() {
         automation_style: data.automation_style?.value ?? "",
         automation_include_about: data.automation_include_about?.value === "yes" ? "yes" : "no",
         automation_wa_pause_ms:
-          data.automation_wa_pause_ms?.value || String(auto?.waPauseMs ?? 1400),
+          data.automation_wa_pause_ms?.value || String(auto?.waPauseMs ?? 15_000),
         automation_wa_template_br_name:
           data.automation_wa_template_br_name?.value || auto?.templates.BR.name || "modelo_br",
         automation_wa_template_br_lang:

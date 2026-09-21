@@ -285,7 +285,7 @@ export async function getAutomationSettings(): Promise<AutomationSettings> {
       ? (style as AutomationSettings["style"])
       : null,
     includeAbout: includeAbout === "yes",
-    waPauseMs: Number.isFinite(pauseParsed) && pauseParsed >= 0 ? pauseParsed : 1400,
+    waPauseMs: Number.isFinite(pauseParsed) && pauseParsed >= 0 ? pauseParsed : 15_000,
     templates: {
       BR: {
         name: brName || "modelo_br",

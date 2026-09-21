@@ -630,7 +630,10 @@ export function LeadDrawer({
       const res = await fetch(`/api/leads/${lead.id}/automate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel }),
+        // As partes daqui sao a Abordagem pronta exibida (com qualquer
+        // edicao do usuario) — so faz sentido pro WhatsApp: o e-mail usa
+        // o assunto/HTML gerados no servidor.
+        body: JSON.stringify({ channel, parts: channel === "whatsapp" ? partes : undefined }),
       });
       const json = (await res.json()) as {
         ok: boolean;

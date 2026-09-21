@@ -13,7 +13,9 @@ import {
 import type { SiteCheck } from "@/lib/site-analyzer";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+// Ate MAX_PARTES (10) mensagens com pausa configuravel entre elas (15s por
+// padrao) entre uma parte e outra — bem alem dos 30s antigos.
+export const maxDuration = 180;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -34,10 +36,19 @@ export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
 
   let canalPedido: "whatsapp" | "email" | undefined;
+  let partesEditadas: string[] | null = null;
   try {
-    const body = (await req.json()) as { channel?: unknown };
+    const body = (await req.json()) as { channel?: unknown; parts?: unknown };
     canalPedido =
       body?.channel === "whatsapp" || body?.channel === "email" ? body.channel : undefined;
+    // Partes vindas do drawer (Abordagem pronta): se o usuario editou algo
+    // por la, e isso que tem que sair — nao o texto regerado aqui do zero.
+    if (Array.isArray(body?.parts)) {
+      const limpas = body.parts
+        .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+        .map((p) => p.trim());
+      if (limpas.length > 0) partesEditadas = limpas;
+    }
   } catch {
     // Corpo vazio (chamada antiga, sem canal escolhido) — segue com o
     // comportamento automatico de sempre.
@@ -77,6 +88,7 @@ export async function POST(req: Request, ctx: Ctx) {
     style: automationSettings.style ?? undefined,
     includeAbout: automationSettings.includeAbout,
   });
+  const partesWhatsapp = partesEditadas ?? [message];
 
   let ok = false;
   let detail = "";
@@ -91,13 +103,13 @@ export async function POST(req: Request, ctx: Ctx) {
     ok = r.ok;
     detail = r.detail;
   } else if (canalPedido === "whatsapp") {
-    const r = await sendViaWhatsapp(lead, [message]);
+    const r = await sendViaWhatsapp(lead, partesWhatsapp);
     ok = r.ok;
     detail = r.detail;
   } else if (lead.whatsapp) {
     // Sem escolha explicita (chamada antiga): mantem o automatico de
     // sempre, com fallback pra e-mail quando faltar conversa aberta.
-    const r = await sendViaWhatsapp(lead, [message]);
+    const r = await sendViaWhatsapp(lead, partesWhatsapp);
     ok = r.ok;
     detail = r.detail;
     if (!ok && r.semConversa && lead.email) {
