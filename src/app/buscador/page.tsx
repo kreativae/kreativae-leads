@@ -184,7 +184,13 @@ export default function BuscadorPage() {
   const [servidoDoCache, setServidoDoCache] = useState<HistoryEntry | null>(null);
 
   useEffect(() => {
-    buscarHistorico().then(setHistorico);
+    buscarHistorico().then((entradas) => {
+      setHistorico(entradas);
+      // Mostra a ultima busca de cara: sem isso, a pagina abre em branco e
+      // parece que nada foi salvo, mesmo com o historico cheio por tras do
+      // botao "Histórico".
+      if (entradas.length > 0) reabrirHistorico(entradas[0]);
+    });
   }, []);
 
   // A aba pode ficar aberta por horas — sem isso, uma busca feita em outro
