@@ -187,6 +187,16 @@ export default function BuscadorPage() {
     buscarHistorico().then(setHistorico);
   }, []);
 
+  // A aba pode ficar aberta por horas — sem isso, uma busca feita em outro
+  // aparelho so aparece aqui depois de recarregar a pagina inteira.
+  function alternarHistorico() {
+    setHistoricoAberto((v) => {
+      const abrindo = !v;
+      if (abrindo) buscarHistorico().then(setHistorico);
+      return abrindo;
+    });
+  }
+
   function edicaoDe(c: Candidate): Edits {
     return edits[c.osmId] ?? edicaoVazia(c);
   }
@@ -456,7 +466,7 @@ export default function BuscadorPage() {
         {historico.length > 0 && (
           <button
             type="button"
-            onClick={() => setHistoricoAberto((v) => !v)}
+            onClick={alternarHistorico}
             className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2.5 text-[12.5px] font-semibold transition-colors ${
               historicoAberto
                 ? "border-volt/50 bg-volt/10 text-volt"
