@@ -93,7 +93,16 @@ export async function sendViaWhatsapp(
     .where(eq(conversations.leadId, lead.id))
     .orderBy(desc(conversations.lastMessageAt))
     .limit(1);
-  const conta = convo?.waAccountId ? await getWaAccount(convo.waAccountId) : null;
+  // A janela de 24h so abre quando o CLIENTE manda mensagem pra gente —
+  // ter uma linha em "conversations" nao significa nada sozinho, ja que ela
+  // tambem e criada quando SO a gente manda (ex.: o template de abertura).
+  // Tratar isso como "janela aberta" manda texto livre fora da janela, e a
+  // Meta rejeita com "(#100) ... 131047 Re-engagement message".
+  const janelaAberta =
+    !!convo?.lastInboundAt &&
+    Date.now() - new Date(convo.lastInboundAt).getTime() < 24 * 60 * 60 * 1000;
+  const conta =
+    convo?.waAccountId && janelaAberta ? await getWaAccount(convo.waAccountId) : null;
   if (!convo || !conta) {
     const abriu = await abrirConversaComTemplate(lead);
     if (abriu.ok) return { ok: true, semConversa: false, detail: "" };
