@@ -47,7 +47,11 @@ interface WaWebhookPayload {
           sticker?: { id?: string; mime_type?: string };
           document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
         }[];
-        statuses?: { id?: string; status?: string }[];
+        statuses?: {
+          id?: string;
+          status?: string;
+          errors?: { code?: number; title?: string; message?: string }[];
+        }[];
       };
     }[];
   }[];
@@ -235,6 +239,21 @@ export async function POST(req: Request) {
                   sql`${messages.status} = 'sent'`,
                 ),
               );
+          } else if (st.status === "failed") {
+            // A Meta so avisa isso por aqui — sem tratar, a mensagem fica
+            // parada em "enviado" pra sempre, sem dizer que na verdade nao
+            // chegou (numero sem WhatsApp, bloqueou o numero, etc).
+            const erro = st.errors?.[0];
+            const detalhe = erro
+              ? `${erro.title ?? "Falha"}${erro.message ? ` — ${erro.message}` : ""}${erro.code ? ` (código ${erro.code})` : ""}`
+              : "Falha na entrega, sem detalhe da Meta.";
+            await db.update(messages).set({ status: "failed" }).where(eq(messages.waMessageId, st.id));
+            await logEvent({
+              source: "whatsapp_webhook",
+              status: "error",
+              message: "Mensagem não entregue pelo WhatsApp",
+              detail: detalhe,
+            });
           }
         }
 

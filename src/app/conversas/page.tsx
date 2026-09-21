@@ -24,6 +24,7 @@ import {
   Settings2,
   Star,
   Trash2,
+  TriangleAlert,
   User2,
 } from "lucide-react";
 import { timeAgo } from "@/lib/format";
@@ -826,6 +827,10 @@ export default function ConversasPage() {
                                 <CheckCheck className="h-3 w-3" />
                               ) : m.status === "sent" ? (
                                 <Check className="h-3 w-3" />
+                              ) : m.status === "failed" ? (
+                                <span title="O WhatsApp não conseguiu entregar essa mensagem">
+                                  <TriangleAlert className="h-3 w-3 text-rose-400" />
+                                </span>
                               ) : (
                                 <Clock5 className="h-3 w-3" />
                               ))}
