@@ -1484,6 +1484,10 @@ function WaAccountsManager() {
     const res = await fetch("/api/wa-accounts");
     const data = (await res.json()) as { accounts: WaAccountApi[] };
     setContas(data.accounts);
+    // Checa a qualidade sozinho ao carregar — antes so acontecia se alguem
+    // lembrasse de clicar "Verificar", o que na pratica quer dizer nunca.
+    // Uma queda de qualidade so seria percebida quando um envio ja falhasse.
+    for (const c of data.accounts) verificarSaude(c.id);
   }, []);
 
   useEffect(() => {
