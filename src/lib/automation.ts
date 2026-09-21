@@ -8,6 +8,7 @@ import {
   type ResendConfig,
 } from "@/lib/settings-db";
 import { renderWaTemplateBody, sendWaText, sendWaTemplate } from "@/lib/whatsapp";
+import { digitsOnly } from "@/lib/phone";
 import { sendEmail } from "@/lib/email";
 import { logEvent } from "@/lib/system-log";
 import {
@@ -172,6 +173,15 @@ async function abrirConversaComTemplate(
     return {
       ok: false,
       detail: `Sem conversa aberta com esse lead — e não há conta de WhatsApp configurada pra ${locale === "PT" ? "Portugal" : "Brasil"} pra abrir uma nova via template.`,
+    };
+  if (conta.displayPhone && digitsOnly(conta.displayPhone) === digitsOnly(lead.whatsapp))
+    // Dado errado no lead (ex.: capturado por engano o widget do proprio
+    // site, apontando pro nosso numero) — mandar pra si mesmo e sempre
+    // rejeitado pela Meta com um "(#100) Invalid parameter" generico, sem
+    // dizer o motivo. Aqui a gente ja sabe o motivo, entao nem tenta.
+    return {
+      ok: false,
+      detail: "WhatsApp cadastrado neste lead é o mesmo número da nossa conta — corrija o número do lead antes de automatizar.",
     };
 
   const resultado = await sendWaTemplate({
