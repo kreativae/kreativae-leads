@@ -4,6 +4,15 @@ export interface WaSendResult {
   error?: string;
 }
 
+interface WaApiError {
+  message?: string;
+  error_subcode?: number;
+  error_user_title?: string;
+  error_user_msg?: string;
+  error_data?: { details?: string };
+  fbtrace_id?: string;
+}
+
 const GRAPH_VERSION = "v21.0";
 
 /**
@@ -66,19 +75,13 @@ export async function sendWaTemplate(opts: {
 
   const data = (await res.json().catch(() => ({}))) as {
     messages?: { id?: string }[];
-    error?: { message?: string; error_data?: { details?: string } };
+    error?: WaApiError;
   };
 
   if (!res.ok || data.error) {
-    // A "message" do topo e so o rotulo generico do tipo de erro (ex.:
-    // "(#100) Invalid parameter" serve tanto pra numero de parametros
-    // errado quanto pra idioma nao aprovado); o motivo de verdade vem em
-    // error_data.details, quando a Meta manda.
-    const base = data.error?.message ?? `Meta respondeu HTTP ${res.status}.`;
-    const detalhe = data.error?.error_data?.details;
     return {
       ok: false,
-      error: detalhe ? `${base} — ${detalhe}` : base,
+      error: erroDetalhado(data.error, res.status),
     };
   }
   return { ok: true, waMessageId: data.messages?.[0]?.id };
@@ -116,14 +119,7 @@ export async function sendWaText(opts: {
 
   const data = (await res.json().catch(() => ({}))) as {
     messages?: { id?: string }[];
-    error?: {
-      message?: string;
-      error_subcode?: number;
-      error_user_title?: string;
-      error_user_msg?: string;
-      error_data?: { details?: string };
-      fbtrace_id?: string;
-    };
+    error?: WaApiError;
   };
 
   if (!res.ok || data.error) {
@@ -140,19 +136,7 @@ export async function sendWaText(opts: {
  * sempre esta em error_data.details ou error_user_msg. Junta tudo que a
  * Meta mandar, pra nao precisar reproduzir o erro so pra ver o detalhe.
  */
-function erroDetalhado(
-  error:
-    | {
-        message?: string;
-        error_subcode?: number;
-        error_user_title?: string;
-        error_user_msg?: string;
-        error_data?: { details?: string };
-        fbtrace_id?: string;
-      }
-    | undefined,
-  httpStatus: number,
-): string {
+function erroDetalhado(error: WaApiError | undefined, httpStatus: number): string {
   if (!error) return `Meta respondeu HTTP ${httpStatus}.`;
   const partes = [
     error.message,
