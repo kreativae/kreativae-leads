@@ -180,7 +180,7 @@ async function abrirConversaComTemplate(
     to: lead.whatsapp,
     templateName: template.name,
     languageCode: template.language,
-    bodyParam: lead.companyName,
+    bodyParam: template.bodyTemplate.includes("{{empresa}}") ? lead.companyName : null,
   });
   if (!resultado.ok)
     return {

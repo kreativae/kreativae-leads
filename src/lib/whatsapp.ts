@@ -18,11 +18,12 @@ export function renderWaTemplateBody(bodyTemplate: string, companyName: string):
 
 /**
  * Sends an approved Meta message template — the only way to start a
- * WhatsApp conversation cold. So componente "body": o editor de template em
- * Configurações → Automação so expoe nome/idioma/corpo, sem cabecalho — um
- * componente "header" aqui so faz sentido se o template aprovado na Meta
- * tiver de fato uma variavel de cabecalho, e mandar um sem essa variavel
- * derruba a chamada inteira com "(#100) Invalid parameter".
+ * WhatsApp conversation cold. So manda componente pros que existem de
+ * verdade: o editor de template em Configurações → Automação so expoe
+ * nome/idioma/corpo (sem cabecalho), e so tem variavel no corpo se o texto
+ * usar {{empresa}} — mandar um componente (ou uma variavel) que o template
+ * aprovado na Meta nao tem derruba a chamada inteira com "(#100) Invalid
+ * parameter".
  */
 export async function sendWaTemplate(opts: {
   accessToken: string;
@@ -30,9 +31,13 @@ export async function sendWaTemplate(opts: {
   to: string; // digits with country code
   templateName: string;
   languageCode: string;
-  bodyParam: string;
+  /** null quando o corpo aprovado na Meta nao tem variavel nenhuma. */
+  bodyParam: string | null;
 }): Promise<WaSendResult> {
   const url = `https://graph.facebook.com/${GRAPH_VERSION}/${opts.phoneNumberId}/messages`;
+  const components = opts.bodyParam
+    ? [{ type: "body", parameters: [{ type: "text", text: opts.bodyParam }] }]
+    : [];
   let res: Response;
   try {
     res = await fetch(url, {
@@ -49,9 +54,7 @@ export async function sendWaTemplate(opts: {
         template: {
           name: opts.templateName,
           language: { code: opts.languageCode },
-          components: [
-            { type: "body", parameters: [{ type: "text", text: opts.bodyParam }] },
-          ],
+          ...(components.length > 0 ? { components } : {}),
         },
       }),
       signal: AbortSignal.timeout(20_000),
@@ -63,13 +66,19 @@ export async function sendWaTemplate(opts: {
 
   const data = (await res.json().catch(() => ({}))) as {
     messages?: { id?: string }[];
-    error?: { message?: string };
+    error?: { message?: string; error_data?: { details?: string } };
   };
 
   if (!res.ok || data.error) {
+    // A "message" do topo e so o rotulo generico do tipo de erro (ex.:
+    // "(#100) Invalid parameter" serve tanto pra numero de parametros
+    // errado quanto pra idioma nao aprovado); o motivo de verdade vem em
+    // error_data.details, quando a Meta manda.
+    const base = data.error?.message ?? `Meta respondeu HTTP ${res.status}.`;
+    const detalhe = data.error?.error_data?.details;
     return {
       ok: false,
-      error: data.error?.message ?? `Meta respondeu HTTP ${res.status}.`,
+      error: detalhe ? `${base} — ${detalhe}` : base,
     };
   }
   return { ok: true, waMessageId: data.messages?.[0]?.id };
