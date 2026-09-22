@@ -683,11 +683,10 @@ export default function BuscadorPage() {
         )}
         {modo === "dominio" && (
           <p className="mt-2 text-[11.5px] text-zinc-500">
-            Consulta o RDAP (sucessor do WHOIS) direto no registro do domínio — funciona bem
-            pra .com, .com.br, .net etc. Domínios .pt não têm RDAP público (o próprio registro
-            não oferece), então essa consulta não funciona pra eles. Dados do proprietário
-            também costumam vir ocultos por política de privacidade — isso não é falha nossa,
-            é o registrador escondendo.
+            Consulta o RDAP (sucessor do WHOIS) direto no registro do domínio, com o WHOIS
+            clássico como reserva pra TLDs sem RDAP público (ex.: .pt). Dados do proprietário
+            costumam vir ocultos por política de privacidade — isso não é falha nossa, é o
+            registrador escondendo.
           </p>
         )}
 

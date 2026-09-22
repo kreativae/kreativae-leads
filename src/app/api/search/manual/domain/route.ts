@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { consultarWhois } from "@/lib/whois";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -115,10 +116,15 @@ export async function GET(req: Request) {
     // essa consulta nao da pra fazer. So conta como "disponivel" o 404 que
     // veio de dentro do proprio registro, depois de sair do rdap.org.
     if (new URL(res.url).host === "rdap.org") {
+      // Sem RDAP pra esse TLD (ex.: .pt, .ae) — cai pro WHOIS classico
+      // (porta 43), que cobre praticamente todo TLD que existe, so que sem
+      // o formato padronizado do RDAP.
+      const viaWhois = await consultarWhois(dominio);
+      if (viaWhois) return NextResponse.json({ ok: true, result: viaWhois });
       return NextResponse.json(
         {
           ok: false,
-          error: `O registro desse TLD não tem servidor RDAP público — não dá pra checar "${dominio}" por aqui (isso acontece com alguns TLDs, ex.: .ae).`,
+          error: `Não foi possível consultar "${dominio}" — nem RDAP nem WHOIS clássico responderam pra esse TLD.`,
         },
         { status: 502 },
       );
