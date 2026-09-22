@@ -199,6 +199,11 @@ export default function BuscadorPage() {
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
   const [domainResult, setDomainResult] = useState<DomainLookupResult | null>(null);
+  const [domainAnalysis, setDomainAnalysis] = useState<{
+    loading: boolean;
+    result: SiteAnalysis | null;
+    error: string | null;
+  } | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [added, setAdded] = useState<Record<string, string>>({});
   const [edits, setEdits] = useState<Record<string, Edits>>({});
@@ -259,6 +264,7 @@ export default function BuscadorPage() {
       setLoading(true);
       setError(null);
       setDomainResult(null);
+      setDomainAnalysis(null);
       try {
         const res = await fetch(
           `/api/search/manual/domain?domain=${encodeURIComponent(dominioCompleto)}`,
@@ -426,6 +432,24 @@ export default function BuscadorPage() {
         ...s,
         [c.osmId]: { loading: false, result: null, error: "Erro de rede ao analisar." },
       }));
+    }
+  }
+
+  async function analisarSiteDominio() {
+    if (!domainResult) return;
+    const website = domainResult.domain;
+    setDomainAnalysis({ loading: true, result: null, error: null });
+    try {
+      const res = await fetch("/api/search/manual/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ website }),
+      });
+      const data = (await res.json()) as { ok: boolean; analysis?: SiteAnalysis; error?: string };
+      if (data.ok && data.analysis) setDomainAnalysis({ loading: false, result: data.analysis, error: null });
+      else setDomainAnalysis({ loading: false, result: null, error: data.error ?? "Falha ao analisar." });
+    } catch {
+      setDomainAnalysis({ loading: false, result: null, error: "Erro de rede ao analisar." });
     }
   }
 
@@ -613,6 +637,7 @@ export default function BuscadorPage() {
                   setError(null);
                   setCandidates(null);
                   setDomainResult(null);
+                  setDomainAnalysis(null);
                   setServidoDoCache(null);
                 }}
                 className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12.5px] font-bold transition-all ${
@@ -753,7 +778,68 @@ export default function BuscadorPage() {
                     </p>
                   )}
                 </div>
+                <div className="ml-auto flex shrink-0 flex-wrap gap-2">
+                  <a
+                    href={`https://${domainResult.domain}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-2 text-[12px] font-semibold text-zinc-200 transition-colors hover:border-volt/40 hover:text-volt"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Ver site
+                  </a>
+                  <button
+                    type="button"
+                    onClick={analisarSiteDominio}
+                    disabled={domainAnalysis?.loading}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3.5 py-2 text-[12px] font-semibold text-zinc-200 transition-colors hover:border-volt/40 hover:text-volt disabled:opacity-60"
+                  >
+                    {domainAnalysis?.loading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Stethoscope className="h-3.5 w-3.5" />
+                    )}
+                    Analisar o site
+                  </button>
+                </div>
               </div>
+              {domainAnalysis?.error && (
+                <p className="text-[12px] text-rose-300">{domainAnalysis.error}</p>
+              )}
+              {domainAnalysis?.result && (
+                <div className="rounded-lg border border-white/[0.07] bg-ink/60 p-3">
+                  <div className="flex items-center gap-2 text-[12.5px] font-bold text-zinc-100">
+                    {domainAnalysis.result.grade === "modern" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                    ) : (
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-300" />
+                    )}
+                    Nota {domainAnalysis.result.score}/100 —{" "}
+                    {domainAnalysis.result.grade === "modern"
+                      ? "moderno"
+                      : domainAnalysis.result.grade === "outdated"
+                        ? "desatualizado"
+                        : "crítico"}
+                  </div>
+                  <ul className="mt-2 space-y-1.5">
+                    {domainAnalysis.result.checks.map((chk) => (
+                      <li key={chk.id} className="flex items-start gap-2 text-[11.5px]">
+                        {chk.status === "pass" ? (
+                          <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" />
+                        ) : chk.status === "warn" ? (
+                          <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-300" />
+                        ) : (
+                          <X className="mt-0.5 h-3 w-3 shrink-0 text-rose-400" />
+                        )}
+                        <span className="text-zinc-400">
+                          <span className="font-semibold text-zinc-300">{chk.label}</span> —{" "}
+                          {chk.detail}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-4 sm:grid-cols-3">
                 <InfoLinha label="Proprietário" valor={domainResult.proprietario ?? "Protegido/privado"} />
                 <InfoLinha label="Organização" valor={domainResult.organizacao} />
