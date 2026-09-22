@@ -95,7 +95,20 @@ interface EnrichResult {
   pagesScanned: string[];
 }
 
-type Modo = "nome" | "instagram";
+type Modo = "nome" | "instagram" | "dominio";
+
+interface DomainLookupResult {
+  domain: string;
+  disponivel: boolean;
+  registrar?: string | null;
+  criadoEm?: string | null;
+  expiraEm?: string | null;
+  atualizadoEm?: string | null;
+  status?: string[];
+  nameservers?: string[];
+  proprietario?: string | null;
+  organizacao?: string | null;
+}
 
 interface HistoryEntry {
   key: string;
@@ -145,6 +158,22 @@ async function buscarHistorico(): Promise<HistoryEntry[]> {
   }
 }
 
+function formatarDataDominio(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function InfoLinha({ label, valor }: { label: string; valor: string | null | undefined }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="text-[13px] text-zinc-200">{valor || "—"}</p>
+    </div>
+  );
+}
+
 function edicaoVazia(c: Candidate): Edits {
   return {
     companyName: c.companyName,
@@ -169,6 +198,7 @@ export default function BuscadorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Candidate[] | null>(null);
+  const [domainResult, setDomainResult] = useState<DomainLookupResult | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [added, setAdded] = useState<Record<string, string>>({});
   const [edits, setEdits] = useState<Record<string, Edits>>({});
@@ -213,6 +243,31 @@ export default function BuscadorPage() {
 
   async function buscar(forcar = false) {
     const termo = query.trim();
+
+    // Registro de domínio é um formato de resultado totalmente diferente
+    // (disponibilidade + dados de registro, não uma lista de candidatos a
+    // lead) — fica fora do histórico compartilhado, que só entende Candidate.
+    if (modo === "dominio") {
+      if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(termo)) {
+        setError("Digite um domínio válido — ex.: seudominio.com.br");
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      setDomainResult(null);
+      try {
+        const res = await fetch(`/api/search/manual/domain?domain=${encodeURIComponent(termo)}`);
+        const data = (await res.json()) as { ok: boolean; result?: DomainLookupResult; error?: string };
+        if (data.ok && data.result) setDomainResult(data.result);
+        else setError(data.error ?? "Falha ao consultar o domínio.");
+      } catch {
+        setError("Erro de rede ao consultar o domínio.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     const minimo = modo === "instagram" ? 1 : 2;
     if (termo.length < minimo) {
       setError(modo === "instagram" ? "Digite o @ do perfil." : "Digite ao menos 2 letras do nome.");
@@ -542,6 +597,7 @@ export default function BuscadorPage() {
             {([
               { key: "nome" as const, label: "Nome / empresa" },
               { key: "instagram" as const, label: "Instagram" },
+              { key: "dominio" as const, label: "Registro" },
             ]).map((m) => (
               <button
                 key={m.key}
@@ -549,17 +605,22 @@ export default function BuscadorPage() {
                 onClick={() => {
                   setModo(m.key);
                   setError(null);
+                  setCandidates(null);
+                  setDomainResult(null);
+                  setServidoDoCache(null);
                 }}
                 className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[12.5px] font-bold transition-all ${
                   modo === m.key ? "bg-volt text-onvolt" : "text-zinc-500 hover:text-zinc-200"
                 }`}
               >
                 {m.key === "instagram" && <AtSign className="h-3.5 w-3.5" />}
+                {m.key === "dominio" && <Globe2 className="h-3.5 w-3.5" />}
                 {m.label}
               </button>
             ))}
           </div>
 
+          {modo !== "dominio" && (
           <div className="inline-flex rounded-full border border-white/[0.09] bg-ink p-1">
             {(["BR", "PT"] as const).map((c) => (
               <button
@@ -574,11 +635,12 @@ export default function BuscadorPage() {
               </button>
             ))}
           </div>
+          )}
         </div>
 
         <div
           className={`mt-4 grid grid-cols-1 gap-3 ${
-            modo === "instagram" ? "md:grid-cols-[1fr_auto]" : "md:grid-cols-[2fr_1fr_auto]"
+            modo === "nome" ? "md:grid-cols-[2fr_1fr_auto]" : "md:grid-cols-[1fr_auto]"
           }`}
         >
           <input
@@ -588,7 +650,9 @@ export default function BuscadorPage() {
             placeholder={
               modo === "instagram"
                 ? "@ do perfil… ex.: estudiobella"
-                : "Nome da empresa ou da pessoa… ex.: Estúdio Bella Arquitetura"
+                : modo === "dominio"
+                  ? "Domínio… ex.: seudominio.com.br"
+                  : "Nome da empresa ou da pessoa… ex.: Estúdio Bella Arquitetura"
             }
             className="w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50"
           />
@@ -615,6 +679,15 @@ export default function BuscadorPage() {
           <p className="mt-2 text-[11.5px] text-zinc-500">
             Precisa saber o @ exato — o Instagram não permite descobrir perfis por cidade ou
             categoria, só consultar um @ já conhecido.
+          </p>
+        )}
+        {modo === "dominio" && (
+          <p className="mt-2 text-[11.5px] text-zinc-500">
+            Consulta o RDAP (sucessor do WHOIS) direto no registro do domínio — funciona bem
+            pra .com, .com.br, .net etc. Domínios .pt não têm RDAP público (o próprio registro
+            não oferece), então essa consulta não funciona pra eles. Dados do proprietário
+            também costumam vir ocultos por política de privacidade — isso não é falha nossa,
+            é o registrador escondendo.
           </p>
         )}
 
@@ -646,6 +719,63 @@ export default function BuscadorPage() {
       {loading && (
         <div className="flex justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-volt" />
+        </div>
+      )}
+
+      {!loading && modo === "dominio" && domainResult && (
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
+          {domainResult.disponivel ? (
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-7 w-7 shrink-0 text-emerald-400" />
+              <div>
+                <p className="text-[15px] font-bold text-emerald-300">
+                  {domainResult.domain} está disponível
+                </p>
+                <p className="text-[12.5px] text-zinc-500">Ninguém registrou esse domínio ainda.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <SearchX className="h-7 w-7 shrink-0 text-rose-400" />
+                <div>
+                  <p className="text-[15px] font-bold text-rose-300">
+                    {domainResult.domain} já está registrado
+                  </p>
+                  {domainResult.registrar && (
+                    <p className="text-[12.5px] text-zinc-500">
+                      Registrador: {domainResult.registrar}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-4 sm:grid-cols-3">
+                <InfoLinha label="Proprietário" valor={domainResult.proprietario ?? "Protegido/privado"} />
+                <InfoLinha label="Organização" valor={domainResult.organizacao} />
+                <InfoLinha label="Criado em" valor={formatarDataDominio(domainResult.criadoEm)} />
+                <InfoLinha label="Expira em" valor={formatarDataDominio(domainResult.expiraEm)} />
+                <InfoLinha label="Atualizado em" valor={formatarDataDominio(domainResult.atualizadoEm)} />
+                <InfoLinha label="Status" valor={domainResult.status?.join(", ")} />
+              </div>
+              {!!domainResult.nameservers?.length && (
+                <div className="border-t border-white/[0.06] pt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Nameservers
+                  </p>
+                  <p className="mt-1 text-[13px] text-zinc-200">
+                    {domainResult.nameservers.join(" · ")}
+                  </p>
+                </div>
+              )}
+              {(!domainResult.proprietario || !domainResult.organizacao) && (
+                <p className="border-t border-white/[0.06] pt-4 text-[11.5px] text-zinc-600">
+                  Campos em branco geralmente significam que o registrador ocultou esses dados
+                  por privacidade (comum em domínios .com desde a LGPD/GDPR) — não é limitação
+                  da nossa consulta.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
