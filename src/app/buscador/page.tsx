@@ -248,15 +248,21 @@ export default function BuscadorPage() {
     // (disponibilidade + dados de registro, não uma lista de candidatos a
     // lead) — fica fora do histórico compartilhado, que só entende Candidate.
     if (modo === "dominio") {
-      if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(termo)) {
+      // Sem final nenhum digitado (nem um ponto) — completa com .com.br,
+      // o mais comum por aqui, em vez de obrigar a digitar tudo.
+      const dominioCompleto = termo.includes(".") ? termo : `${termo}.com.br`;
+      if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(dominioCompleto)) {
         setError("Digite um domínio válido — ex.: seudominio.com.br");
         return;
       }
+      setQuery(dominioCompleto);
       setLoading(true);
       setError(null);
       setDomainResult(null);
       try {
-        const res = await fetch(`/api/search/manual/domain?domain=${encodeURIComponent(termo)}`);
+        const res = await fetch(
+          `/api/search/manual/domain?domain=${encodeURIComponent(dominioCompleto)}`,
+        );
         const data = (await res.json()) as { ok: boolean; result?: DomainLookupResult; error?: string };
         if (data.ok && data.result) setDomainResult(data.result);
         else setError(data.error ?? "Falha ao consultar o domínio.");
@@ -651,7 +657,7 @@ export default function BuscadorPage() {
               modo === "instagram"
                 ? "@ do perfil… ex.: estudiobella"
                 : modo === "dominio"
-                  ? "Domínio… ex.: seudominio.com.br"
+                  ? "Domínio ou só o nome… ex.: seudominio (vira seudominio.com.br)"
                   : "Nome da empresa ou da pessoa… ex.: Estúdio Bella Arquitetura"
             }
             className="w-full rounded-xl border border-white/[0.09] bg-ink px-4 py-3 text-[13.5px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-volt/50"
