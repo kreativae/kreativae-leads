@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
@@ -207,6 +207,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }
 
+  // Segurar o clique no item abre o menu de mover, em vez de icones fixos
+  // do lado de cada pagina. Um toque rapido continua so navegando.
+  const [menuMoverAberto, setMenuMoverAberto] = useState<string | null>(null);
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressDisparou = useRef(false);
+  function iniciarPressao(href: string) {
+    pressDisparou.current = false;
+    pressTimer.current = setTimeout(() => {
+      pressDisparou.current = true;
+      setMenuMoverAberto(href);
+    }, 450);
+  }
+  function cancelarPressao() {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+  }
+
   if (AUTH_PATHS.some((p) => pathname.startsWith(p))) {
     return <>{children}</>;
   }
@@ -231,6 +247,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             const showBadge = item.href === "/conversas" && unread > 0;
+            const menuAqui = menuMoverAberto === item.href;
             return (
               <div
                 key={item.href}
@@ -247,6 +264,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
                 <Link
                   href={item.href}
+                  onMouseDown={() => iniciarPressao(item.href)}
+                  onMouseUp={cancelarPressao}
+                  onMouseLeave={cancelarPressao}
+                  onTouchStart={() => iniciarPressao(item.href)}
+                  onTouchEnd={cancelarPressao}
+                  onContextMenu={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    if (pressDisparou.current) {
+                      e.preventDefault();
+                      pressDisparou.current = false;
+                    }
+                  }}
                   className="relative flex min-w-0 flex-1 items-center gap-3 px-3.5 py-2.5 text-[13.5px] font-medium"
                 >
                   <item.icon
@@ -260,26 +289,40 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </span>
                   )}
                 </Link>
-                <div className="relative flex shrink-0 flex-col pr-1.5">
-                  <button
-                    type="button"
-                    onClick={() => moverItemNav(item.href, -1)}
-                    disabled={idx === 0}
-                    title="Mover pra cima"
-                    className="rounded p-0.5 text-zinc-700 transition-colors hover:text-volt disabled:pointer-events-none disabled:opacity-0"
-                  >
-                    <ChevronUp className="h-3 w-3" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moverItemNav(item.href, 1)}
-                    disabled={idx === navItemsOrdenados.length - 1}
-                    title="Mover pra baixo"
-                    className="rounded p-0.5 text-zinc-700 transition-colors hover:text-volt disabled:pointer-events-none disabled:opacity-0"
-                  >
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                </div>
+                {menuAqui && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setMenuMoverAberto(null)}
+                    />
+                    <div className="absolute left-2 top-full z-50 mt-1 flex w-[calc(100%-1rem)] flex-col overflow-hidden rounded-xl border border-white/10 bg-ink shadow-2xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          moverItemNav(item.href, -1);
+                          setMenuMoverAberto(null);
+                        }}
+                        disabled={idx === 0}
+                        className="flex items-center gap-2 px-3.5 py-2.5 text-left text-[12.5px] font-medium text-zinc-300 transition-colors hover:bg-white/[0.06] hover:text-volt disabled:pointer-events-none disabled:opacity-30"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                        Mover pra cima
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          moverItemNav(item.href, 1);
+                          setMenuMoverAberto(null);
+                        }}
+                        disabled={idx === navItemsOrdenados.length - 1}
+                        className="flex items-center gap-2 border-t border-white/[0.06] px-3.5 py-2.5 text-left text-[12.5px] font-medium text-zinc-300 transition-colors hover:bg-white/[0.06] hover:text-volt disabled:pointer-events-none disabled:opacity-30"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                        Mover pra baixo
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
