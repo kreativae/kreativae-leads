@@ -76,3 +76,25 @@ export async function lerStatusVercel(): Promise<StatusVercel> {
 
   return { ok: true, deployments };
 }
+
+/** Confere o token direto contra a API — sem custo, so identifica quem é. */
+export async function testVercelToken(
+  token: string,
+): Promise<{ ok: true; username: string } | { ok: false; error: string }> {
+  let res: Response;
+  try {
+    res = await fetch("https://api.vercel.com/v2/user", {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, error: "Sem conexão com a API da Vercel." };
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    return { ok: false, error: body.error?.message ?? `Vercel respondeu HTTP ${res.status}.` };
+  }
+  const data = (await res.json()) as { user?: { username?: string; email?: string } };
+  return { ok: true, username: data.user?.username ?? data.user?.email ?? "desconhecido" };
+}

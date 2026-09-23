@@ -1023,6 +1023,15 @@ export default function ConfiguracoesPage() {
                 }
               />
               <StatusChip
+                label="Vercel"
+                active={!!meta.vercel_api_token?.set}
+                detail={
+                  meta.vercel_api_token?.set
+                    ? `Token ${meta.vercel_api_token.masked}`
+                    : "Não configurado — status em Logs & segredos"
+                }
+              />
+              <StatusChip
                 label="Automação"
                 active={!!meta.wa_configured || !!meta.resend_configured}
                 detail={

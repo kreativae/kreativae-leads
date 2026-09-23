@@ -7,6 +7,7 @@ import { checkIgToken } from "@/lib/instagram";
 import { checkWaAccount } from "@/lib/whatsapp";
 import { testResendKey } from "@/lib/email";
 import { testAnthropicKey } from "@/lib/ad-vision";
+import { testVercelToken } from "@/lib/vercel-status";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,15 @@ export async function POST(req: Request) {
     const key = await getEffectiveSetting("anthropic_api_key", "ANTHROPIC_API_KEY");
     if (!key) return NextResponse.json({ ok: false, error: "Chave não configurada." });
     return NextResponse.json(await testAnthropicKey(key));
+  }
+
+  if (body.kind === "vercel_api_token") {
+    const key = await getEffectiveSetting("vercel_api_token", "VERCEL_API_TOKEN");
+    if (!key) return NextResponse.json({ ok: false, error: "Token não configurado." });
+    const r = await testVercelToken(key);
+    return NextResponse.json(
+      r.ok ? { ok: true, detail: `Token válido (usuário: ${r.username}).` } : r,
+    );
   }
 
   if (body.kind === "wa_account") {

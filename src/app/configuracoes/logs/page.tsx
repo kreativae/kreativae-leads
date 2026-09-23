@@ -113,6 +113,7 @@ const SECRET_LABEL: Record<string, string> = {
   ig_access_token: "Instagram — Access Token",
   resend_api_key: "Resend — API Key",
   anthropic_api_key: "Anthropic — API Key (aba IA)",
+  vercel_api_token: "Vercel — API Token",
 };
 
 /** wa_app_secret não é usado em chamada de saída, então não tem teste. */
@@ -121,6 +122,7 @@ const TEST_KIND: Record<string, string> = {
   ig_access_token: "ig_access_token",
   resend_api_key: "resend_api_key",
   anthropic_api_key: "anthropic_api_key",
+  vercel_api_token: "vercel_api_token",
 };
 
 function DeployInfoCard() {
