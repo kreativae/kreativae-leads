@@ -31,6 +31,7 @@ export const SETTING_KEYS = [
   "automation_wa_account_pt",
   "automation_enabled",
   "vercel_api_token",
+  "nav_order", // JSON com a ordem dos hrefs do menu lateral — compartilhada, nao por navegador
 ] as const;
 
 /**

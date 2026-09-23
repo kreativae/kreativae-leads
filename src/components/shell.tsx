@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, Reorder } from "framer-motion";
 import {
   Crosshair,
@@ -102,14 +102,11 @@ const NAV = [
   { href: "/pesquisas", label: "Pesquisas", icon: History },
 ];
 
-/** Ordem do menu lateral, escolhida pela pessoa — por navegador, como o tema. */
-const NAV_ORDER_KEY = "kreatae-nav-order";
-
-function lerOrdemNavSalva(): string[] | null {
+async function lerOrdemNavSalva(): Promise<string[] | null> {
   try {
-    const raw = localStorage.getItem(NAV_ORDER_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return Array.isArray(parsed) && parsed.every((v) => typeof v === "string") ? parsed : null;
+    const res = await fetch("/api/settings/nav-order");
+    const data = (await res.json()) as { ok: boolean; order?: string[] | null };
+    return data.ok ? (data.order ?? null) : null;
   } catch {
     return null;
   }
@@ -180,11 +177,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const me = useMe(pathname);
   const [menuAberto, setMenuAberto] = useState(false);
 
-  // null nos dois lados ate montar: ler localStorage no useState inicial
-  // quebraria a hidratacao (o servidor nunca tem acesso a ele).
+  // null ate carregar: compartilhada entre aparelhos (o mesmo login em
+  // duas maquinas via o mesmo menu), por isso vem do banco, nao do
+  // localStorage — que ficaria diferente em cada navegador.
   const [ordemSalva, setOrdemSalva] = useState<string[] | null>(null);
   useEffect(() => {
-    setOrdemSalva(lerOrdemNavSalva());
+    lerOrdemNavSalva().then(setOrdemSalva);
   }, []);
   const navItemsOrdenados = useMemo(
     () => ordenarNav(navItems, ordemSalva),
@@ -192,15 +190,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   // Segura e arrasta pra reordenar (Reorder do framer-motion cuida de
   // distinguir arrastar de um clique normal, que continua so navegando).
-  // Soltar ja e o "salvar": grava a ordem nova direto.
+  // onReorder dispara a cada troca durante o arrastar, entao so grava no
+  // banco depois de um instante parado — senao um arrastar de 3 posicoes
+  // dispara 3 PUTs em sequencia por nada.
+  const salvarOrdemTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function aoReordenar(novaOrdem: typeof NAV) {
     const hrefs = novaOrdem.map((i) => i.href);
     setOrdemSalva(hrefs);
-    try {
-      localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(hrefs));
-    } catch {
-      /* localStorage indisponível — so nao persiste, sem quebrar nada */
-    }
+    if (salvarOrdemTimer.current) clearTimeout(salvarOrdemTimer.current);
+    salvarOrdemTimer.current = setTimeout(() => {
+      fetch("/api/settings/nav-order", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order: hrefs }),
+      }).catch(() => {
+        /* falhou salvar — a ordem local ja mudou, so nao persiste dessa vez */
+      });
+    }, 500);
   }
 
   if (AUTH_PATHS.some((p) => pathname.startsWith(p))) {
