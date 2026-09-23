@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Bug,
   CheckCircle2,
+  ExternalLink,
   Eye,
   EyeOff,
   Loader2,
@@ -20,6 +21,7 @@ import {
 } from "lucide-react";
 import { formatDate, timeAgo } from "@/lib/format";
 import { consumeLogsUnlocked, LogsLockGate } from "@/components/secret-debug-trigger";
+import { SecretInput } from "@/components/secret-input";
 
 interface LogRow {
   id: string;
@@ -149,6 +151,195 @@ function DeployInfoCard() {
         <span>desde {formatDate(info.bootedAt)}</span>
       </div>
       {info.message && <p className="mt-1.5 truncate text-[12px] text-zinc-500">{info.message}</p>}
+    </section>
+  );
+}
+
+interface VercelDeployment {
+  uid: string;
+  url: string;
+  criadoEm: string;
+  estado: string;
+  ambiente: string | null;
+  inspectorUrl: string | null;
+  commitSha: string | null;
+  commitMensagem: string | null;
+  commitBranch: string | null;
+}
+
+type VercelStatus =
+  | { ok: true; deployments: VercelDeployment[] }
+  | { ok: false; error: string };
+
+const ESTADO_VERCEL: Record<string, { label: string; className: string }> = {
+  READY: { label: "Pronto", className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
+  BUILDING: { label: "Construindo", className: "border-amber-400/30 bg-amber-400/10 text-amber-300" },
+  INITIALIZING: { label: "Iniciando", className: "border-amber-400/30 bg-amber-400/10 text-amber-300" },
+  QUEUED: { label: "Na fila", className: "border-amber-400/30 bg-amber-400/10 text-amber-300" },
+  ERROR: { label: "Erro", className: "border-rose-400/30 bg-rose-400/10 text-rose-300" },
+  CANCELED: { label: "Cancelado", className: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400" },
+  BLOCKED: { label: "Bloqueado", className: "border-rose-400/30 bg-rose-400/10 text-rose-300" },
+};
+
+function VercelStatusCard() {
+  const [tokenMeta, setTokenMeta] = useState<{ set: boolean; masked: string | null; fromEnv: boolean } | null>(
+    null,
+  );
+  const [tokenInput, setTokenInput] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+  const [status, setStatus] = useState<VercelStatus | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+
+  const carregarToken = useCallback(async () => {
+    const res = await fetch("/api/settings");
+    const data = await res.json();
+    setTokenMeta(data.vercel_api_token ?? null);
+  }, []);
+
+  const carregarStatus = useCallback(async () => {
+    setLoadingStatus(true);
+    try {
+      const res = await fetch("/api/settings/vercel-status");
+      setStatus(await res.json());
+    } catch {
+      setStatus({ ok: false, error: "Erro de conexão." });
+    } finally {
+      setLoadingStatus(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarToken();
+    carregarStatus();
+  }, [carregarToken, carregarStatus]);
+
+  async function salvarToken() {
+    if (!tokenInput.trim()) return;
+    setSavingToken(true);
+    try {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vercel_api_token: tokenInput.trim() }),
+      });
+      setTokenInput("");
+      await carregarToken();
+      await carregarStatus();
+    } finally {
+      setSavingToken(false);
+    }
+  }
+
+  async function removerToken() {
+    await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vercel_api_token: "__DELETE__" }),
+    });
+    setTokenInput("");
+    await carregarToken();
+    await carregarStatus();
+  }
+
+  return (
+    <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-display text-[15px] font-bold text-white">Vercel</h2>
+        <button
+          type="button"
+          onClick={carregarStatus}
+          disabled={loadingStatus}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11.5px] font-semibold text-zinc-400 hover:bg-white/[0.07] disabled:opacity-60"
+        >
+          {loadingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          Atualizar
+        </button>
+      </div>
+
+      <div className="mb-4">
+        <SecretInput
+          label="Vercel API Token"
+          hint="Crie em vercel.com → Account Settings → Tokens, com acesso ao time kreativae-projetos — só precisa de leitura, não de escrita."
+          masked={tokenMeta?.masked}
+          fromEnv={tokenMeta?.fromEnv}
+          value={tokenInput}
+          onChange={setTokenInput}
+          onRemove={removerToken}
+        />
+        {tokenInput.trim() && (
+          <button
+            type="button"
+            onClick={salvarToken}
+            disabled={savingToken}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-volt/40 bg-volt/10 px-3.5 py-1.5 text-[11.5px] font-bold text-volt hover:bg-volt/[0.16] disabled:opacity-60"
+          >
+            {savingToken && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Salvar token
+          </button>
+        )}
+      </div>
+
+      {!status ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-volt" />
+        </div>
+      ) : !status.ok ? (
+        <div className="flex items-center gap-2 rounded-xl border border-rose-400/20 bg-rose-400/[0.04] px-4 py-3 text-[12.5px] text-rose-300">
+          <XCircle className="h-4 w-4 shrink-0" />
+          {status.error}
+        </div>
+      ) : status.deployments.length === 0 ? (
+        <p className="text-[12.5px] text-zinc-500">Nenhum deploy encontrado.</p>
+      ) : (
+        <div className="space-y-2">
+          {status.deployments.map((d) => {
+            const est = ESTADO_VERCEL[d.estado] ?? {
+              label: d.estado,
+              className: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",
+            };
+            return (
+              <div
+                key={d.uid}
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[10.5px] font-bold ${est.className}`}
+                    >
+                      {est.label}
+                    </span>
+                    {d.ambiente && (
+                      <span className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
+                        {d.ambiente}
+                      </span>
+                    )}
+                    {d.commitBranch && (
+                      <span className="text-[11px] text-zinc-600">{d.commitBranch}</span>
+                    )}
+                  </div>
+                  <p className="mt-1 truncate text-[12px] text-zinc-400">
+                    {d.commitSha && <span className="font-mono">{d.commitSha}</span>}
+                    {d.commitMensagem ? ` · ${d.commitMensagem}` : ""}
+                  </p>
+                  <p className="text-[11px] text-zinc-600">{timeAgo(new Date(d.criadoEm))}</p>
+                </div>
+                {d.inspectorUrl && (
+                  <a
+                    href={d.inspectorUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Abrir na Vercel"
+                    className="shrink-0 text-zinc-500 transition-colors hover:text-volt"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
@@ -531,6 +722,8 @@ export default function LogsSecretosPage() {
       ) : (
         <>
           <DeployInfoCard />
+
+          <VercelStatusCard />
 
           <DbInfoCard />
 

@@ -21,6 +21,7 @@ const SECRET_KEYS: SettingKey[] = [
   "resend_api_key",
   "anthropic_api_key",
   "anthropic_admin_api_key",
+  "vercel_api_token",
 ];
 
 const ENV_HINT: Partial<Record<SettingKey, string>> = {
@@ -32,6 +33,7 @@ const ENV_HINT: Partial<Record<SettingKey, string>> = {
   resend_from_email: "RESEND_FROM_EMAIL",
   anthropic_api_key: "ANTHROPIC_API_KEY",
   anthropic_admin_api_key: "ANTHROPIC_ADMIN_API_KEY",
+  vercel_api_token: "VERCEL_API_TOKEN",
 };
 
 export async function GET() {
