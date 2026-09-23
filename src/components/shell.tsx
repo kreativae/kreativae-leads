@@ -238,6 +238,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 value={item}
                 as="div"
+                style={{ touchAction: "none" }}
                 whileDrag={{
                   scale: 1.03,
                   zIndex: 10,
@@ -258,7 +259,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
                 <Link
                   href={item.href}
-                  className="relative flex min-w-0 flex-1 items-center gap-3 px-3.5 py-2.5 text-[13.5px] font-medium"
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  className="relative flex min-w-0 flex-1 select-none items-center gap-3 px-3.5 py-2.5 text-[13.5px] font-medium"
                 >
                   <item.icon
                     className={`h-4 w-4 shrink-0 ${active ? "text-volt" : "text-zinc-600 group-hover:text-zinc-400"}`}
