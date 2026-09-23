@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ChevronDown,
+  ChevronUp,
   Crosshair,
   History,
   LogOut,
@@ -102,6 +104,28 @@ const NAV = [
   { href: "/pesquisas", label: "Pesquisas", icon: History },
 ];
 
+/** Ordem do menu lateral, escolhida pela pessoa — por navegador, como o tema. */
+const NAV_ORDER_KEY = "kreatae-nav-order";
+
+function lerOrdemNavSalva(): string[] | null {
+  try {
+    const raw = localStorage.getItem(NAV_ORDER_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) && parsed.every((v) => typeof v === "string") ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Aplica a ordem salva aos itens ainda existentes; o que não estava salvo (item novo, ou reapareceu) vai pro fim, na ordem padrão. */
+function ordenarNav(itens: typeof NAV, ordemSalva: string[] | null): typeof NAV {
+  if (!ordemSalva) return itens;
+  const porHref = new Map(itens.map((i) => [i.href, i]));
+  const ordenados = ordemSalva.map((h) => porHref.get(h)).filter((i): i is (typeof NAV)[number] => !!i);
+  const faltando = itens.filter((i) => !ordemSalva.includes(i.href));
+  return [...ordenados, ...faltando];
+}
+
 function Wordmark() {
   return (
     <div className="leading-none">
@@ -158,6 +182,31 @@ export function AppShell({ children }: { children: ReactNode }) {
   const me = useMe(pathname);
   const [menuAberto, setMenuAberto] = useState(false);
 
+  // null nos dois lados ate montar: ler localStorage no useState inicial
+  // quebraria a hidratacao (o servidor nunca tem acesso a ele).
+  const [ordemSalva, setOrdemSalva] = useState<string[] | null>(null);
+  useEffect(() => {
+    setOrdemSalva(lerOrdemNavSalva());
+  }, []);
+  const navItemsOrdenados = useMemo(
+    () => ordenarNav(navItems, ordemSalva),
+    [navItems, ordemSalva],
+  );
+  function moverItemNav(href: string, direcao: -1 | 1) {
+    const atual = navItemsOrdenados.map((i) => i.href);
+    const idx = atual.indexOf(href);
+    const novoIdx = idx + direcao;
+    if (idx < 0 || novoIdx < 0 || novoIdx >= atual.length) return;
+    const copia = [...atual];
+    [copia[idx], copia[novoIdx]] = [copia[novoIdx], copia[idx]];
+    setOrdemSalva(copia);
+    try {
+      localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(copia));
+    } catch {
+      /* localStorage indisponível — so nao persiste, sem quebrar nada */
+    }
+  }
+
   if (AUTH_PATHS.some((p) => pathname.startsWith(p))) {
     return <>{children}</>;
   }
@@ -178,15 +227,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Wordmark />
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {navItems.map((item) => {
+          {navItemsOrdenados.map((item, idx) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             const showBadge = item.href === "/conversas" && unread > 0;
             return (
-              <Link
+              <div
                 key={item.href}
-                href={item.href}
-                className={`group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] font-medium transition-colors ${
+                className={`group relative flex items-center rounded-xl transition-colors ${
                   active ? "text-white" : "text-zinc-500 hover:text-zinc-200"
                 }`}
               >
@@ -197,17 +245,42 @@ export function AppShell({ children }: { children: ReactNode }) {
                     transition={{ type: "spring", stiffness: 400, damping: 32 }}
                   />
                 )}
-                <item.icon
-                  className={`relative h-4 w-4 ${active ? "text-volt" : "text-zinc-600 group-hover:text-zinc-400"}`}
-                  strokeWidth={2}
-                />
-                <span className="relative">{item.label}</span>
-                {showBadge && (
-                  <span className="relative ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-volt px-1.5 text-[10.5px] font-bold tabular-nums text-onvolt">
-                    {unread > 99 ? "99+" : unread}
-                  </span>
-                )}
-              </Link>
+                <Link
+                  href={item.href}
+                  className="relative flex min-w-0 flex-1 items-center gap-3 px-3.5 py-2.5 text-[13.5px] font-medium"
+                >
+                  <item.icon
+                    className={`h-4 w-4 shrink-0 ${active ? "text-volt" : "text-zinc-600 group-hover:text-zinc-400"}`}
+                    strokeWidth={2}
+                  />
+                  <span className="truncate">{item.label}</span>
+                  {showBadge && (
+                    <span className="ml-auto flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-volt px-1.5 text-[10.5px] font-bold tabular-nums text-onvolt">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </Link>
+                <div className="relative flex shrink-0 flex-col pr-1.5">
+                  <button
+                    type="button"
+                    onClick={() => moverItemNav(item.href, -1)}
+                    disabled={idx === 0}
+                    title="Mover pra cima"
+                    className="rounded p-0.5 text-zinc-700 transition-colors hover:text-volt disabled:pointer-events-none disabled:opacity-0"
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moverItemNav(item.href, 1)}
+                    disabled={idx === navItemsOrdenados.length - 1}
+                    title="Mover pra baixo"
+                    className="rounded p-0.5 text-zinc-700 transition-colors hover:text-volt disabled:pointer-events-none disabled:opacity-0"
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
             );
           })}
         </nav>
@@ -250,7 +323,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <LogoKreativ markOnly className="h-7 w-auto text-white" />
         </Link>
         <nav className="flex items-center gap-0.5">
-          {navItems.map((item) => {
+          {navItemsOrdenados.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             const showBadge = item.href === "/conversas" && unread > 0;
