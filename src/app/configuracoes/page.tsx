@@ -1133,7 +1133,7 @@ function BotaoZerarCusto({ zerando, onClick }: { zerando: boolean; onClick: () =
       type="button"
       onClick={onClick}
       disabled={zerando}
-      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[11.5px] font-semibold text-zinc-300 hover:border-red-400/40 hover:text-red-300 disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[11.5px] font-semibold text-zinc-300 transition-colors hover:border-rose-400/40 hover:bg-rose-400/10 hover:text-rose-300 disabled:opacity-50"
     >
       {zerando ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}{" "}
       Limpar custos
