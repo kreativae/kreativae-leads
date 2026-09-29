@@ -104,3 +104,8 @@ export async function lerCustoAnthropic(): Promise<CustoAnthropic> {
   const custoUsd = Math.round(modelos.reduce((s, m) => s + m.custoUsd, 0) * 10_000) / 10_000;
   return { desde: modelos.length > 0 ? estado.since : null, modelos, custoUsd };
 }
+
+/** Apaga os tokens acumulados de todos os modelos; a contagem recomeça na próxima chamada. */
+export async function zerarCustoAnthropic(): Promise<void> {
+  await db.delete(settings).where(eq(settings.key, CHAVE));
+}

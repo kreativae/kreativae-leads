@@ -424,6 +424,33 @@ export default function ConfiguracoesPage() {
     carregarGastoAnthropic();
   }, [carregarGastoAnthropic]);
 
+  const [zerandoCusto, setZerandoCusto] = useState<"places" | "anthropic" | null>(null);
+
+  async function zerarCusto(which: "places" | "anthropic") {
+    const nome = which === "places" ? "do Google Places" : "da IA";
+    if (
+      !window.confirm(
+        `Zerar o custo acumulado ${nome}? A contagem recomeça do zero. Isso não mexe na fatura real.`,
+      )
+    )
+      return;
+    setZerandoCusto(which);
+    try {
+      const res = await fetch("/api/settings/cost-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ which }),
+      });
+      if (!res.ok) throw new Error();
+      const data = (await (await fetch("/api/settings")).json()) as SettingsMeta;
+      setMeta(data);
+    } catch {
+      window.alert("Não foi possível zerar o custo agora.");
+    } finally {
+      setZerandoCusto(null);
+    }
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -1054,7 +1081,11 @@ export default function ConfiguracoesPage() {
             desc="Estimativa a partir das chamadas de fato feitas ao Google Places."
             className="xl:col-span-2"
           >
-            <CustoPlacesBlock custo={meta.places_cost} />
+            <CustoPlacesBlock
+              custo={meta.places_cost}
+              zerando={zerandoCusto === "places"}
+              onZerar={() => zerarCusto("places")}
+            />
           </Section>
 
           {/* Custo IA — só aparece com o toggle "Gasto real da IA" ligado, lá em cima */}
@@ -1070,6 +1101,8 @@ export default function ConfiguracoesPage() {
                 gastoMensal={gastoAnthropic}
                 gastoMensalCarregando={gastoAnthropicCarregando}
                 onRecarregarGastoMensal={carregarGastoAnthropic}
+                zerando={zerandoCusto === "anthropic"}
+                onZerar={() => zerarCusto("anthropic")}
               />
             </Section>
           )}
@@ -1094,7 +1127,29 @@ export default function ConfiguracoesPage() {
   );
 }
 
-function CustoPlacesBlock({ custo }: { custo?: CustoPlaces }) {
+function BotaoZerarCusto({ zerando, onClick }: { zerando: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={zerando}
+      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[11.5px] font-semibold text-zinc-300 hover:border-red-400/40 hover:text-red-300 disabled:opacity-50"
+    >
+      {zerando ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}{" "}
+      Limpar custos
+    </button>
+  );
+}
+
+function CustoPlacesBlock({
+  custo,
+  zerando,
+  onZerar,
+}: {
+  custo?: CustoPlaces;
+  zerando: boolean;
+  onZerar: () => void;
+}) {
   if (!custo) {
     return <p className="text-[12.5px] text-zinc-500">Carregando…</p>;
   }
@@ -1120,6 +1175,11 @@ function CustoPlacesBlock({ custo }: { custo?: CustoPlaces }) {
           {custo.requisicoes === 1 ? "l" : "is"}
           {custo.desde && <> · contando desde {formatDate(custo.desde)}</>}
         </div>
+        {custo.requisicoes > 0 && (
+          <div className="ml-auto pb-1">
+            <BotaoZerarCusto zerando={zerando} onClick={onZerar} />
+          </div>
+        )}
       </div>
       <p className="rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3 text-[11.5px] leading-relaxed text-zinc-500">
         Preço de {formatUsdPreciso(custo.precoPorRequisicao)} por requisição — SKU
@@ -1150,11 +1210,15 @@ function CustoAnthropicBlock({
   gastoMensal,
   gastoMensalCarregando,
   onRecarregarGastoMensal,
+  zerando,
+  onZerar,
 }: {
   custo?: CustoAnthropic;
   gastoMensal: GastoMensalAnthropic | null;
   gastoMensalCarregando: boolean;
   onRecarregarGastoMensal: () => void;
+  zerando: boolean;
+  onZerar: () => void;
 }) {
   const formatUsd = (v: number) =>
     v.toLocaleString("en-US", {
@@ -1240,6 +1304,9 @@ function CustoAnthropicBlock({
           </span>{" "}
           chamada{totalChamadas === 1 ? "" : "s"} à IA
           {custo.desde && <> · contando desde {formatDate(custo.desde)}</>}
+        </div>
+        <div className="ml-auto pb-1">
+          <BotaoZerarCusto zerando={zerando} onClick={onZerar} />
         </div>
       </div>
       <div className="space-y-2">

@@ -67,3 +67,11 @@ export async function lerCustoPlaces(): Promise<CustoPlaces> {
     custoUsd: Math.round(requisicoes * PRECO_POR_REQUISICAO_USD * 100) / 100,
   };
 }
+
+/**
+ * Zera o contador de requisicoes e a data "contando desde". A proxima
+ * chamada ao Google recomeca a contagem a partir dali.
+ */
+export async function zerarCustoPlaces(): Promise<void> {
+  await db.delete(settings).where(inArray(settings.key, [CHAVE_CONTADOR, CHAVE_DESDE]));
+}
