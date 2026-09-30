@@ -522,8 +522,11 @@ export default function ComandosPage() {
           )}
         </section>
 
-        {/* Comando + modelos */}
-        <div className="space-y-5">
+        {/* Comando + modelos — a coluna inteira acompanha a rolagem (no xl, lado
+            a lado com os filtros). Fixar a coluna, e não só o card do comando,
+            evita um card passar por cima dos outros. Se ela for mais alta que a
+            tela, rola por dentro. */}
+        <div className="space-y-5 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1 [scrollbar-width:thin]">
           <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
