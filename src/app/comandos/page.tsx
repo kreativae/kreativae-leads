@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Copy,
   ExternalLink,
+  History,
   Loader2,
   Mail,
   MessageCircle,
@@ -54,6 +55,24 @@ interface EstadoBusca {
   candidatos: CandidatoComando[];
   carregando: boolean;
   erro: string | null;
+  /** A 1ª página veio do histórico (sem gastar consulta) — e de quando ela é. */
+  doHistorico: boolean;
+  buscadoEm: string | null;
+}
+
+interface BuscaHistorico {
+  id: string;
+  comando: string;
+  input: DorkInput | null;
+  atualizadoEm: string;
+  paginas: number;
+  resultados: number;
+  comContato: number;
+}
+
+/** Mesma normalização do servidor: espaços repetidos não fazem outra busca. */
+function normalizarComando(c: string): string {
+  return c.replace(/\s+/g, " ").trim();
 }
 
 function mesmoInput(a: DorkInput, b: DorkInput): boolean {
@@ -69,6 +88,7 @@ export default function ComandosPage() {
   const [nomeModelo, setNomeModelo] = useState<string | null>(null);
   const [erroModelo, setErroModelo] = useState<string | null>(null);
   const [busca, setBusca] = useState<EstadoBusca | null>(null);
+  const [historico, setHistorico] = useState<BuscaHistorico[] | null>(null);
 
   const comando = useMemo(() => montarDork(input), [input]);
   const avisos = useMemo(() => validarDork(input, comando), [input, comando]);
@@ -88,6 +108,25 @@ export default function ComandosPage() {
   useEffect(() => {
     carregarModelos();
   }, [carregarModelos]);
+
+  const carregarHistorico = useCallback(async () => {
+    try {
+      const res = await fetch("/api/comandos/historico");
+      const data = (await res.json()) as { ok: boolean; buscas?: BuscaHistorico[] };
+      setHistorico(data.ok ? (data.buscas ?? []) : []);
+    } catch {
+      setHistorico([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarHistorico();
+  }, [carregarHistorico]);
+
+  const jaBuscado = useMemo(() => {
+    const n = normalizarComando(comando);
+    return historico?.find((h) => h.comando === n) ?? null;
+  }, [historico, comando]);
 
   function set<K extends keyof DorkInput>(campo: K, valor: DorkInput[K]) {
     setInput((v) => ({ ...v, [campo]: valor }));
@@ -131,15 +170,28 @@ export default function ComandosPage() {
   }
 
   /** Página 1 começa uma busca nova; as seguintes somam na lista (sem repetir). */
-  async function rodarBusca(pagina: number) {
-    const cmd = pagina === 1 ? comando : (busca?.comando ?? comando);
+  async function rodarBusca(
+    pagina: number,
+    opts: { comando?: string; forcar?: boolean; inputUsado?: DorkInput } = {},
+  ) {
+    const cmd = opts.comando ?? (pagina === 1 ? comando : (busca?.comando ?? comando));
+    const inp = opts.inputUsado ?? input;
     if (!cmd) return;
     setBusca((b) =>
       pagina === 1 || !b
-        ? { comando: cmd, pagina, temMais: false, candidatos: [], carregando: true, erro: null }
+        ? {
+            comando: cmd,
+            pagina,
+            temMais: false,
+            candidatos: [],
+            carregando: true,
+            erro: null,
+            doHistorico: false,
+            buscadoEm: null,
+          }
         : { ...b, carregando: true, erro: null },
     );
-    if (pagina === 1) contarUsoModelo();
+    if (pagina === 1 && !opts.comando) contarUsoModelo();
     try {
       const res = await fetch("/api/comandos/buscar", {
         method: "POST",
@@ -147,8 +199,10 @@ export default function ComandosPage() {
         body: JSON.stringify({
           q: cmd,
           pagina,
-          cidade: input.cidade[0] ?? "",
-          categoria: input.nicho[0] ?? "",
+          cidade: inp.cidade[0] ?? "",
+          categoria: inp.nicho[0] ?? "",
+          input: inp,
+          forcar: !!opts.forcar,
         }),
       });
       const data = (await res.json()) as {
@@ -157,8 +211,11 @@ export default function ComandosPage() {
         pagina?: number;
         temMais?: boolean;
         candidatos?: CandidatoComando[];
+        doHistorico?: boolean;
+        buscadoEm?: string;
       };
       if (!data.ok) throw new Error(data.error);
+      carregarHistorico();
       setBusca((b) => {
         const anteriores = pagina === 1 ? [] : (b?.candidatos ?? []);
         const vistos = new Set(anteriores.map((c) => c.osmId));
@@ -170,6 +227,8 @@ export default function ComandosPage() {
           candidatos: [...anteriores, ...novos],
           carregando: false,
           erro: null,
+          doHistorico: pagina === 1 ? !!data.doHistorico : (b?.doHistorico ?? false),
+          buscadoEm: pagina === 1 ? (data.buscadoEm ?? null) : (b?.buscadoEm ?? null),
         };
       });
     } catch (e) {
@@ -180,8 +239,29 @@ export default function ComandosPage() {
         candidatos: b?.candidatos ?? [],
         carregando: false,
         erro: (e as Error).message || "Erro de rede ao buscar.",
+        doHistorico: b?.doHistorico ?? false,
+        buscadoEm: b?.buscadoEm ?? null,
       }));
     }
+  }
+
+  function abrirDoHistorico(h: BuscaHistorico) {
+    const inp = h.input ? { ...DORK_VAZIO, ...h.input } : input;
+    if (h.input) setInput(inp);
+    setModeloAtivo(null);
+    rodarBusca(1, { comando: h.comando, inputUsado: inp });
+  }
+
+  async function excluirDoHistorico(h: BuscaHistorico | null) {
+    if (!window.confirm(h ? "Tirar esta busca do histórico?" : "Apagar todo o histórico de buscas?"))
+      return;
+    setHistorico((lista) => (h ? (lista?.filter((x) => x.id !== h.id) ?? null) : []));
+    await fetch("/api/comandos/historico", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(h ? { id: h.id } : { tudo: true }),
+    }).catch(() => undefined);
+    carregarHistorico();
   }
 
   async function salvarModelo() {
@@ -443,7 +523,13 @@ export default function ComandosPage() {
               Rodar aqui e extrair leads
             </button>
             <p className="mt-1.5 text-center text-[11px] text-zinc-600">
-              Busca no Google via Serper · 1 consulta por página de 10 resultados
+              {jaBuscado ? (
+                <span className="text-volt">
+                  Já buscado {timeAgo(jaBuscado.atualizadoEm)} — abre do histórico, sem custo
+                </span>
+              ) : (
+                "Busca no Google via Serper · 1 consulta por página de 10 resultados"
+              )}
             </p>
 
             {nomeModelo !== null && (
@@ -531,6 +617,75 @@ export default function ComandosPage() {
             )}
           </section>
 
+          <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
+                <History className="h-3.5 w-3.5" /> Histórico de buscas
+              </p>
+              {!!historico?.length && (
+                <button
+                  type="button"
+                  onClick={() => excluirDoHistorico(null)}
+                  className="text-[11px] font-semibold text-zinc-500 hover:text-rose-300"
+                >
+                  Apagar tudo
+                </button>
+              )}
+            </div>
+            {historico === null ? (
+              <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+            ) : historico.length === 0 ? (
+              <p className="text-[12.5px] text-zinc-500">
+                As buscas rodadas aqui ficam guardadas com os resultados. Reabrir uma delas não
+                gasta consulta no Serper.
+              </p>
+            ) : (
+              <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                {historico.map((h) => (
+                  <div
+                    key={h.id}
+                    className={`flex items-start gap-2 rounded-xl border px-3.5 py-2.5 ${
+                      busca && normalizarComando(busca.comando) === h.comando
+                        ? "border-volt/40 bg-volt/[0.05]"
+                        : "border-white/[0.07] bg-ink/60"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => abrirDoHistorico(h)}
+                      className="min-w-0 flex-1 text-left"
+                      title={h.comando}
+                    >
+                      <span className="line-clamp-2 break-words font-mono text-[11.5px] leading-relaxed text-zinc-200">
+                        {h.comando}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] text-zinc-500">
+                        {h.resultados} resultado{h.resultados === 1 ? "" : "s"} ·{" "}
+                        <span className="text-zinc-400">{h.comContato} com contato</span>
+                        {h.paginas > 1 && ` · ${h.paginas} páginas`} · {timeAgo(h.atualizadoEm)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abrirDoHistorico(h)}
+                      className="shrink-0 rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-zinc-400 hover:border-volt/40 hover:text-volt"
+                    >
+                      Ver
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => excluirDoHistorico(h)}
+                      aria-label="Tirar do histórico"
+                      className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition-colors hover:bg-rose-400/10 hover:text-rose-300"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
           <CorretorDeComando />
         </div>
       </div>
@@ -539,6 +694,10 @@ export default function ComandosPage() {
         <ResultadosBusca
           busca={busca}
           onCarregarMais={() => rodarBusca(busca.pagina + 1)}
+          onBuscarDeNovo={() => rodarBusca(1, { comando: busca.comando, forcar: true })}
+          paginasSalvas={
+            historico?.find((h) => h.comando === normalizarComando(busca.comando))?.paginas ?? 0
+          }
           onAtualizar={(osmId, leadId) =>
             setBusca((b) =>
               b
@@ -561,11 +720,16 @@ export default function ComandosPage() {
 function ResultadosBusca({
   busca,
   onCarregarMais,
+  onBuscarDeNovo,
+  paginasSalvas,
   onAtualizar,
   onFechar,
 }: {
   busca: EstadoBusca;
   onCarregarMais: () => void;
+  onBuscarDeNovo: () => void;
+  /** Quantas páginas deste comando já estão no histórico — as próximas até ali saem de graça. */
+  paginasSalvas: number;
   onAtualizar: (osmId: string, leadId: string) => void;
   onFechar: () => void;
 }) {
@@ -656,6 +820,21 @@ function ResultadosBusca({
             {busca.candidatos.length} resultado{busca.candidatos.length === 1 ? "" : "s"} ·{" "}
             <span className="text-zinc-200">{comContato} com contato</span> na prévia do Google
           </p>
+          {busca.doHistorico && busca.buscadoEm && !busca.carregando && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-zinc-500">
+              <span className="inline-flex items-center gap-1 rounded-full border border-volt/30 bg-volt/[0.06] px-2 py-0.5 font-semibold text-volt">
+                <History className="h-3 w-3" /> Do histórico · sem custo
+              </span>
+              buscado {timeAgo(busca.buscadoEm)}.
+              <button
+                type="button"
+                onClick={onBuscarDeNovo}
+                className="font-semibold text-zinc-300 underline-offset-2 hover:text-volt hover:underline"
+              >
+                Buscar de novo (1 consulta)
+              </button>
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex cursor-pointer items-center gap-2 text-[12px] text-zinc-400">
@@ -819,7 +998,8 @@ function ResultadosBusca({
             ) : (
               <Plus className="h-3.5 w-3.5" />
             )}
-            Carregar mais (página {busca.pagina + 1} · +1 consulta)
+            Carregar mais (página {busca.pagina + 1} ·{" "}
+            {busca.pagina + 1 <= paginasSalvas ? "do histórico" : "+1 consulta"})
           </button>
         </div>
       )}
