@@ -6,32 +6,20 @@ import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
-  Brain,
   Building2,
-  Calculator,
   CheckCircle2,
   Crosshair,
-  Dumbbell,
   Globe2,
-  HardHat,
-  HeartPulse,
   Loader2,
   MapPin,
   MessageCircle,
-  PawPrint,
   Radius,
   RotateCcw,
-  Ruler,
-  Scale,
-  Scissors,
-  ShieldCheck,
-  Sparkles,
-  Stethoscope,
-  UtensilsCrossed,
   XCircle,
 } from "lucide-react";
 import dynamicImport from "next/dynamic";
 import { CITY_PRESETS, SEGMENT_PRESETS } from "@/lib/constants";
+import { SEGMENT_ICONS } from "@/lib/segment-icons";
 import { formatPhone } from "@/lib/phone";
 import type { MapPoint } from "@/components/map-picker";
 
@@ -49,22 +37,6 @@ const MapPicker = dynamicImport(
 
 const RADIUS_STEPS = [1, 2, 3, 5, 10, 15, 25, 50];
 
-const SEGMENT_ICONS: Record<string, typeof Scale> = {
-  advogados: Scale,
-  arquitetos: Ruler,
-  dentistas: Stethoscope,
-  medicos: HeartPulse,
-  "clinicas-estetica": Sparkles,
-  psicologos: Brain,
-  contadores: Calculator,
-  imobiliarias: Building2,
-  engenharia: HardHat,
-  seguros: ShieldCheck,
-  academias: Dumbbell,
-  pet: PawPrint,
-  restaurantes: UtensilsCrossed,
-  saloes: Scissors,
-};
 
 const LOAD_STEPS = [
   "Geocodificando a cidade alvo…",

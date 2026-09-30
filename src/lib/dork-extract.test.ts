@@ -70,4 +70,26 @@ describe("extratores", () => {
       extrairTelefones("+55 11 98765-4321 · 11987654321 · (21) 2345-6789 · CEP 01310-100"),
     ).toEqual(["11987654321", "2123456789"]);
   });
+
+  it("telefones de Portugal: 9 dígitos, com ou sem +351", () => {
+    expect(extrairTelefones("Ligue +351 912 345 678 ou 21 234 5678", "PT")).toEqual([
+      "912345678",
+      "212345678",
+    ]);
+  });
+});
+
+describe("Portugal", () => {
+  it("celular português vira WhatsApp com 351", () => {
+    const c = extrairCandidato(
+      {
+        title: "Dra. Rita Alves (@ritaalves.adv) • Instagram",
+        link: "https://www.instagram.com/ritaalves.adv/",
+        snippet: "Advogada em Lisboa · rita@sapo.pt · 912 345 678",
+      },
+      { pais: "PT", city: "Lisboa" },
+    );
+    expect(c.whatsapp).toBe("351912345678");
+    expect(c.email).toBe("rita@sapo.pt");
+  });
 });

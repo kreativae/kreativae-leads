@@ -69,7 +69,9 @@ export async function POST(req: Request) {
   const categoria =
     typeof body.categoria === "string" ? body.categoria.trim().slice(0, 100) || null : null;
 
-  const salva = await lerBusca(idDoComando(q));
+  const input = body.input ? sanitizarInput(body.input) : null;
+  const pais = input?.pais ?? "BR";
+  const salva = await lerBusca(idDoComando(q, pais));
   const doHistorico = body.forcar === true ? null : salva?.paginas[String(pagina)];
   if (doHistorico) {
     await tocarBusca(salva!.id);
@@ -96,15 +98,15 @@ export async function POST(req: Request) {
       { status: 400 },
     );
 
-  const r = await buscarNoGoogle({ q, pagina, apiKey });
+  const r = await buscarNoGoogle({ q, pagina, apiKey, pais });
   if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: r.status });
   await registrarConsultasSerper(1);
 
-  const candidatos = r.resultados.map((res) => extrairCandidato(res, { city: cidade, categoria }));
+  const candidatos = r.resultados.map((res) => extrairCandidato(res, { city: cidade, categoria, pais }));
   const temMais = r.resultados.length >= 10 && pagina < PAGINA_MAXIMA;
   await salvarPagina({
     comando: q,
-    input: body.input ? sanitizarInput(body.input) : null,
+    input,
     cidade,
     categoria,
     pagina,

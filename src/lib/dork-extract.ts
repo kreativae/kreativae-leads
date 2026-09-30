@@ -31,6 +31,8 @@ export interface CandidatoComando extends NormalizedLead {
 const RE_EMAIL = /[a-z0-9][a-z0-9._%+-]*@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/gi;
 // (11) 98765-4321 · 11 98765 4321 · +55 11 3456-7890 · 11987654321
 const RE_TELEFONE_BR = /(?:\+?55[\s.-]?)?\(?\b[1-9]{2}\)?[\s.-]?9?\d{4}[\s.-]?\d{4}\b/g;
+// 912 345 678 · +351 912345678 · 21 234 5678 (PT: 9 dígitos, celular começa com 9)
+const RE_TELEFONE_PT = /(?:\+?351[\s.-]?)?\b[29]\d{1,2}[\s.-]?\d{3}[\s.-]?\d{3,4}\b/g;
 const RE_WA_ME = /(?:wa\.me|api\.whatsapp\.com\/send\?phone=)\/?(\d{10,15})/i;
 const RE_ARROBA = /(?:^|[\s(])@([a-z0-9._]{2,30})/i;
 
@@ -101,7 +103,14 @@ export function extrairEmails(texto: string): string[] {
   );
 }
 
-export function extrairTelefones(texto: string): string[] {
+export function extrairTelefones(texto: string, pais: "BR" | "PT" = "BR"): string[] {
+  if (pais === "PT")
+    return unicos(
+      (texto.match(RE_TELEFONE_PT) ?? [])
+        .map((t) => digitsOnly(t))
+        .map((d) => (d.startsWith("351") && d.length === 12 ? d.slice(3) : d))
+        .filter((d) => d.length === 9),
+    );
   return unicos(
     (texto.match(RE_TELEFONE_BR) ?? [])
       .map((t) => digitsOnly(t))
@@ -112,24 +121,25 @@ export function extrairTelefones(texto: string): string[] {
 
 export function extrairCandidato(
   r: ResultadoBusca,
-  contexto: { city?: string | null; categoria?: string | null } = {},
+  contexto: { city?: string | null; categoria?: string | null; pais?: "BR" | "PT" } = {},
 ): CandidatoComando {
+  const pais = contexto.pais ?? "BR";
   const snippet = (r.snippet ?? "").trim();
   const texto = `${r.title} ${snippet}`;
   const host = hostDe(r.link);
   const emails = extrairEmails(texto);
-  const telefones = extrairTelefones(texto);
+  const telefones = extrairTelefones(texto, pais);
 
   const waDeclarado = texto.match(RE_WA_ME)?.[1] ?? null;
   const whatsapp = waDeclarado
-    ? toWhatsappDigits(waDeclarado, "BR")
-    : (telefones.map((t) => whatsappDigits(t, "BR")).find(Boolean) ?? null);
-  const fixo = telefones.find((t) => !whatsappDigits(t, "BR")) ?? null;
-  const celular = telefones.find((t) => whatsappDigits(t, "BR")) ?? null;
+    ? toWhatsappDigits(waDeclarado, pais)
+    : (telefones.map((t) => whatsappDigits(t, pais)).find(Boolean) ?? null);
+  const fixo = telefones.find((t) => !whatsappDigits(t, pais)) ?? null;
+  const celular = telefones.find((t) => whatsappDigits(t, pais)) ?? null;
 
   const ig = handleInstagram(r.link, texto);
   const ehRede = /(^|\.)(instagram|facebook|linkedin|linktr|tiktok|youtube|twitter|x)\.(com|ee)$/.test(host);
-  const ehDiretorio = /(^|\.)(jusbrasil|doctoralia)\.com\.br$/.test(host);
+  const ehDiretorio = /(^|\.)(jusbrasil\.com\.br|doctoralia\.(com\.br|pt))$/.test(host);
 
   const nome = limparTitulo(r.title) || (ig ? `@${ig}` : host);
 

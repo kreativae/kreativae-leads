@@ -17,13 +17,21 @@ export async function buscarNoGoogle(opts: {
   q: string;
   pagina: number;
   apiKey: string;
+  pais?: "BR" | "PT";
 }): Promise<ResultadoSerper> {
+  const pt = opts.pais === "PT";
   let res: Response;
   try {
     res = await fetch(URL_SERPER, {
       method: "POST",
       headers: { "X-API-KEY": opts.apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: opts.q, gl: "br", hl: "pt-br", num: 10, page: opts.pagina }),
+      body: JSON.stringify({
+        q: opts.q,
+        gl: pt ? "pt" : "br",
+        hl: pt ? "pt-pt" : "pt-br",
+        num: 10,
+        page: opts.pagina,
+      }),
       signal: AbortSignal.timeout(20_000),
       cache: "no-store",
     });

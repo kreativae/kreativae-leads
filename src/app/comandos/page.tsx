@@ -7,10 +7,12 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  Crosshair,
   ExternalLink,
   History,
   Loader2,
   Mail,
+  MapPin,
   MessageCircle,
   Phone,
   Play,
@@ -26,6 +28,8 @@ import {
   PLATAFORMAS,
   SUGESTOES_CONTATO,
   SUGESTOES_EMAIL,
+  SUGESTOES_EMAIL_PT,
+  NICHO_POR_SEGMENTO,
   SUGESTOES_EXCLUIR,
   contarPalavras,
   corrigirComando,
@@ -34,7 +38,10 @@ import {
   urlGoogle,
   validarDork,
   type DorkInput,
+  type Pais,
 } from "@/lib/dork";
+import { CITY_PRESETS, SEGMENT_PRESETS } from "@/lib/constants";
+import { SEGMENT_ICONS } from "@/lib/segment-icons";
 import { timeAgo } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { temContato, type CandidatoComando } from "@/lib/dork-extract";
@@ -58,6 +65,7 @@ interface EstadoBusca {
   /** A 1ª página veio do histórico (sem gastar consulta) — e de quando ela é. */
   doHistorico: boolean;
   buscadoEm: string | null;
+  pais: Pais;
 }
 
 interface BuscaHistorico {
@@ -68,6 +76,16 @@ interface BuscaHistorico {
   paginas: number;
   resultados: number;
   comContato: number;
+}
+
+/** "São Paulo, SP" → "São Paulo": no Google a sigla do estado atrapalha mais do que ajuda. */
+function nomeDaCidade(label: string): string {
+  return label.split(",")[0].trim();
+}
+
+function mesmosTermos(a: string[], b: string[]): boolean {
+  const n = (l: string[]) => l.map((t) => t.toLowerCase()).sort().join("|");
+  return a.length > 0 && n(a) === n(b);
 }
 
 /** Mesma normalização do servidor: espaços repetidos não fazem outra busca. */
@@ -125,8 +143,10 @@ export default function ComandosPage() {
 
   const jaBuscado = useMemo(() => {
     const n = normalizarComando(comando);
-    return historico?.find((h) => h.comando === n) ?? null;
-  }, [historico, comando]);
+    return (
+      historico?.find((h) => h.comando === n && (h.input?.pais ?? "BR") === input.pais) ?? null
+    );
+  }, [historico, comando, input.pais]);
 
   function set<K extends keyof DorkInput>(campo: K, valor: DorkInput[K]) {
     setInput((v) => ({ ...v, [campo]: valor }));
@@ -165,7 +185,7 @@ export default function ComandosPage() {
   }
 
   function abrirNoGoogle() {
-    window.open(urlGoogle(comando), "_blank", "noopener,noreferrer");
+    window.open(urlGoogle(comando, input.pais), "_blank", "noopener,noreferrer");
     contarUsoModelo();
   }
 
@@ -188,6 +208,7 @@ export default function ComandosPage() {
             erro: null,
             doHistorico: false,
             buscadoEm: null,
+            pais: inp.pais,
           }
         : { ...b, carregando: true, erro: null },
     );
@@ -229,6 +250,7 @@ export default function ComandosPage() {
           erro: null,
           doHistorico: pagina === 1 ? !!data.doHistorico : (b?.doHistorico ?? false),
           buscadoEm: pagina === 1 ? (data.buscadoEm ?? null) : (b?.buscadoEm ?? null),
+          pais: inp.pais,
         };
       });
     } catch (e) {
@@ -241,6 +263,7 @@ export default function ComandosPage() {
         erro: (e as Error).message || "Erro de rede ao buscar.",
         doHistorico: b?.doHistorico ?? false,
         buscadoEm: b?.buscadoEm ?? null,
+        pais: inp.pais,
       }));
     }
   }
@@ -325,8 +348,32 @@ export default function ComandosPage() {
         <section className="space-y-5 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
           <Campo
             label="Nicho"
-            dica="Profissão ou tipo de negócio. Vários termos viram OR — qualquer um serve."
+            dica="Escolha um segmento pronto ou digite. Vários termos viram OR — qualquer um serve."
           >
+            <div className="mb-3 flex flex-wrap gap-2">
+              {SEGMENT_PRESETS.map((sg) => {
+                const Icon = SEGMENT_ICONS[sg.key] ?? Crosshair;
+                const termos = NICHO_POR_SEGMENTO[sg.key] ?? [sg.label];
+                const ativo = mesmosTermos(input.nicho, termos);
+                return (
+                  <button
+                    key={sg.key}
+                    type="button"
+                    onClick={() => set("nicho", ativo ? [] : termos)}
+                    aria-pressed={ativo}
+                    title={termos.join(" · ")}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                      ativo
+                        ? "border-volt bg-volt text-onvolt"
+                        : "border-white/[0.09] bg-white/[0.02] text-zinc-400 hover:border-volt/40 hover:text-zinc-100"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {sg.label}
+                  </button>
+                );
+              })}
+            </div>
             <TagField
               valores={input.nicho}
               onChange={(v) => set("nicho", v)}
@@ -336,22 +383,73 @@ export default function ComandosPage() {
             />
           </Campo>
 
-          <div className="grid gap-5 md:grid-cols-2">
-            <Campo label="Cidade" dica="Várias cidades viram OR.">
-              <TagField
-                valores={input.cidade}
-                onChange={(v) => set("cidade", v)}
-                placeholder="ex.: São Paulo"
-              />
-            </Campo>
-            <Campo label="Bairro / região" opcional>
-              <TagField
-                valores={input.regiao}
-                onChange={(v) => set("regiao", v)}
-                placeholder="ex.: Pinheiros, Zona Sul"
-              />
-            </Campo>
-          </div>
+          <Campo label="Cidade" dica="Marque uma ou mais — várias cidades viram OR.">
+            <div className="mb-3 inline-flex rounded-full border border-white/[0.09] bg-ink p-1">
+              {(["BR", "PT"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => {
+                    if (p === input.pais) return;
+                    // Cidade e e-mails sugeridos são de um país só: trocar limpa os dois.
+                    setInput((v) => ({ ...v, pais: p, cidade: [], emails: [] }));
+                  }}
+                  aria-pressed={input.pais === p}
+                  className={`rounded-full px-4 py-1.5 text-[12px] font-bold transition-colors ${
+                    input.pais === p ? "bg-volt text-onvolt" : "text-zinc-500 hover:text-zinc-200"
+                  }`}
+                >
+                  {p === "BR" ? "Brasil" : "Portugal"}
+                </button>
+              ))}
+            </div>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {CITY_PRESETS.filter((c) => c.country === input.pais).map((c) => {
+                const nome = nomeDaCidade(c.label);
+                const ativo = input.cidade.some((x) => x.toLowerCase() === nome.toLowerCase());
+                return (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={() =>
+                      set(
+                        "cidade",
+                        ativo
+                          ? input.cidade.filter((x) => x.toLowerCase() !== nome.toLowerCase())
+                          : [...input.cidade, nome],
+                      )
+                    }
+                    aria-pressed={ativo}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                      ativo
+                        ? "border-volt bg-volt text-onvolt"
+                        : "border-white/[0.09] bg-white/[0.02] text-zinc-400 hover:border-volt/40 hover:text-zinc-100"
+                    }`}
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    {c.label}
+                  </button>
+                );
+              })}
+            </div>
+            <TagField
+              valores={input.cidade}
+              onChange={(v) => set("cidade", v)}
+              placeholder={
+                input.pais === "PT"
+                  ? "Ou digite outra cidade… ex.: Setúbal"
+                  : "Ou digite outra cidade… ex.: Apucarana"
+              }
+            />
+          </Campo>
+
+          <Campo label="Bairro / região" opcional>
+            <TagField
+              valores={input.regiao}
+              onChange={(v) => set("regiao", v)}
+              placeholder={input.pais === "PT" ? "ex.: Chiado, Baixa" : "ex.: Pinheiros, Zona Sul"}
+            />
+          </Campo>
 
           <Campo label="Plataforma" dica="Nenhuma marcada = qualquer site.">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -386,7 +484,7 @@ export default function ComandosPage() {
               valores={input.emails}
               onChange={(v) => set("emails", v)}
               placeholder="ex.: @gmail.com ou @seudominio.com.br"
-              sugestoes={SUGESTOES_EMAIL}
+              sugestoes={input.pais === "PT" ? SUGESTOES_EMAIL_PT : SUGESTOES_EMAIL}
             />
           </Campo>
 
@@ -776,7 +874,7 @@ function ResultadosBusca({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidate: c,
-          country: "BR",
+          country: busca.pais,
           source: "comandos",
           enrichExtra: c.emails.length > 1 ? { emailsAlt: c.emails.slice(1) } : undefined,
         }),
@@ -945,9 +1043,9 @@ function ResultadosBusca({
                     {c.emails.map((e) => (
                       <Dado key={e} icon={Mail}>{e}</Dado>
                     ))}
-                    {c.whatsapp && <Dado icon={MessageCircle}>{formatPhone(c.whatsapp, "BR")}</Dado>}
+                    {c.whatsapp && <Dado icon={MessageCircle}>{formatPhone(c.whatsapp, busca.pais)}</Dado>}
                     {c.phone && !c.whatsapp?.endsWith(c.phone) && (
-                      <Dado icon={Phone}>{formatPhone(c.phone, "BR")}</Dado>
+                      <Dado icon={Phone}>{formatPhone(c.phone, busca.pais)}</Dado>
                     )}
                     {c.instagramHandle && <Dado>@{c.instagramHandle}</Dado>}
                   </div>

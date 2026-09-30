@@ -1,0 +1,35 @@
+import {
+  Brain,
+  Building2,
+  Calculator,
+  Dumbbell,
+  HardHat,
+  HeartPulse,
+  PawPrint,
+  Ruler,
+  Scale,
+  Scissors,
+  ShieldCheck,
+  Sparkles,
+  Stethoscope,
+  UtensilsCrossed,
+  type LucideIcon,
+} from "lucide-react";
+
+/** Ícone de cada segmento pronto (chaves de SEGMENT_PRESETS) — Nova busca e Comandos. */
+export const SEGMENT_ICONS: Record<string, LucideIcon> = {
+  advogados: Scale,
+  arquitetos: Ruler,
+  dentistas: Stethoscope,
+  medicos: HeartPulse,
+  "clinicas-estetica": Sparkles,
+  psicologos: Brain,
+  contadores: Calculator,
+  imobiliarias: Building2,
+  engenharia: HardHat,
+  seguros: ShieldCheck,
+  academias: Dumbbell,
+  pet: PawPrint,
+  restaurantes: UtensilsCrossed,
+  saloes: Scissors,
+};

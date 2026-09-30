@@ -22,6 +22,16 @@ export const PLATAFORMAS: Plataforma[] = [
   { id: "jusbrasil", label: "Jusbrasil", operador: "site:jusbrasil.com.br" },
 ];
 
+/** Provedores de e-mail mais comuns em Portugal — o Brasil usa a lista abaixo. */
+export const SUGESTOES_EMAIL_PT = [
+  "@gmail.com",
+  "@hotmail.com",
+  "@sapo.pt",
+  "@outlook.pt",
+  "@outlook.com",
+  "@iol.pt",
+];
+
 export const SUGESTOES_EMAIL = [
   "@gmail.com",
   "@hotmail.com",
@@ -68,6 +78,8 @@ export function sugerirSinonimos(nicho: string[]): string[] {
   return out;
 }
 
+export type Pais = "BR" | "PT";
+
 export interface DorkInput {
   nicho: string[];
   cidade: string[];
@@ -76,6 +88,8 @@ export interface DorkInput {
   emails: string[];
   contato: string[];
   excluir: string[];
+  /** País da busca: muda o Google consultado e como telefones são lidos. Não entra no texto do comando. */
+  pais: Pais;
 }
 
 export const DORK_VAZIO: DorkInput = {
@@ -86,6 +100,40 @@ export const DORK_VAZIO: DorkInput = {
   emails: [],
   contato: [],
   excluir: [],
+  pais: "BR",
+};
+
+/** Os campos de lista do DorkInput (tudo menos o país). */
+export const CAMPOS_LISTA = [
+  "nicho",
+  "cidade",
+  "regiao",
+  "plataformas",
+  "emails",
+  "contato",
+  "excluir",
+] as const;
+
+/**
+ * Termos de busca pra cada segmento pronto da Nova busca (mesmas chaves de
+ * SEGMENT_PRESETS). No singular e com variações — é assim que profissional
+ * se descreve na bio ("advogada trabalhista"), não no plural do rótulo.
+ */
+export const NICHO_POR_SEGMENTO: Record<string, string[]> = {
+  advogados: ["advogado", "advogada", "advocacia"],
+  arquitetos: ["arquiteto", "arquiteta", "arquitetura"],
+  dentistas: ["dentista", "odontologia", "clínica odontológica"],
+  medicos: ["médico", "médica", "clínica médica"],
+  "clinicas-estetica": ["clínica de estética", "estética", "harmonização facial"],
+  psicologos: ["psicólogo", "psicóloga", "psicologia"],
+  contadores: ["contador", "contabilidade", "contabilista"],
+  imobiliarias: ["imobiliária", "corretor de imóveis", "consultor imobiliário"],
+  engenharia: ["engenheiro", "engenharia civil", "engenharia"],
+  seguros: ["corretora de seguros", "corretor de seguros", "seguros"],
+  academias: ["academia", "personal trainer", "studio de pilates"],
+  pet: ["pet shop", "clínica veterinária", "veterinário"],
+  restaurantes: ["restaurante", "gastronomia"],
+  saloes: ["salão de beleza", "cabeleireiro", "barbearia"],
 };
 
 /** Limite de palavras que o Google considera — o que passar disso é ignorado sem aviso. */
@@ -152,7 +200,7 @@ export function validarDork(input: DorkInput, comando: string): Aviso[] {
   const avisos: Aviso[] = [];
   if (input.nicho.filter((t) => limparTermo(t)).length === 0)
     avisos.push({ tipo: "aviso", texto: "Adicione pelo menos um nicho — sem ele a busca fica genérica demais." });
-  const brutos = Object.values(input).flat();
+  const brutos = CAMPOS_LISTA.flatMap((k) => input[k]);
   if (brutos.some((t) => /[“”„‟″«»‘’]/.test(t)))
     avisos.push({ tipo: "aviso", texto: "Aspas curvas “ ” foram trocadas por aspas retas." });
   const palavras = contarPalavras(comando);
@@ -251,6 +299,7 @@ export function corrigirComando(bruto: string): { texto: string; correcoes: stri
   return { texto: s, correcoes };
 }
 
-export function urlGoogle(comando: string): string {
-  return `https://www.google.com.br/search?q=${encodeURIComponent(comando)}`;
+export function urlGoogle(comando: string, pais: Pais = "BR"): string {
+  const dominio = pais === "PT" ? "google.pt" : "google.com.br";
+  return `https://www.${dominio}/search?q=${encodeURIComponent(comando)}`;
 }

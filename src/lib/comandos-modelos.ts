@@ -1,5 +1,5 @@
 import { getSetting, setSetting } from "@/lib/settings-db";
-import { DORK_VAZIO, type DorkInput } from "@/lib/dork";
+import { CAMPOS_LISTA, DORK_VAZIO, type DorkInput } from "@/lib/dork";
 
 /**
  * Modelos salvos da aba Comandos. Ficam num JSON na tabela de settings
@@ -33,8 +33,8 @@ function listaDeTextos(v: unknown): string[] {
 /** Aceita só os campos conhecidos, como listas de texto — o resto é descartado. */
 export function sanitizarInput(v: unknown): DorkInput {
   const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
-  const out = { ...DORK_VAZIO };
-  for (const k of Object.keys(DORK_VAZIO) as (keyof DorkInput)[]) out[k] = listaDeTextos(o[k]);
+  const out: DorkInput = { ...DORK_VAZIO, pais: o.pais === "PT" ? "PT" : "BR" };
+  for (const k of CAMPOS_LISTA) out[k] = listaDeTextos(o[k]);
   return out;
 }
 

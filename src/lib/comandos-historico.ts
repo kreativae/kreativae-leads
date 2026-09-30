@@ -48,8 +48,10 @@ export function normalizarComando(comando: string): string {
   return comando.replace(/\s+/g, " ").trim();
 }
 
-export function idDoComando(comando: string): string {
-  return createHash("sha1").update(normalizarComando(comando)).digest("hex").slice(0, 20);
+/** O mesmo comando no Google de Portugal é outra busca (outros resultados). Brasil mantém o id antigo. */
+export function idDoComando(comando: string, pais: "BR" | "PT" = "BR"): string {
+  const base = normalizarComando(comando) + (pais === "PT" ? "|PT" : "");
+  return createHash("sha1").update(base).digest("hex").slice(0, 20);
 }
 
 function parse(value: string | null): BuscaSalva | null {
@@ -81,7 +83,7 @@ export async function salvarPagina(opts: {
   temMais: boolean;
 }): Promise<void> {
   const comando = normalizarComando(opts.comando);
-  const id = idDoComando(comando);
+  const id = idDoComando(comando, opts.input?.pais ?? "BR");
   const agora = new Date().toISOString();
   const atual = await lerBusca(id);
   const busca: BuscaSalva = {
