@@ -171,6 +171,23 @@ function persistirItem(
   }).catch(() => {});
 }
 
+/**
+ * O upload() do Vercel Blob só diz "Failed to retrieve the client token"
+ * quando a rota /api/blob-upload recusa — sem o motivo. Pergunta à rota o
+ * que está errado pra mostrar algo acionável.
+ */
+async function motivoFalhaUpload(): Promise<string> {
+  try {
+    const res = await fetch("/api/blob-upload", { cache: "no-store" });
+    if (res.status === 401) return "Sua sessão expirou — entre de novo e reenvie a imagem.";
+    const data = (await res.json()) as { ok: boolean; error?: string };
+    if (!data.ok && data.error) return data.error;
+  } catch {
+    /* sem rede — cai na mensagem genérica abaixo */
+  }
+  return "O servidor recusou o envio da imagem (Vercel Blob). Tente de novo; se continuar, veja os logs da função /api/blob-upload na Vercel.";
+}
+
 function ehHeic(file: File): boolean {
   return /heic|heif/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
 }
@@ -363,7 +380,8 @@ export default function IaPage() {
       persistirItem(id, { imageUrl: blob.url });
       await analisar(id, blob.url);
     } catch (err) {
-      const erro = err instanceof Error ? err.message : "Falha no envio da imagem.";
+      let erro = err instanceof Error ? err.message : "Falha no envio da imagem.";
+      if (/client token/i.test(erro)) erro = await motivoFalhaUpload();
       atualizarItem(id, { status: "erro", error: erro });
       persistirItem(id, { status: "erro", erro });
     }
