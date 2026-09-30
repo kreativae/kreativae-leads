@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { requireUser, audit } from "@/lib/auth";
 import { zerarCustoPlaces } from "@/lib/places-cost";
 import { zerarCustoAnthropic } from "@/lib/anthropic-cost";
+import { zerarCustoSerper } from "@/lib/serper-cost";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Zera um dos contadores internos de custo mostrados em Configurações:
- * "places" (requisições ao Google Places) ou "anthropic" (tokens da IA).
+ * "places" (requisições ao Google Places), "serper" (buscas da aba
+ * Comandos) ou "anthropic" (tokens da IA).
  * Não mexe em nada nas faturas reais da Google/Anthropic.
  */
 export async function POST(req: Request) {
@@ -21,10 +23,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "JSON inválido." }, { status: 400 });
   }
   const which = body.which;
-  if (which !== "places" && which !== "anthropic")
+  if (which !== "places" && which !== "serper" && which !== "anthropic")
     return NextResponse.json({ ok: false, error: "Campo inválido." }, { status: 400 });
 
   if (which === "places") await zerarCustoPlaces();
+  else if (which === "serper") await zerarCustoSerper();
   else await zerarCustoAnthropic();
 
   await audit({ userId: auth.user.id, event: `cost_reset_${which}`, req });

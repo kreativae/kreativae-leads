@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bookmark,
@@ -9,6 +9,10 @@ import {
   Copy,
   ExternalLink,
   Loader2,
+  Mail,
+  MessageCircle,
+  Phone,
+  Play,
   Plus,
   Terminal,
   Trash2,
@@ -31,6 +35,8 @@ import {
   type DorkInput,
 } from "@/lib/dork";
 import { timeAgo } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
+import { temContato, type CandidatoComando } from "@/lib/dork-extract";
 
 interface ComandoModelo {
   id: string;
@@ -39,6 +45,15 @@ interface ComandoModelo {
   usos: number;
   criadoEm: string;
   usadoEm: string | null;
+}
+
+interface EstadoBusca {
+  comando: string;
+  pagina: number;
+  temMais: boolean;
+  candidatos: CandidatoComando[];
+  carregando: boolean;
+  erro: string | null;
 }
 
 function mesmoInput(a: DorkInput, b: DorkInput): boolean {
@@ -53,6 +68,7 @@ export default function ComandosPage() {
   const [salvando, setSalvando] = useState(false);
   const [nomeModelo, setNomeModelo] = useState<string | null>(null);
   const [erroModelo, setErroModelo] = useState<string | null>(null);
+  const [busca, setBusca] = useState<EstadoBusca | null>(null);
 
   const comando = useMemo(() => montarDork(input), [input]);
   const avisos = useMemo(() => validarDork(input, comando), [input, comando]);
@@ -96,8 +112,7 @@ export default function ComandosPage() {
     }
   }
 
-  function abrirNoGoogle() {
-    window.open(urlGoogle(comando), "_blank", "noopener,noreferrer");
+  function contarUsoModelo() {
     // Só conta uso se o comando é exatamente o do modelo (não editado depois).
     if (modeloAtivo && mesmoInput(modeloAtivo.input, input)) {
       fetch("/api/comandos/modelos", {
@@ -107,6 +122,65 @@ export default function ComandosPage() {
       })
         .then(() => carregarModelos())
         .catch(() => undefined);
+    }
+  }
+
+  function abrirNoGoogle() {
+    window.open(urlGoogle(comando), "_blank", "noopener,noreferrer");
+    contarUsoModelo();
+  }
+
+  /** Página 1 começa uma busca nova; as seguintes somam na lista (sem repetir). */
+  async function rodarBusca(pagina: number) {
+    const cmd = pagina === 1 ? comando : (busca?.comando ?? comando);
+    if (!cmd) return;
+    setBusca((b) =>
+      pagina === 1 || !b
+        ? { comando: cmd, pagina, temMais: false, candidatos: [], carregando: true, erro: null }
+        : { ...b, carregando: true, erro: null },
+    );
+    if (pagina === 1) contarUsoModelo();
+    try {
+      const res = await fetch("/api/comandos/buscar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          q: cmd,
+          pagina,
+          cidade: input.cidade[0] ?? "",
+          categoria: input.nicho[0] ?? "",
+        }),
+      });
+      const data = (await res.json()) as {
+        ok: boolean;
+        error?: string;
+        pagina?: number;
+        temMais?: boolean;
+        candidatos?: CandidatoComando[];
+      };
+      if (!data.ok) throw new Error(data.error);
+      setBusca((b) => {
+        const anteriores = pagina === 1 ? [] : (b?.candidatos ?? []);
+        const vistos = new Set(anteriores.map((c) => c.osmId));
+        const novos = (data.candidatos ?? []).filter((c) => !vistos.has(c.osmId));
+        return {
+          comando: cmd,
+          pagina,
+          temMais: !!data.temMais,
+          candidatos: [...anteriores, ...novos],
+          carregando: false,
+          erro: null,
+        };
+      });
+    } catch (e) {
+      setBusca((b) => ({
+        comando: cmd,
+        pagina: b?.pagina ?? 1,
+        temMais: b?.temMais ?? false,
+        candidatos: b?.candidatos ?? [],
+        carregando: false,
+        erro: (e as Error).message || "Erro de rede ao buscar.",
+      }));
     }
   }
 
@@ -272,7 +346,7 @@ export default function ComandosPage() {
 
         {/* Comando + modelos */}
         <div className="space-y-5">
-          <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6 xl:sticky xl:top-6">
+          <section className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
                 Comando gerado
@@ -354,6 +428,23 @@ export default function ComandosPage() {
                 <Bookmark className="h-3.5 w-3.5" /> Salvar
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => rodarBusca(1)}
+              disabled={!comando || busca?.carregando}
+              className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-volt/40 bg-volt/[0.08] px-3 py-2.5 text-[12.5px] font-bold text-volt transition-colors hover:bg-volt/[0.14] disabled:opacity-40"
+            >
+              {busca?.carregando && busca.pagina === 1 && busca.candidatos.length === 0 ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Play className="h-3.5 w-3.5" />
+              )}
+              Rodar aqui e extrair leads
+            </button>
+            <p className="mt-1.5 text-center text-[11px] text-zinc-600">
+              Busca no Google via Serper · 1 consulta por página de 10 resultados
+            </p>
 
             {nomeModelo !== null && (
               <form
@@ -443,7 +534,311 @@ export default function ComandosPage() {
           <CorretorDeComando />
         </div>
       </div>
+
+      {busca && (
+        <ResultadosBusca
+          busca={busca}
+          onCarregarMais={() => rodarBusca(busca.pagina + 1)}
+          onAtualizar={(osmId, leadId) =>
+            setBusca((b) =>
+              b
+                ? {
+                    ...b,
+                    candidatos: b.candidatos.map((c) =>
+                      c.osmId === osmId ? { ...c, existingLeadId: leadId } : c,
+                    ),
+                  }
+                : b,
+            )
+          }
+          onFechar={() => setBusca(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function ResultadosBusca({
+  busca,
+  onCarregarMais,
+  onAtualizar,
+  onFechar,
+}: {
+  busca: EstadoBusca;
+  onCarregarMais: () => void;
+  onAtualizar: (osmId: string, leadId: string) => void;
+  onFechar: () => void;
+}) {
+  const [soComContato, setSoComContato] = useState(true);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [adicionando, setAdicionando] = useState<Set<string>>(new Set());
+  const [erros, setErros] = useState<Record<string, string>>({});
+  const secaoRef = useRef<HTMLElement>(null);
+
+  // A cada comando novo, rola até aqui — no celular os resultados ficam lá
+  // embaixo, depois de modelos salvos e do corretor.
+  // Espera a 1ª página chegar: com só o spinner a página ainda é curta
+  // demais pra rolar até lá.
+  const primeiraPaginaPronta = busca.pagina === 1 && !busca.carregando;
+  useEffect(() => {
+    if (primeiraPaginaPronta)
+      secaoRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [busca.comando, primeiraPaginaPronta]);
+
+  const comContato = busca.candidatos.filter(temContato).length;
+  const visiveis = soComContato ? busca.candidatos.filter(temContato) : busca.candidatos;
+  const selecionaveis = visiveis.filter((c) => !c.existingLeadId);
+  const marcados = selecionaveis.filter((c) => selecionados.has(c.osmId));
+
+  function alternar(osmId: string) {
+    setSelecionados((s) => {
+      const n = new Set(s);
+      if (n.has(osmId)) n.delete(osmId);
+      else n.add(osmId);
+      return n;
+    });
+  }
+
+  async function adicionar(c: CandidatoComando) {
+    setAdicionando((s) => new Set(s).add(c.osmId));
+    setErros((er) => {
+      const n = { ...er };
+      delete n[c.osmId];
+      return n;
+    });
+    try {
+      const res = await fetch("/api/search/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate: c,
+          country: "BR",
+          source: "comandos",
+          enrichExtra: c.emails.length > 1 ? { emailsAlt: c.emails.slice(1) } : undefined,
+        }),
+      });
+      const data = (await res.json()) as { ok: boolean; lead?: { id: string }; error?: string };
+      if (!data.ok || !data.lead) throw new Error(data.error);
+      onAtualizar(c.osmId, data.lead.id);
+      setSelecionados((s) => {
+        const n = new Set(s);
+        n.delete(c.osmId);
+        return n;
+      });
+    } catch (e) {
+      setErros((er) => ({ ...er, [c.osmId]: (e as Error).message || "Falha ao adicionar." }));
+    } finally {
+      setAdicionando((s) => {
+        const n = new Set(s);
+        n.delete(c.osmId);
+        return n;
+      });
+    }
+  }
+
+  async function adicionarMarcados() {
+    // Um de cada vez: cada lead cria uma busca "Comandos" própria no banco, e
+    // em paralelo elas brigariam pela mesma linha em caso de lead repetido.
+    for (const c of marcados) await adicionar(c);
+  }
+
+  return (
+    <section
+      ref={secaoRef}
+      className="scroll-mt-20 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6"
+    >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
+            Resultados
+          </p>
+          <p className="mt-0.5 text-[12.5px] text-zinc-400">
+            {busca.candidatos.length} resultado{busca.candidatos.length === 1 ? "" : "s"} ·{" "}
+            <span className="text-zinc-200">{comContato} com contato</span> na prévia do Google
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-[12px] text-zinc-400">
+            <input
+              type="checkbox"
+              checked={soComContato}
+              onChange={(e) => setSoComContato(e.target.checked)}
+              className="accent-[var(--color-volt)]"
+            />
+            Só com contato
+          </label>
+          {selecionaveis.length > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                setSelecionados(
+                  marcados.length === selecionaveis.length
+                    ? new Set()
+                    : new Set(selecionaveis.map((c) => c.osmId)),
+                )
+              }
+              className="rounded-full border border-white/10 px-3 py-1.5 text-[11.5px] font-semibold text-zinc-300 hover:border-white/20"
+            >
+              {marcados.length === selecionaveis.length ? "Desmarcar todos" : "Marcar todos"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={adicionarMarcados}
+            disabled={marcados.length === 0 || adicionando.size > 0}
+            className="inline-flex items-center gap-1.5 rounded-full bg-volt px-3.5 py-1.5 text-[11.5px] font-bold text-onvolt hover:bg-volt-dim disabled:opacity-40"
+          >
+            {adicionando.size > 0 ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Plus className="h-3 w-3" />
+            )}
+            Adicionar {marcados.length > 0 ? marcados.length : ""} aos Leads
+          </button>
+          <button
+            type="button"
+            onClick={onFechar}
+            aria-label="Fechar resultados"
+            className="rounded-full p-1.5 text-zinc-500 hover:text-zinc-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {busca.erro && (
+        <p className="mb-3 flex items-start gap-1.5 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3.5 py-2.5 text-[12.5px] text-amber-300">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {busca.erro}
+        </p>
+      )}
+
+      {busca.carregando && busca.candidatos.length === 0 ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-volt" />
+        </div>
+      ) : visiveis.length === 0 && !busca.erro ? (
+        <p className="py-6 text-center text-[12.5px] text-zinc-500">
+          {busca.candidatos.length === 0
+            ? "O Google não achou nada com esse comando. Tente tirar alguns filtros."
+            : "Nenhum resultado mostra contato na prévia. Desmarque “Só com contato” pra ver todos."}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {visiveis.map((c) => {
+            const jaLead = !!c.existingLeadId;
+            const carregando = adicionando.has(c.osmId);
+            return (
+              <div
+                key={c.osmId}
+                className={`flex gap-3 rounded-xl border px-3.5 py-3 ${
+                  selecionados.has(c.osmId) && !jaLead
+                    ? "border-volt/40 bg-volt/[0.04]"
+                    : "border-white/[0.07] bg-ink/60"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={jaLead || selecionados.has(c.osmId)}
+                  disabled={jaLead}
+                  onChange={() => alternar(c.osmId)}
+                  aria-label={`Selecionar ${c.companyName}`}
+                  className="mt-1 accent-[var(--color-volt)]"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-[13px] font-semibold text-zinc-100">{c.companyName}</span>
+                    <a
+                      href={c.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex max-w-full items-center gap-1 truncate text-[11px] text-zinc-500 hover:text-volt"
+                    >
+                      {c.link.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}
+                      <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                    </a>
+                  </div>
+                  {c.snippet && (
+                    <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-relaxed text-zinc-500">
+                      {c.snippet}
+                    </p>
+                  )}
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {c.emails.map((e) => (
+                      <Dado key={e} icon={Mail}>{e}</Dado>
+                    ))}
+                    {c.whatsapp && <Dado icon={MessageCircle}>{formatPhone(c.whatsapp, "BR")}</Dado>}
+                    {c.phone && !c.whatsapp?.endsWith(c.phone) && (
+                      <Dado icon={Phone}>{formatPhone(c.phone, "BR")}</Dado>
+                    )}
+                    {c.instagramHandle && <Dado>@{c.instagramHandle}</Dado>}
+                  </div>
+                  {erros[c.osmId] && (
+                    <p className="mt-1 text-[11.5px] text-rose-300">{erros[c.osmId]}</p>
+                  )}
+                </div>
+                <div className="shrink-0 self-center">
+                  {jaLead ? (
+                    <a
+                      href={`/leads?lead=${c.existingLeadId}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-volt/30 px-2.5 py-1 text-[11px] font-semibold text-volt hover:bg-volt/10"
+                    >
+                      <Check className="h-3 w-3" /> Já é lead
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => adicionar(c)}
+                      disabled={carregando}
+                      className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:border-volt/40 hover:text-volt disabled:opacity-50"
+                    >
+                      {carregando ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3" />
+                      )}
+                      Adicionar
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {busca.temMais && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={onCarregarMais}
+            disabled={busca.carregando}
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-4 py-2 text-[12px] font-semibold text-zinc-300 hover:border-white/20 disabled:opacity-50"
+          >
+            {busca.carregando ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
+            Carregar mais (página {busca.pagina + 1} · +1 consulta)
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Dado({
+  icon: Icon,
+  children,
+}: {
+  icon?: typeof Mail;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[11px] font-medium text-zinc-300">
+      {Icon && <Icon className="h-3 w-3 text-zinc-500" />}
+      {children}
+    </span>
   );
 }
 

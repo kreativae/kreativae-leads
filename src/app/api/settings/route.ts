@@ -10,12 +10,14 @@ import {
 import { getAutomationSettings, getIgConfig, getResendConfig } from "@/lib/settings-db";
 import { lerCustoPlaces } from "@/lib/places-cost";
 import { lerCustoAnthropic } from "@/lib/anthropic-cost";
+import { lerCustoSerper } from "@/lib/serper-cost";
 import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 const SECRET_KEYS: SettingKey[] = [
   "google_places_key",
+  "serper_api_key",
   "wa_app_secret",
   "ig_access_token",
   "resend_api_key",
@@ -26,6 +28,7 @@ const SECRET_KEYS: SettingKey[] = [
 
 const ENV_HINT: Partial<Record<SettingKey, string>> = {
   google_places_key: "GOOGLE_PLACES_API_KEY",
+  serper_api_key: "SERPER_API_KEY",
   wa_verify_token: "WA_VERIFY_TOKEN",
   ig_access_token: "IG_ACCESS_TOKEN",
   ig_user_id: "IG_USER_ID",
@@ -54,6 +57,7 @@ export async function GET() {
   out.resend_configured = !!(await getResendConfig());
   out.places_cost = await lerCustoPlaces();
   out.anthropic_cost = await lerCustoAnthropic();
+  out.serper_cost = await lerCustoSerper();
   // Valores efetivos (com os padrões já resolvidos) pra UI mostrar o texto
   // real do template mesmo antes de qualquer edição salva.
   out.automation_defaults = await getAutomationSettings();

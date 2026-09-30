@@ -5,6 +5,7 @@ import { ANTHROPIC_MODELS } from "@/lib/anthropic-models";
 
 export const SETTING_KEYS = [
   "google_places_key",
+  "serper_api_key",
   "anthropic_api_key",
   "anthropic_admin_api_key",
   "anthropic_model",

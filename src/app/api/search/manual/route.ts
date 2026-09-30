@@ -27,6 +27,10 @@ const CITY_BUSCA_MANUAL = "Manual";
 const SEGMENT_ANUNCIO_IA = "Anúncio (IA)";
 const CITY_ANUNCIO_IA = "IA";
 
+/** E para leads achados rodando um comando da aba Comandos. */
+const SEGMENT_COMANDOS = "Comandos (Google)";
+const CITY_COMANDOS = "Comandos";
+
 /** Busca por nome — não grava nada, só devolve candidatos pro usuário escolher. */
 export async function GET(req: Request) {
   const auth = await requireUser();
@@ -160,6 +164,7 @@ export async function POST(req: Request) {
   const facebook = o.facebook?.trim() || c.facebook;
   const linkedin = o.linkedin?.trim() || c.linkedin;
   const viaIa = body.source === "ia";
+  const viaComandos = body.source === "comandos";
   const adSummary = typeof body.adSummary === "string" ? body.adSummary.trim() : "";
   const notes = o.notes?.trim() || (viaIa && adSummary ? adSummary : null);
   const matched = matchSegment(
@@ -170,10 +175,10 @@ export async function POST(req: Request) {
   const [search] = await db
     .insert(searches)
     .values({
-      segment: viaIa ? SEGMENT_ANUNCIO_IA : SEGMENT_BUSCA_MANUAL,
-      city: viaIa ? CITY_ANUNCIO_IA : CITY_BUSCA_MANUAL,
+      segment: viaIa ? SEGMENT_ANUNCIO_IA : viaComandos ? SEGMENT_COMANDOS : SEGMENT_BUSCA_MANUAL,
+      city: viaIa ? CITY_ANUNCIO_IA : viaComandos ? CITY_COMANDOS : CITY_BUSCA_MANUAL,
       country,
-      source: viaIa ? "ia" : "places",
+      source: viaIa ? "ia" : viaComandos ? "comandos" : "places",
       mode: "city",
       status: "running",
     })
@@ -279,7 +284,7 @@ export async function POST(req: Request) {
   await logEvent({
     source: "search",
     status: "ok",
-    message: `Busca manual: ${inserted.companyName}`,
+    message: `${viaComandos ? "Comandos" : "Busca manual"}: ${inserted.companyName}`,
     leadId: inserted.id,
   });
 

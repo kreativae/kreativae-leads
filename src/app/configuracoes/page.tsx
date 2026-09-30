@@ -89,6 +89,12 @@ interface CustoPlaces {
   precoPorRequisicao: number;
   custoUsd: number;
 }
+interface CustoSerper {
+  consultas: number;
+  desde: string | null;
+  precoPorConsulta: number;
+  custoUsd: number;
+}
 interface CustoAnthropicModelo {
   modelId: string;
   label: string;
@@ -136,6 +142,7 @@ type SettingsMeta = Record<string, SecretMeta & PlainMeta> & {
   ig_configured?: boolean;
   resend_configured?: boolean;
   places_cost?: CustoPlaces;
+  serper_cost?: CustoSerper;
   anthropic_cost?: CustoAnthropic;
   automation_defaults?: AutomationDefaults;
 };
@@ -304,6 +311,7 @@ function WaTemplateEditor({
 
 const SECRET_FIELDS = [
   "google_places_key",
+  "serper_api_key",
   "wa_app_secret",
   "ig_access_token",
   "resend_api_key",
@@ -333,6 +341,7 @@ export default function ConfiguracoesPage() {
   const [meta, setMeta] = useState<SettingsMeta>({});
   const [values, setValues] = useState<Record<string, string>>({
     google_places_key: "",
+    serper_api_key: "",
     anthropic_api_key: "",
     anthropic_admin_api_key: "",
     anthropic_model: ANTHROPIC_MODELS[0].id,
@@ -424,10 +433,13 @@ export default function ConfiguracoesPage() {
     carregarGastoAnthropic();
   }, [carregarGastoAnthropic]);
 
-  const [zerandoCusto, setZerandoCusto] = useState<"places" | "anthropic" | null>(null);
+  const [zerandoCusto, setZerandoCusto] = useState<"places" | "serper" | "anthropic" | null>(
+    null,
+  );
 
-  async function zerarCusto(which: "places" | "anthropic") {
-    const nome = which === "places" ? "do Google Places" : "da IA";
+  async function zerarCusto(which: "places" | "serper" | "anthropic") {
+    const nome =
+      which === "places" ? "do Google Places" : which === "serper" ? "das buscas no Google (Serper)" : "da IA";
     if (
       !window.confirm(
         `Zerar o custo acumulado ${nome}? A contagem recomeça do zero. Isso não mexe na fatura real.`,
@@ -519,6 +531,7 @@ export default function ConfiguracoesPage() {
       setValues((v) => ({
         ...v,
         google_places_key: "",
+        serper_api_key: "",
         anthropic_api_key: "",
         anthropic_admin_api_key: "",
         wa_access_token: "",
@@ -677,6 +690,18 @@ export default function ConfiguracoesPage() {
                 value={values.google_places_key}
                 onChange={(v) => setValues((s) => ({ ...s, google_places_key: v }))}
                 onRemove={() => removeSecret("google_places_key")}
+              />
+            </div>
+
+            <div className="mt-4">
+              <SecretInput
+                label="Serper API Key (aba Comandos)"
+                hint="Crie em serper.dev → API Key. Roda os comandos da aba Comandos direto aqui, sem abrir o Google. 2.500 buscas grátis, depois ~US$ 1 a cada 1.000."
+                masked={meta.serper_api_key?.masked}
+                fromEnv={meta.serper_api_key?.fromEnv}
+                value={values.serper_api_key}
+                onChange={(v) => setValues((s) => ({ ...s, serper_api_key: v }))}
+                onRemove={() => removeSecret("serper_api_key")}
               />
             </div>
 
@@ -1078,7 +1103,7 @@ export default function ConfiguracoesPage() {
           <Section
             icon={Receipt}
             title="Custo das APIs"
-            desc="Estimativa a partir das chamadas de fato feitas ao Google Places."
+            desc="Estimativa a partir das chamadas de fato feitas ao Google Places e ao Serper."
             className="xl:col-span-2"
           >
             <CustoPlacesBlock
@@ -1086,6 +1111,13 @@ export default function ConfiguracoesPage() {
               zerando={zerandoCusto === "places"}
               onZerar={() => zerarCusto("places")}
             />
+            {meta.serper_cost && meta.serper_cost.consultas > 0 && (
+              <CustoSerperBlock
+                custo={meta.serper_cost}
+                zerando={zerandoCusto === "serper"}
+                onZerar={() => zerarCusto("serper")}
+              />
+            )}
           </Section>
 
           {/* Custo IA — só aparece com o toggle "Gasto real da IA" ligado, lá em cima */}
@@ -1138,6 +1170,57 @@ function BotaoZerarCusto({ zerando, onClick }: { zerando: boolean; onClick: () =
       {zerando ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}{" "}
       Limpar custos
     </button>
+  );
+}
+
+function CustoSerperBlock({
+  custo,
+  zerando,
+  onZerar,
+}: {
+  custo: CustoSerper;
+  zerando: boolean;
+  onZerar: () => void;
+}) {
+  const formatUsd = (v: number) =>
+    v.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  return (
+    <div className="mt-5 space-y-3.5 border-t border-white/[0.06] pt-5">
+      <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div>
+          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-zinc-500">
+            Buscas no Google (Serper) acumulado
+          </p>
+          <p className="font-display text-[28px] font-bold leading-tight text-white">
+            {formatUsd(custo.custoUsd)}
+          </p>
+        </div>
+        <div className="pb-1 text-[12.5px] text-zinc-400">
+          <span className="font-semibold text-zinc-200 tabular-nums">
+            {custo.consultas.toLocaleString("pt-BR")}
+          </span>{" "}
+          consulta{custo.consultas === 1 ? "" : "s"}
+          {custo.desde && <> · contando desde {formatDate(custo.desde)}</>}
+        </div>
+        <div className="ml-auto pb-1">
+          <BotaoZerarCusto zerando={zerando} onClick={onZerar} />
+        </div>
+      </div>
+      <p className="rounded-xl border border-white/[0.07] bg-ink/60 px-4 py-3 text-[11.5px] leading-relaxed text-zinc-500">
+        Cada página de 10 resultados rodada na aba Comandos é uma consulta, contada a US$ 1 a
+        cada 1.000 (pacote de entrada). As 2.500 primeiras da conta são grátis e pacotes maiores
+        saem mais baratos — então é um teto, não a fatura. O saldo real fica no{" "}
+        <a
+          href="https://serper.dev/dashboard"
+          target="_blank"
+          rel="noreferrer"
+          className="text-volt hover:underline"
+        >
+          painel do Serper
+        </a>
+        .
+      </p>
+    </div>
   );
 }
 
