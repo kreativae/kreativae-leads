@@ -32,6 +32,7 @@ export const SETTING_KEYS = [
   "automation_enabled",
   "vercel_api_token",
   "nav_order", // JSON com a ordem dos hrefs do menu lateral — compartilhada, nao por navegador
+  "comandos_modelos", // JSON com os modelos salvos da aba Comandos — compartilhados entre a equipe
 ] as const;
 
 /**
