@@ -81,3 +81,21 @@ export function formatPhone(
   }
   return raw;
 }
+
+/**
+ * País indicado pelo próprio número, só quando o código do país está
+ * escrito (+351/00351 ou +55/0055, ou dígitos já no formato com código).
+ * Número sem código não diz nada — devolve null em vez de chutar.
+ */
+export function paisPeloTelefone(raw: string | null | undefined): "BR" | "PT" | null {
+  if (!raw) return null;
+  const v = raw.trim();
+  const d = digitsOnly(v);
+  const comCodigo = v.startsWith("+") || d.startsWith("00");
+  const semZeros = d.replace(/^00/, "");
+  if ((comCodigo && semZeros.startsWith("351")) || (semZeros.startsWith("351") && semZeros.length === 12))
+    return "PT";
+  if ((comCodigo && semZeros.startsWith("55")) || (semZeros.startsWith("55") && (semZeros.length === 12 || semZeros.length === 13)))
+    return "BR";
+  return null;
+}

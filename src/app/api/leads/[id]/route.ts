@@ -34,6 +34,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
     email?: unknown;
     ownerName?: unknown;
     website?: unknown;
+    address?: unknown;
+    country?: unknown;
   };
   try {
     body = await req.json();
@@ -54,6 +56,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
     email?: string | null;
     ownerName?: string | null;
     website?: string | null;
+    address?: string | null;
+    country?: string;
     // Um site corrigido a mao invalida qualquer analise anterior: ela era
     // sobre outro site (ou sobre nao ter site nenhum).
     opportunity?: string;
@@ -89,6 +93,17 @@ export async function PATCH(req: Request, ctx: Ctx) {
   const owner = texto(body.ownerName, 120);
   if (owner !== undefined) patch.ownerName = owner;
 
+  const address = texto(body.address, 300);
+  if (address !== undefined) patch.address = address;
+
+  // País decide o idioma da abordagem (PT-BR/PT-PT), o formato dos
+  // telefones e o modelo de WhatsApp usado no primeiro contato.
+  if (body.country !== undefined) {
+    if (body.country !== "BR" && body.country !== "PT")
+      return NextResponse.json({ ok: false, error: "País inválido." }, { status: 400 });
+    patch.country = body.country;
+  }
+
   const email = texto(body.email, 160);
   if (email !== undefined) {
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))
@@ -118,7 +133,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (whats !== undefined) {
     // Numero informado a mao vale mesmo sendo fixo: quem digitou viu de onde
     // tirou. Por isso toWhatsappDigits, que nao exige formato de celular.
-    const digitos = whats ? toWhatsappDigits(whats, atual.country) : null;
+    const digitos = whats ? toWhatsappDigits(whats, patch.country ?? atual.country) : null;
     if (whats && !digitos)
       return NextResponse.json(
         { ok: false, error: "Número de WhatsApp inválido." },
@@ -130,7 +145,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 
   // Mexer em contato muda a riqueza do lead: recalcula para a ordenacao
   // "dados mais completos" continuar honesta.
-  if (patch.phone !== undefined || patch.whatsapp !== undefined || patch.email !== undefined || patch.ownerName !== undefined || patch.website !== undefined) {
+  if (patch.phone !== undefined || patch.whatsapp !== undefined || patch.email !== undefined || patch.ownerName !== undefined || patch.website !== undefined || patch.address !== undefined) {
     const merged = { ...atual, ...patch };
     patch.contactScore = contactScore({
       osmId: merged.osmId,

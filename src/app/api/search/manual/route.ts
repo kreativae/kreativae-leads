@@ -9,7 +9,7 @@ import { registrarRequisicoesPlaces } from "@/lib/places-cost";
 import { getEffectiveSetting } from "@/lib/settings-db";
 import { requireUser } from "@/lib/auth";
 import { logEvent } from "@/lib/system-log";
-import { toWhatsappDigits } from "@/lib/phone";
+import { paisPeloTelefone, toWhatsappDigits } from "@/lib/phone";
 import type { SiteAnalysis } from "@/lib/site-analyzer";
 
 export const dynamic = "force-dynamic";
@@ -146,8 +146,18 @@ export async function POST(req: Request) {
   const c = body.candidate;
   if (!c || typeof c.osmId !== "string" || typeof c.companyName !== "string" || !c.companyName.trim())
     return NextResponse.json({ ok: false, error: "Candidato inválido." }, { status: 400 });
-  const country = body.country === "PT" ? "PT" : "BR";
   const o = body.overrides ?? {};
+  // Telefone com código de outro país vence o país da busca: um lead de
+  // Lisboa achado numa busca "Brasil" ainda é de Portugal, e o país decide o
+  // idioma da abordagem e o formato do WhatsApp.
+  const paisDoTelefone =
+    paisPeloTelefone(o.whatsapp) ??
+    paisPeloTelefone(o.phone) ??
+    // O telefone vem como a fonte escreveu (com o +351, quando tem); o
+    // WhatsApp já foi convertido com o país da busca, então vale menos.
+    paisPeloTelefone(c.phone) ??
+    paisPeloTelefone(c.whatsapp ? `+${c.whatsapp}` : null);
+  const country = paisDoTelefone ?? (body.country === "PT" ? "PT" : "BR");
 
   // Campos "personalizados" antes de adicionar: só sobrescreve quando o
   // usuário de fato editou (texto não-vazio); senão fica o que o Google achou.

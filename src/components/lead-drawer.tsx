@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import {
+  AlertTriangle,
   AtSign,
   Building2,
   Check,
@@ -71,7 +72,7 @@ import {
   type MessageStyle,
   type Slot,
 } from "@/lib/messages";
-import { formatPhone, toWhatsappDigits } from "@/lib/phone";
+import { formatPhone, paisPeloTelefone, toWhatsappDigits } from "@/lib/phone";
 import { estaAbertoAgora } from "@/lib/opening-hours";
 import { timeAgo } from "@/lib/format";
 import { OpportunityBadge, StatusPill, statusLabel } from "@/components/badges";
@@ -404,7 +405,34 @@ export function LeadDrawer({
     whatsapp: "",
     email: "",
     website: "",
+    address: "",
+    country: "BR" as "BR" | "PT",
   });
+  const [mudandoPais, setMudandoPais] = useState(false);
+
+  // O telefone com código (+351/+55) contradiz o país do lead? Aí a
+  // abordagem sairia no idioma errado — vale avisar.
+  const paisDoTelefone =
+    paisPeloTelefone(lead.phone) ??
+    paisPeloTelefone(lead.whatsapp ? `+${lead.whatsapp}` : null);
+  const paisDivergente = paisDoTelefone && paisDoTelefone !== lead.country ? paisDoTelefone : null;
+
+  async function mudarPais(pais: "BR" | "PT") {
+    setMudandoPais(true);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country: pais }),
+      });
+      const data = (await res.json()) as { ok: boolean; lead?: ClientLead };
+      if (data.ok && data.lead) onPatched(data.lead);
+    } catch {
+      /* sem rede — o selo continua mostrando o país antigo */
+    } finally {
+      setMudandoPais(false);
+    }
+  }
 
   function abrirEdicao() {
     setForm({
@@ -414,6 +442,8 @@ export function LeadDrawer({
       whatsapp: lead.whatsapp ? `+${lead.whatsapp}` : "",
       email: lead.email ?? "",
       website: lead.website ?? "",
+      address: lead.address ?? "",
+      country: lead.country === "PT" ? "PT" : "BR",
     });
     setErroContato(null);
     setEditandoContato(true);
@@ -432,6 +462,8 @@ export function LeadDrawer({
           whatsapp: form.whatsapp,
           email: form.email,
           website: form.website,
+          address: form.address,
+          country: form.country,
         }),
       });
       const data = (await res.json()) as {
@@ -814,9 +846,10 @@ export function LeadDrawer({
                   [
                     ["ownerName", "Responsável", "Nome de quem atende"],
                     ["phone", "Telefone", "+55 43 3322-1234"],
-                    ["whatsapp", "WhatsApp", lead.country === "PT" ? "+351 912 345 678" : "+55 43 99999-9999"],
+                    ["whatsapp", "WhatsApp", form.country === "PT" ? "+351 912 345 678" : "+55 43 99999-9999"],
                     ["email", "E-mail", "contato@empresa.com"],
                     ["website", "Site", "empresa.com"],
+                    ["address", "Endereço", form.country === "PT" ? "Rua Augusta, 100, Lisboa" : "Rua das Flores, 120, Centro"],
                   ] as const
                 ).map(([campo, rotulo, exemplo]) => (
                   <label key={campo} className="block">
@@ -833,6 +866,31 @@ export function LeadDrawer({
                     />
                   </label>
                 ))}
+                <div>
+                  <span className="text-[11.5px] font-medium text-zinc-500">País</span>
+                  <div className="mt-1 flex items-center gap-3">
+                    <div className="inline-flex rounded-full border border-white/[0.09] bg-ink p-1">
+                      {(["BR", "PT"] as const).map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, country: p }))}
+                          aria-pressed={form.country === p}
+                          className={`rounded-full px-3.5 py-1 text-[12px] font-bold transition-colors ${
+                            form.country === p
+                              ? "bg-volt text-onvolt"
+                              : "text-zinc-500 hover:text-zinc-200"
+                          }`}
+                        >
+                          {p === "BR" ? "Brasil" : "Portugal"}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[11.5px] text-zinc-500">
+                      Define o idioma da abordagem ({form.country === "PT" ? "PT-PT" : "PT-BR"}).
+                    </span>
+                  </div>
+                </div>
                 <p className="text-[11.5px] leading-relaxed text-zinc-500">
                   O WhatsApp aceita fixo: se você viu o número no site do
                   cliente, ele vale mesmo sem cara de celular. E se a
@@ -868,6 +926,25 @@ export function LeadDrawer({
               </div>
             ) : (
             <div className="space-y-2.5 text-[13.5px]">
+              {paisDivergente && (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3.5 py-2.5 text-[12px] text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    O telefone é {paisDivergente === "PT" ? "de Portugal" : "do Brasil"}, mas o lead
+                    está marcado como {lead.country === "PT" ? "Portugal" : "Brasil"}: a abordagem
+                    sai em {lead.country === "PT" ? "PT-PT" : "PT-BR"}.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => mudarPais(paisDivergente)}
+                    disabled={mudandoPais}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 px-3 py-1 font-semibold hover:bg-amber-400/10 disabled:opacity-50"
+                  >
+                    {mudandoPais && <Loader2 className="h-3 w-3 animate-spin" />}
+                    Mudar para {paisDivergente === "PT" ? "Portugal" : "Brasil"}
+                  </button>
+                </div>
+              )}
               <DrawerRow icon={User2} label="Responsável">
                 {lead.ownerName ?? <span className="text-zinc-600">Não identificado</span>}
               </DrawerRow>
@@ -1637,9 +1714,17 @@ export function LeadDrawer({
                     )}
                   </button>
                 </div>
-                <span className="text-[11px] font-medium text-zinc-600">
+                <button
+                  type="button"
+                  onClick={() => mudarPais(lead.country === "PT" ? "BR" : "PT")}
+                  disabled={mudandoPais}
+                  title={`A abordagem segue o país do lead (${
+                    lead.country === "PT" ? "Portugal" : "Brasil"
+                  }). Clique para trocar para ${lead.country === "PT" ? "Brasil (PT-BR)" : "Portugal (PT-PT)"}.`}
+                  className="rounded-full px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 underline decoration-dotted underline-offset-2 transition-colors hover:text-volt disabled:opacity-50"
+                >
                   {lead.country === "PT" ? "PT-PT" : "PT-BR"}
-                </span>
+                </button>
               </div>
             </div>
             {mostrarFavoritos && (
