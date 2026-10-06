@@ -29,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { formatPhone } from "@/lib/phone";
+import { dominioRegistravel } from "@/lib/dominio";
 import { timeAgo } from "@/lib/format";
 
 interface Candidate {
@@ -255,7 +256,11 @@ export default function BuscadorPage() {
     if (modo === "dominio") {
       // Sem final nenhum digitado (nem um ponto) — completa com .com.br,
       // o mais comum por aqui, em vez de obrigar a digitar tudo.
-      const dominioCompleto = termo.includes(".") ? termo : `${termo}.com.br`;
+      // "www.kreativ.ae" ou uma URL colada viram o domínio registrável
+      // ("kreativ.ae") — www/subdomínio não se registra à parte.
+      const dominioCompleto = termo.includes(".")
+        ? dominioRegistravel(termo)
+        : `${termo.toLowerCase()}.com.br`;
       if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(dominioCompleto)) {
         setError("Digite um domínio válido — ex.: seudominio.com.br");
         return;

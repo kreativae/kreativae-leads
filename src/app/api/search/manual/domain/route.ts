@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { consultarWhois } from "@/lib/whois";
+import { dominioRegistravel } from "@/lib/dominio";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -85,7 +86,9 @@ export async function GET(req: Request) {
   if (auth.error) return auth.error;
 
   const sp = new URL(req.url).searchParams;
-  const dominio = (sp.get("domain") ?? "").trim().toLowerCase();
+  // "www.x.com" ou uma URL inteira: consulta o domínio registrável, senão o
+  // registro não conhece o nome e a resposta vira um falso "disponível".
+  const dominio = dominioRegistravel(sp.get("domain") ?? "");
   if (!dominio || !DOMINIO_REGEX.test(dominio))
     return NextResponse.json(
       { ok: false, error: "Domínio inválido — use o formato seudominio.com.br." },
