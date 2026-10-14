@@ -47,6 +47,22 @@ interface WaWebhookPayload {
           sticker?: { id?: string; mime_type?: string };
           document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
         }[];
+        // Coexistência (mesmo número no app WhatsApp Business e na API): o que
+        // a gente manda PELO CELULAR chega aqui, no campo smb_message_echoes.
+        // Mesmo formato de "messages", mas "from" é o nosso número e "to" é o
+        // cliente.
+        message_echoes?: {
+          from?: string;
+          to?: string;
+          id?: string;
+          type?: string;
+          text?: { body?: string };
+          image?: { id?: string; mime_type?: string; caption?: string };
+          video?: { id?: string; mime_type?: string; caption?: string };
+          audio?: { id?: string; mime_type?: string };
+          sticker?: { id?: string; mime_type?: string };
+          document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
+        }[];
         statuses?: {
           id?: string;
           status?: string;
@@ -354,6 +370,74 @@ export async function POST(req: Request) {
             status: "ok",
             message: `Mensagem de ${phone}: ${bodyText.slice(0, 80)}`,
             leadId,
+          });
+        }
+
+        // Enviadas pelo app do celular (coexistência). Entram como mensagens
+        // nossas ("out"), sem contar como não lida nem mexer em
+        // lastInboundAt — que marca a janela de 24h aberta pelo CLIENTE.
+        for (const echo of value.message_echoes ?? []) {
+          if (!echo.to || !echo.id) continue;
+          const phone = echo.to.replace(/\D+/g, "");
+
+          const existing = await db
+            .select({ id: messages.id })
+            .from(messages)
+            .where(eq(messages.waMessageId, echo.id))
+            .limit(1);
+          if (existing.length > 0) continue;
+
+          const tipoMidia = TIPOS_MIDIA.find((t) => t === echo.type);
+          const midia = tipoMidia
+            ? await resolverMidiaInbound(
+                echo as unknown as Record<string, unknown>,
+                tipoMidia,
+                waAccount?.accessToken,
+              )
+            : null;
+          const bodyText =
+            echo.type === "text"
+              ? (echo.text?.body ?? "")
+              : midia?.ok
+                ? midia.caption
+                : (midia as MidiaFalha | null)?.placeholder ?? `[${echo.type ?? "mídia"} enviada]`;
+
+          const leadId = await findLeadByPhone(phone);
+          const now = new Date();
+          const [convo] = await db
+            .insert(conversations)
+            .values({
+              contactPhone: phone,
+              leadId,
+              waAccountId: waAccount?.id ?? null,
+              lastMessageAt: now,
+              lastMessagePreview: bodyText.slice(0, 140),
+              unreadCount: 0,
+              updatedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [conversations.contactPhone, conversations.waAccountId],
+              set: {
+                leadId: sql`coalesce(${conversations.leadId}, ${leadId})`,
+                lastMessageAt: now,
+                lastMessagePreview: bodyText.slice(0, 140),
+                // Respondeu pelo celular = já leu a conversa.
+                unreadCount: 0,
+                updatedAt: now,
+              },
+            })
+            .returning();
+
+          await db.insert(messages).values({
+            conversationId: convo.id,
+            direction: "out",
+            body: bodyText,
+            waMessageId: echo.id,
+            status: "sent",
+            type: midia?.ok ? midia.type : "text",
+            mediaUrl: midia?.ok ? midia.mediaUrl : null,
+            mimeType: midia?.ok ? midia.mimeType : null,
+            fileName: midia?.ok ? midia.fileName : null,
           });
         }
       }
