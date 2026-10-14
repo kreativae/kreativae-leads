@@ -78,6 +78,13 @@
       "when": 1789741069494,
       "tag": "0010_silly_iron_fist",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791985607540,
+      "tag": "0011_breezy_imperial_guard",
+      "breakpoints": true
     }
   ]
 }

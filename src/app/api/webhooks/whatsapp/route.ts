@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/db";
 import { conversations, leads, messages } from "@/db/schema";
+import { garantirColunasMensagens } from "@/lib/garantir-colunas";
 import { and, eq, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { getEffectiveSetting, getWaAccountByPhoneNumberId } from "@/lib/settings-db";
 import { downloadWaMedia, getWaMediaMeta } from "@/lib/whatsapp";
@@ -66,6 +67,8 @@ interface WaWebhookPayload {
         statuses?: {
           id?: string;
           status?: string;
+          /** Unix em segundos, como string — quando aconteceu de fato no aparelho. */
+          timestamp?: string;
           errors?: { code?: number; title?: string; message?: string }[];
         }[];
       };
@@ -232,6 +235,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  await garantirColunasMensagens();
+
   try {
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
@@ -240,15 +245,35 @@ export async function POST(req: Request) {
         // Delivery/read receipts for our outbound messages
         for (const st of value.statuses ?? []) {
           if (!st.id || !st.status) continue;
+          // Hora do evento no aparelho (o webhook pode chegar atrasado ou
+          // fora de ordem); sem ela, a hora em que o aviso chegou aqui.
+          const segundos = Number(st.timestamp);
+          const quando = Number.isFinite(segundos) && segundos > 0 ? new Date(segundos * 1000) : new Date();
           if (st.status === "read") {
+            // "Lida" às vezes chega sem o "entregue" antes: quem leu
+            // recebeu, então preenche a entrega também se estiver vazia.
             await db
               .update(messages)
-              .set({ status: "read" })
+              .set({
+                status: "read",
+                readAt: sql`coalesce(${messages.readAt}, ${quando})`,
+                deliveredAt: sql`coalesce(${messages.deliveredAt}, ${quando})`,
+              })
               .where(eq(messages.waMessageId, st.id));
-          } else if (st.status === "delivered" || st.status === "sent") {
+          } else if (st.status === "delivered") {
             await db
               .update(messages)
-              .set({ status: st.status })
+              .set({ deliveredAt: sql`coalesce(${messages.deliveredAt}, ${quando})` })
+              .where(eq(messages.waMessageId, st.id));
+            // O status só avança: um "delivered" atrasado não desfaz o "read".
+            await db
+              .update(messages)
+              .set({ status: "delivered" })
+              .where(and(eq(messages.waMessageId, st.id), sql`${messages.status} = 'sent'`));
+          } else if (st.status === "sent") {
+            await db
+              .update(messages)
+              .set({ status: "sent" })
               .where(
                 and(
                   eq(messages.waMessageId, st.id),

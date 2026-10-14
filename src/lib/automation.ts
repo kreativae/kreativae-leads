@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { conversations, leads, messages } from "@/db/schema";
+import { garantirColunasMensagens } from "@/lib/garantir-colunas";
 import { and, desc, eq } from "drizzle-orm";
 import {
   getAutomationSettings,
@@ -75,6 +76,7 @@ export async function sendViaWhatsapp(
   lead: AutomationLead,
   partesEntrada: string[],
 ): Promise<EnvioResult> {
+  await garantirColunasMensagens();
   const partes = partesEntrada
     .filter((m) => typeof m === "string" && m.trim().length > 0)
     .map((m) => m.trim())

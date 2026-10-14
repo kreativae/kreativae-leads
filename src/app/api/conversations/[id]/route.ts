@@ -6,6 +6,7 @@ import { getWaAccount } from "@/lib/settings-db";
 import { sendWaMedia, sendWaText, waMediaTypeFromMime } from "@/lib/whatsapp";
 import { requireUser } from "@/lib/auth";
 import { logEvent } from "@/lib/system-log";
+import { garantirColunasMensagens } from "@/lib/garantir-colunas";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, ctx: Ctx) {
   const auth = await requireUser();
   if (auth.error) return auth.error;
+  await garantirColunasMensagens();
   const { id } = await ctx.params;
   const rows = await db
     .select()
@@ -75,6 +77,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
 export async function POST(req: Request, ctx: Ctx) {
   const auth = await requireUser();
   if (auth.error) return auth.error;
+  await garantirColunasMensagens();
   const { id } = await ctx.params;
   let body: { body?: unknown; mediaUrl?: unknown; mimeType?: unknown; filename?: unknown };
   try {

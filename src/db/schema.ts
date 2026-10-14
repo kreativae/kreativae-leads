@@ -188,6 +188,10 @@ export const messages = pgTable(
     mediaUrl: text("media_url"),
     mimeType: text("mime_type"),
     fileName: text("file_name"),
+    // Quando a Meta avisou que chegou no aparelho do cliente / que ele leu
+    // (status "delivered" / "read" do webhook) — os dois tiques do WhatsApp.
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

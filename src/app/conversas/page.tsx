@@ -79,6 +79,31 @@ interface ThreadMessage {
   mediaUrl: string | null;
   mimeType: string | null;
   fileName: string | null;
+  deliveredAt: string | null;
+  readAt: string | null;
+}
+
+/** "hoje, 10:09" / "ontem, 18:30" / "14/10, 10:09" — como o "Dados da mensagem" do WhatsApp. */
+function quandoCurto(iso: string): string {
+  const d = new Date(iso);
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const hoje = new Date();
+  const ontem = new Date(hoje);
+  ontem.setDate(hoje.getDate() - 1);
+  if (d.toDateString() === hoje.toDateString()) return `hoje, ${hora}`;
+  if (d.toDateString() === ontem.toDateString()) return `ontem, ${hora}`;
+  return `${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}, ${hora}`;
+}
+
+/** Texto do tooltip dos tiques: o que se sabe de entrega e leitura. */
+function resumoEntrega(m: ThreadMessage): string {
+  if (m.status === "failed") return "O WhatsApp não conseguiu entregar essa mensagem";
+  const partes = [`Enviada ${quandoCurto(m.createdAt)}`];
+  if (m.deliveredAt) partes.push(`Entregue ${quandoCurto(m.deliveredAt)}`);
+  else if (m.status === "delivered" || m.status === "read") partes.push("Entregue");
+  if (m.readAt) partes.push(`Lida ${quandoCurto(m.readAt)}`);
+  else if (m.status === "read") partes.push("Lida");
+  return partes.join(" · ");
 }
 
 interface LeadPickResult {
@@ -127,6 +152,8 @@ export default function ConversasPage() {
   const [convos, setConvos] = useState<ConversationRow[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadMessage[]>([]);
+  // Mensagem nossa com os detalhes de entrega abertos (clique nos tiques).
+  const [infoAberta, setInfoAberta] = useState<string | null>(null);
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [composer, setComposer] = useState("");
   const [sending, setSending] = useState(false);
@@ -820,21 +847,62 @@ export default function ConversasPage() {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
-                            {m.direction === "out" &&
-                              (m.status === "read" ? (
-                                <CheckCheck className="h-3 w-3 text-sky-700" />
-                              ) : m.status === "delivered" ? (
-                                <CheckCheck className="h-3 w-3" />
-                              ) : m.status === "sent" ? (
-                                <Check className="h-3 w-3" />
-                              ) : m.status === "failed" ? (
-                                <span title="O WhatsApp não conseguiu entregar essa mensagem">
+                            {m.direction === "out" && (
+                              <button
+                                type="button"
+                                onClick={() => setInfoAberta((a) => (a === m.id ? null : m.id))}
+                                title={resumoEntrega(m)}
+                                aria-label={`Detalhes de entrega: ${resumoEntrega(m)}`}
+                                aria-expanded={infoAberta === m.id}
+                                className="-m-1 rounded p-1 transition-opacity hover:opacity-70"
+                              >
+                                {m.status === "read" ? (
+                                  <CheckCheck className="h-3 w-3 text-sky-700" />
+                                ) : m.status === "delivered" ? (
+                                  <CheckCheck className="h-3 w-3" />
+                                ) : m.status === "sent" ? (
+                                  <Check className="h-3 w-3" />
+                                ) : m.status === "failed" ? (
                                   <TriangleAlert className="h-3 w-3 text-rose-400" />
-                                </span>
-                              ) : (
-                                <Clock5 className="h-3 w-3" />
-                              ))}
+                                ) : (
+                                  <Clock5 className="h-3 w-3" />
+                                )}
+                              </button>
+                            )}
                           </div>
+                          {m.direction === "out" && infoAberta === m.id && (
+                            <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 border-t border-onvolt/15 pt-1.5 text-[11px] text-onvolt/80">
+                              {m.status === "failed" ? (
+                                <>
+                                  <dt className="font-semibold">Falhou</dt>
+                                  <dd>o WhatsApp não entregou</dd>
+                                </>
+                              ) : (
+                                <>
+                                  <dt className="flex items-center gap-1 font-semibold">
+                                    <CheckCheck className="h-3 w-3 text-sky-700" /> Lida
+                                  </dt>
+                                  <dd>
+                                    {m.readAt
+                                      ? quandoCurto(m.readAt)
+                                      : m.status === "read"
+                                        ? "sem horário registrado"
+                                        : "—"}
+                                  </dd>
+                                  <dt className="flex items-center gap-1 font-semibold">
+                                    <CheckCheck className="h-3 w-3" /> Entregue
+                                  </dt>
+                                  <dd>
+                                    {m.deliveredAt
+                                      ? quandoCurto(m.deliveredAt)
+                                      : m.status === "delivered" || m.status === "read"
+                                        ? "sem horário registrado"
+                                        : "—"}
+                                  </dd>
+                                </>
+                              )}
+                            </dl>
+                          )}
                         </div>
                       </motion.div>
                     ))}
